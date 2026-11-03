@@ -29,7 +29,7 @@ async function top() {
   const mada = localKids().filter((k) => !k.owari);
   app.innerHTML = `
     <h1>チカラのスイッチ</h1>
-    <p>同じ問題を、出し方（読む・聞く・図を添える・区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
+    <p>同じ問題を、出し方（読む・聞く・図で見る・一文ずつ区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
     <div class="entrance">
       <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子2人（差が出た子・差が出なかった子）の結果を、先生の画面で見ます。</span></div></a>
       <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②ゲーム → ③カード → ④先生の画面 → ⑤伝え方 → ⑥学習につなぐ、を順に動かします。</span></div></a>
@@ -117,7 +117,7 @@ function seikaiCell(arr, kazu) {
 function byou(arr) {
   return arr.length ? arr.map((ms) => (ms == null ? '—' : `${Math.round(ms / 1000)}秒`)).join('・') : '—';
 }
-const TANA_MEI = { A: '読む／聞く', B: '文だけ／図を添える', C: '続けて書く／区切る' };
+const TANA_MEI = { A: '読む／聞く', B: '文で見る／図で見る', C: '一気に／区切って' };
 function kekkaBun(m) {
   if (m.kekka === 'mada') return 'まだ2回そろっていないので、比べていない';
   if (m.kekka === 'nashi') return '揺れより大きい差は、同じ向きに2回は出なかった。どちらの出し方でも同じくらい力を出せた（差なし）';
@@ -227,8 +227,8 @@ async function check() {
     <h1>チェック項目</h1>
     <p>期末や懇談の前に、授業で見た事実に当てはまる子を、項目ごとに選びます。</p>
     <div class="box chui small">点数にしません。基準を作りません。数も数えません。当てはまったことは「気づきの候補」として、その子の先生の画面に残るだけです。</div>
-    <p class="draft">項目は下書き（先生未確認）です。</p>
-    <div id="items">${mieruKoumoku(checklist).map((it) => `
+    <div id="items">${mieruKoumoku(checklist).map((it, i, arr) => `
+      ${it.まとまり && it.まとまり !== arr[i - 1]?.まとまり ? `<h2>${esc(it.まとまり)}</h2>` : ''}
       <div class="check-item"><div>${esc(it.文)}</div>
         <div class="chips">${kids.map((k) => `<button class="chip" data-item="${it.id}" data-kid="${esc(k.id)}" aria-pressed="${(marks[it.id] || []).includes(k.id)}">${esc(k.id)}</button>`).join('')}</div>
       </div>`).join('')}</div>
@@ -303,9 +303,11 @@ async function gakushu(id) {
   const cardId = rec?.owari ? erabuCard(rec) : 'tameshita';
   const c = cards.カード[cardId];
   const yomiageOK = await junbiYomiage();
-  const sw = { kiku: cardId === 'kiku', kugiri: false, zu: false };
+  const sw = { kiku: cardId === 'kiku', kugiri: cardId === 'kugiru', zu: cardId === 'zu' };
   const naze = {
     kiku: 'きくスイッチで出しています。問題文を読み上げます。',
+    zu: 'ずスイッチで出しています。場面の図を添えています。',
+    kugiru: 'くぎるスイッチで出しています。問題文を一文ずつ分けています。',
     yomu: 'よむスイッチで出しています。自分のペースで、何回でも読み返せます。',
     dore: 'どれでもスイッチです。使いたいスイッチを、自分で選んでね。',
     tameshita: '使いたいスイッチを、自分で選んでね。',
@@ -317,11 +319,11 @@ async function gakushu(id) {
       <p><span class="label" style="background:${esc(c.色)};color:#fff">${esc(c.名前)}</span>${esc(naze)}</p>
       <div class="toggle" role="group" aria-label="出し方のスイッチ">
         <button data-sw="kiku" aria-pressed="${sw.kiku}" ${yomiageOK ? '' : 'disabled'}>読み上げ</button>
-        <button data-sw="kugiri" aria-pressed="${sw.kugiri}">区切る</button>
-        <button data-sw="zu" aria-pressed="${sw.zu}">図を添える</button>
+        <button data-sw="kugiri" aria-pressed="${sw.kugiri}">一文ずつ</button>
+        <button data-sw="zu" aria-pressed="${sw.zu}">図で見る</button>
       </div>
       ${yomiageOK ? '' : '<p class="muted small">この端末では読み上げが使えません。</p>'}
-      <div class="honbun" style="margin-top:12px">${sw.kugiri ? g.区切り.map((s) => s.map((x) => `<span class="gyou">${esc(x)}</span>`).join('')).join('') : esc(zenbun)}</div>
+      <div class="honbun" style="margin-top:12px">${sw.kugiri ? g.本文.map((x) => `<p>${esc(x)}</p>`).join('') : esc(zenbun)}</div>
       ${sw.kiku ? '<div class="btns"><button class="sub" id="play">▶ 問題文を聞く</button></div>' : ''}
       ${sw.zu ? `<div class="box">${tapeZu(g.図)}</div>` : ''}
       <div class="btns tate">${g.選択肢.map((x, i) => `<button class="choice" data-i="${i}">${esc(x)}</button>`).join('')}</div>

@@ -18,9 +18,12 @@ function files(dir) {
 }
 
 const kekka = {};
+// 06 の3章で「公開の説明に出さない」とされた言葉（言葉の正本に無いもの）も、ここで探す
+const ROKU_NO_KOTOBA = ['簡易検査'];
 function kiroku(name, texts) {
   const hits = [];
   texts.forEach((t, i) => tenken(t).forEach((h) => hits.push({ 場所: `${name}#${i}`, 言葉: h.言葉, 文: t.slice(Math.max(0, h.位置 - 15), h.位置 + 15) })));
+  texts.forEach((t, i) => ROKU_NO_KOTOBA.forEach((w) => { if (t.includes(w)) hits.push({ 場所: `${name}#${i}`, 言葉: w, 文: t.slice(0, 30) }); }));
   kekka[name] = { 点検した文: texts.length, 避ける言葉: hits.length, hits };
 }
 
@@ -42,7 +45,7 @@ let kumiawase = 0;
 const kotaeRei = Object.values(tana.D.質問).map((q) => q.選択肢[1]);
 for (const saisho of ['yomu', 'kiku']) {
   for (const irekae of [false, true]) {
-    const junban = { A: { saisho, irekae }, B: { saisho: irekae ? 'zu' : 'bun', irekae }, C: { saisho: irekae ? 'kugiri' : 'tsuzuke', irekae } };
+    const junban = { A: { saisho, irekae }, B: { saisho: irekae ? 'zu' : 'bun', irekae }, C: { saisho: irekae ? 'kugiri' : 'ikki', irekae } };
     for (let n = 0; n < 5 ** 4; n++) {
       const s = [n % 5, Math.floor(n / 5) % 5, Math.floor(n / 25) % 5, Math.floor(n / 125) % 5];
       const b = s.map((x) => x % 3); // 図の組は問いが2つ
@@ -59,7 +62,7 @@ for (const saisho of ['yomu', 'kiku']) {
   }
 }
 // 途中の記録（まだ比べていない）
-yobiTexts.push(...mojiretsu(yobiKasetsu({ junban: { A: { saisho: 'yomu' }, B: { saisho: 'bun' }, C: { saisho: 'tsuzuke' } }, kekka: {} }, tana, [])));
+yobiTexts.push(...mojiretsu(yobiKasetsu({ junban: { A: { saisho: 'yomu' }, B: { saisho: 'bun' }, C: { saisho: 'ikki' } }, kekka: {} }, tana, [])));
 kiroku(`予備の動きの文（結果の組み合わせ ${kumiawase} 通り）`, [...new Set(yobiTexts)]);
 
 // 3. Claude の出力
@@ -70,7 +73,7 @@ if (process.env.TENKEN_CLAUDE === '1' && process.env.ANTHROPIC_API_KEY) {
   const tries = [];
   for (const rec of Object.values(demo.結果)) {
     for (const name of ['kasetsu', 'tsutae']) {
-      const [, r] = await handle(name, 'POST', { record: rec, atehamaru: ['k02', 'k06'] }, process.env, 'tenken');
+      const [, r] = await handle(name, 'POST', { record: rec, atehamaru: ['c04', 'c14'] }, process.env, 'tenken');
       tries.push(`${rec.id}/${name}：${r.dare}${r.tenken ? `（${r.tenken.kaisu}回目で通過）` : ''}`);
       out.push(...mojiretsu({ a: r.kasetsu, b: r.tsugi, c: r.konkyo, d: r.kondan, e: r.hogosha }));
     }

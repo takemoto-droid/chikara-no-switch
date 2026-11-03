@@ -23,7 +23,7 @@ await ok('デモ1は「聞く」の候補、デモ2は差なし、デモ3は「�
   assert.equal(matomeA(demo.結果.デモ1).kakunin, 2);
 });
 
-const JB = { B: { saisho: 'bun', irekae: false }, C: { saisho: 'tsuzuke', irekae: false } };
+const JB = { B: { saisho: 'bun', irekae: false }, C: { saisho: 'ikki', irekae: false } };
 const rec = (s, saisho = 'yomu') => ({ junban: { A: { saisho, irekae: false }, ...JB }, kekka: { 'A-1': { seikai: s[0] }, 'A-2': { seikai: s[1] }, 'A-3': { seikai: s[2] }, 'A-4': { seikai: s[3] } } });
 await ok('候補は、揺れより大きい差が同じ向きに2回出たときだけ', () => {
   // 読む：A-1, A-4／聞く：A-2, A-3
@@ -73,6 +73,8 @@ await ok('どの結果でもカードは1枚で、強みのカード（この便
   assert.equal(erabuCard({ junban: rec([0, 0, 0, 0]).junban, kekka: {} }), 'tameshita');
   for (const id of ['kiku', 'zu', 'kugiru', 'kuchi', 'jikan']) assert.ok(cards.カード[id], `06 の5種類：${id}`);
   for (const c of Object.values(cards.カード)) assert.match(c.これは何か, /^この日のゲームでは/);
+  assert.ok(cards.カード.kiku.自分でできる使い方.includes('長い文は、声に出して読んでみる。'));
+  assert.ok(cards.カード.kiku.先生にお願いしてよいこと.includes('「説明は口でも言ってください」'));
 });
 
 await ok('練習が終わるまでは練習だけ。予備の順で最後まで行ける', () => {
@@ -187,7 +189,10 @@ await ok('チェック項目：候補は、先生が選んだものだけ画面�
   assert.deepEqual(mieruKoumoku(c).map((x) => x.id), ['a', 'c']);
   const real = j('public/data/checklist.json');
   assert.equal(real.項目.length, 18);
-  assert.ok(Array.isArray(real.先生が選ぶ候補));
+  assert.equal(real.項目[0].文, '解けているのに、ノートが白紙のことがある'); // 06 の5章の1
+  assert.equal(real.項目[17].文, '注意した直後は止まる（あとで個別に言うと直る）'); // 06 の5章の18
+  assert.ok(real.先生が選ぶ候補.length > 0);
+  assert.equal(mieruKoumoku(real).length, 18, '候補は画面に出ていない');
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

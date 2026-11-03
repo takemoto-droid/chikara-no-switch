@@ -144,11 +144,11 @@ try {
   await page.goto(`${BASE}#/check`);
   await page.waitForSelector('.chip');
   await mieru('チェック項目');
-  await page.locator(`.chip[data-item="k06"][data-kid="${kidId}"]`).click();
+  await page.locator(`.chip[data-item="c04"][data-kid="${kidId}"]`).click();
   await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
   const tSensei2 = await mieru('先生の画面_チェック後');
-  tashika(tSensei2.includes('問題文を読み上げると、答えられることがある'), 'チェック項目が先生の画面の (c) に出る');
+  tashika(tSensei2.includes('口で聞くと答えるが、書くと止まる'), 'チェック項目が先生の画面の (c) に出る');
 
   // ⑤ 伝え方
   await page.click('text=⑤ 伝え方の下書きへ');

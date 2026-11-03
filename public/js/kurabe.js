@@ -8,17 +8,17 @@
 export const DASHIKATA = {
   yomu: '読む',
   kiku: '聞く',
-  zu: '図を添える',
-  bun: '文だけ',
-  kugiri: '意味のまとまりで区切る',
-  tsuzuke: '続けて書く',
+  bun: '文で見る',
+  zu: '図で見る',
+  ikki: '一気に出す',
+  kugiri: '一文ずつ区切って出す',
 };
 
 // 棚ごとの比べる組（[もとの出し方, スイッチの出し方]）
 export const KUMI = {
   A: ['yomu', 'kiku'],
   B: ['bun', 'zu'],
-  C: ['tsuzuke', 'kugiri'],
+  C: ['ikki', 'kugiri'],
 };
 
 export const RENSHU = ['A-r1', 'A-r2'];
@@ -45,7 +45,7 @@ export function makeJunban(karibango) {
   return {
     A: { saisho: h & 1 ? 'kiku' : 'yomu', irekae: Boolean(h & 2) },
     B: { saisho: h & 4 ? 'zu' : 'bun', irekae: Boolean(h & 8) },
-    C: { saisho: h & 16 ? 'kugiri' : 'tsuzuke', irekae: Boolean(h & 32) },
+    C: { saisho: h & 16 ? 'kugiri' : 'ikki', irekae: Boolean(h & 32) },
   };
 }
 
@@ -109,8 +109,8 @@ export function yobiRiyuu(record, id) {
   if (id === 'A-r1') return `はじめは練習です。やり方に慣れるために、「${DASHIKATA[st.mode]}」出し方から始めます。`;
   if (id === 'A-r2') return `練習のもう1つです。今度は「${DASHIKATA[st.mode]}」出し方を試します。`;
   if (st.kind === 'A') return `読む出し方と聞く出し方を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
-  if (st.kind === 'B') return `図のある問題と文だけの問題を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
-  if (st.kind === 'C') return `区切った文章と続けて書いた文章を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
+  if (st.kind === 'B') return `文で見る問題と図で見る問題を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
+  if (st.kind === 'C') return `指示を一気に出す問題と、一文ずつ区切って出す問題を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
   return '問題が続いたので、ここで選んで答える質問を1つはさみます。';
 }
 
@@ -198,7 +198,7 @@ export function claudeNiOkuru(record, tana, atehamaru) {
   return {
     読む聞く: summary(matome(record, 'A')),
     図: summary(matome(record, 'B')),
-    区切り: summary(matome(record, 'C')),
+    一気に区切って: summary(matome(record, 'C')),
     選んだ答え: kotaeD(record, tana).map((d) => ({ 問い: d.toi, 答え: d.kotae ?? '（答えていない）' })),
     チェック項目で当てはまったこと: atehamaru,
   };

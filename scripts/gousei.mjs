@@ -29,6 +29,7 @@ const normal = () => Math.sqrt(-2 * Math.log(rnd() || 1e-12)) * Math.cos(2 * Mat
 // 仮の難しさ（問いの種類ごと）
 const B_SHURUI = { 本文どおり: -1.2, 無関係: -0.6, 言い換え: 0.4, 一語変え: 0.7 };
 const B_BAMEN = [0.0, 0.6]; // 図の問い：代金の式／代金が分かったときの式
+const B_SHIJI = [-0.8, 0.0, 0.4, 0.8]; // 一気に／区切って：手順1〜4のあとの並び（あとの手順ほど難しいと仮に置く）
 const THETA = { heikin: 0.5, bure: 1.0 };
 
 const p = (x) => 1 / (1 + Math.exp(-x));
@@ -37,8 +38,8 @@ function toku(theta, items, kouka) {
 }
 function itemsOf(st) {
   if (st.kind === 'B') return B_BAMEN;
-  const src = st.kind === 'A' ? tana.A.文章 : tana.C.文章;
-  return src[st.mondai].問い.map((q) => B_SHURUI[q.種類]);
+  if (st.kind === 'C') return B_SHIJI;
+  return tana.A.文章[st.mondai].問い.map((q) => B_SHURUI[q.種類]);
 }
 
 // 1人の合成の子に、ゲームを1回させる。kouka：出し方ごとの効き目（ロジット）
@@ -46,7 +47,7 @@ function gameWoSuru(theta, kouka) {
   const junban = {
     A: { saisho: rnd() < 0.5 ? 'yomu' : 'kiku', irekae: rnd() < 0.5 },
     B: { saisho: rnd() < 0.5 ? 'bun' : 'zu', irekae: rnd() < 0.5 },
-    C: { saisho: rnd() < 0.5 ? 'tsuzuke' : 'kugiri', irekae: rnd() < 0.5 },
+    C: { saisho: rnd() < 0.5 ? 'ikki' : 'kugiri', irekae: rnd() < 0.5 },
   };
   const kekka = {};
   for (const st of makeSteps(junban)) {
@@ -75,7 +76,7 @@ for (let i = 0; i < N; i++) {
 }
 const out = ['# 合成データでの確かめ（実在の子どもではない）', '', `合成の子 ${N} 人。乱数の種 20261103。前提は scripts/gousei.mjs の先頭に書いた仮の値。`, ''];
 out.push('## 1. 正答率（練習を除く）', '', '| 棚 | 合成の子の平均 | 5〜8割に入った子 | 9割以上の子 | 4割以下の子 |', '|---|---|---|---|---|');
-const TANA = { A: '読む／聞く', B: '図', C: '区切り' };
+const TANA = { A: '読む／聞く', B: '文で見る／図で見る', C: '一気に／区切って' };
 for (const k of ['A', 'B', 'C']) {
   const a = seitou[k];
   const m = a.reduce((x, y) => x + y, 0) / a.length;
@@ -100,12 +101,12 @@ function kouhoNoWariai(kouka) {
 }
 out.push('', '## 2. 「候補」の決まりのふるまい', '');
 out.push('「候補」は、同じ出し方を2回やったときの揺れより大きい差が、同じ向きに2回出たときだけ。', '');
-out.push('| 合成の子の設定 | 読む／聞く で候補 | 図 で候補 | 区切り で候補 | どれか1つの棚で候補 |', '|---|---|---|---|---|');
+out.push('| 合成の子の設定 | 読む／聞く で候補 | 文で見る／図で見る で候補 | 一気に／区切って で候補 | どれか1つの棚で候補 |', '|---|---|---|---|---|');
 const nashi = kouhoNoWariai({});
 out.push(`| どの出し方でも力が同じ（本当は差が無い） | ${wariai(nashi.A / N)} | ${wariai(nashi.B / N)} | ${wariai(nashi.C / N)} | ${wariai(nashi.dore3 / N)} |`);
 for (const d of [0.5, 1.0, 1.5]) {
   const ari = kouhoNoWariai({ kiku: d, zu: d, kugiri: d });
-  out.push(`| 聞く・図・区切るが効く（効き目 ${d}） | ${wariai(ari.A / N)} | ${wariai(ari.B / N)} | ${wariai(ari.C / N)} | ${wariai(ari.dore3 / N)} |`);
+  out.push(`| 聞く・図・区切ってが効く（効き目 ${d}） | ${wariai(ari.A / N)} | ${wariai(ari.B / N)} | ${wariai(ari.C / N)} | ${wariai(ari.dore3 / N)} |`);
 }
 out.push('', '- 1行目は「空ぶり」（本当は差が無いのに候補になる割合。向きはどちらでも数えた）。棚1つでは1割未満だが、3つの棚のどれかでは2割ほどになる。カードと仮説を「この日の」結果として書くのは、このため。');
 out.push('- 2行目からは、本当に差がある合成の子で、候補になる割合。1回のゲームでは見のがしも多い。だから「1回では決めない」「別の日にもう一度」が要る。');
