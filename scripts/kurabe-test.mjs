@@ -451,4 +451,19 @@ await ok('G1-g・i・j：安全のページの出典、C3 の根拠、時間を�
   assert.match(readFileSync(path.join(ROOT, 'docs/先生が確かめる一覧.md'), 'utf8'), /15〜20分ほど/);
 });
 
+await ok('G2：線を比べた表と選んだ線が残り、X2 の骨と5便の線は変わっていない', () => {
+  const t = readFileSync(path.join(ROOT, 'docs/線の比べ_6便.md'), 'utf8');
+  assert.match(t, /各3,000人/);
+  for (const w of ['5便の線', '線1 揺れを平均に', '線3 別の日は合計の向き', '線6', '選んだ線と、そのわけ']) assert.ok(t.includes(w), w);
+  const g = readFileSync(path.join(ROOT, 'docs/合成データでの確かめ.md'), 'utf8');
+  assert.match(g, /## 5\. 線の比べ（6便/);
+  assert.match(g, /93\.9%/); // 5便の表が残っている
+  const r = readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  assert.match(r, /線の扱い（6便）/);
+  assert.match(r, /選んだ線：5便の線のまま/);
+  // 骨と5便の線：揺れは大きいほう（読む 2・2／聞く 4・3 → 揺れ1。差 +2,+1 は候補にしない）
+  assert.equal(matomeA(rec([2, 4, 3, 2])).yure, 1);
+  assert.equal(matomeA(rec([2, 4, 3, 2])).kekka, 'nashi');
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);

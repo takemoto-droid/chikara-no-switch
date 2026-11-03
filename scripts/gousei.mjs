@@ -75,7 +75,7 @@ for (let i = 0; i < N; i++) {
     seitou[k].push(s / n);
   }
 }
-const out = ['# 合成データでの確かめ（実在の子どもではない）', '', `合成の子 ${N} 人。乱数の種 20261103。前提は scripts/gousei.mjs の先頭に書いた仮の値。`, ''];
+const out = ['# 合成データでの確かめ（実在の子どもではない）', '', `合成の子 ${N} 人。乱数の種 20261103。前提は scripts/gousei.mjs の先頭に書いた仮の値。`, '', '1〜4 は、いま使っている **5便の線**（揺れは2つの出し方の揺れの大きいほう・くり返しは反対向きの「その回の候補」が無いとき）で数えた。6便でほかの線と比べた結果は 5章。', ''];
 out.push('## 1. 正答率（練習を除く）', '', '| 棚 | 合成の子の平均 | 5〜8割に入った子 | 9割以上の子 | 4割以下の子 |', '|---|---|---|---|---|');
 const TANA = { A: '読む／聞く', B: '文で見る／図で見る', C: '一気に／区切って' };
 for (const k of ['A', 'B', 'C']) {
@@ -168,7 +168,7 @@ out.push('| 合成の子 | 人数 | 設定どおりだった割合 | 「設定�
       const theta = THETA.heikin + THETA.bure * normal();
       const kai = [0, 1, 2].map((k) => ({ ...gameWoSuru(theta, kouka, NARE * k), kai: k + 1, hi: `2026-0${k + 7}-01`, owari: true }));
       const k = yobiKasetsu(kai, tanaD, []).kasetsu;
-      const kuri = /日分で同じ向きの差が出たので/.test(k);
+      const kuri = /同じ向きの差が出たので/.test(k);
       const mode = Object.keys(kouka)[0];
       if (!mode) { if (!kuri) ok++; } else if (kuri && k.includes(MODE_GO[mode])) ok++;
     }
@@ -177,6 +177,15 @@ out.push('| 合成の子 | 人数 | 設定どおりだった割合 | 「設定�
   }
 }
 out.push('', '- 差が無い子で決めつけない割合は高いが、差がある子を3日分で言い当てられる割合は低い。仮説は「参考程度・決めるのは先生」と添える理由の1つ。');
+
+// 5. 線の比べ（6便）：scripts/sen_kurabe.mjs の結果（docs/線の比べ_6便.md）をここにも載せる
+{
+  const sen = path.join(ROOT, 'docs', '線の比べ_6便.md');
+  try {
+    const t = readFileSync(sen, 'utf8').split('\n').slice(1).join('\n').replace(/^## /gm, '### ');
+    out.push('', '## 5. 線の比べ（6便・X1 の線の扱い）', '', 'いま使っているのは **5便の線**（上の 1〜4 の表）。6便で、ほかの線と比べた結果（`node scripts/sen_kurabe.mjs`）：', t.trim());
+  } catch { /* まだ無いとき */ }
+}
 
 out.push('', '## 読み方の注意', '', '- これは合成データです。問題の本当の難しさは、まだ分かりません。大人や子どもで試して、難しさの仮の値を置きかえる必要があります。', '- 子どもで確かめた結果ではありません。効果を示すものでもありません。');
 
