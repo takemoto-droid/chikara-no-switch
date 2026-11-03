@@ -2,7 +2,7 @@
 // 途中で止めても、ここから続きを始められる。
 import { makeJunban } from './kurabe.js';
 
-const KEY = 'chikara-no-switch.v1';
+const KEY = 'chikara-no-switch.v2'; // 2便で順番の形を変えたので v2
 let mem = null; // 保存できない端末のときの予備
 
 function kara() {

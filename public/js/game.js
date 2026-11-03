@@ -1,11 +1,10 @@
 // ② ゲーム。Claude が次の問題を選び、その理由を画面に出す。途中で止めて、続きから始められる。
 import { esc, api, data, okuruKiroku, whoLabel } from './util.js';
 import { getRecord, saveRecord, isDemo } from './kiroku.js';
-import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA } from './kurabe.js';
+import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA, ZENBU } from './kurabe.js';
 import { junbiYomiage, yomu, tomeru, koeNoNamae } from './yomiage.js';
 import { tapeZu } from './zu.js';
 
-const ZENBU = 14;
 
 export async function gameScreen(el, id) {
   const tana = await data('tana');
@@ -167,21 +166,31 @@ function bunshoMondai(st, tana, box, yomiageOK) {
   });
 }
 
-// 場面の問題（図あり／文だけ）
+// 場面の問題（図あり／文だけ）。1つの場面に問いが2つ
 function bamenMondai(st, tana, box) {
   return new Promise((resolve) => {
     const q = tana.B.問題[st.mondai];
     const t0 = performance.now();
-    box.innerHTML = `
-      <div class="honbun">${esc(q.文)}</div>
-      ${st.mode === 'zu' ? `<div class="box">${tapeZu(q.図)}</div>` : ''}
-      <div class="btns tate">${q.選択肢.map((c, i) => `<button class="choice" data-i="${i}">${esc(c)}</button>`).join('')}</div>`;
-    box.querySelectorAll('.choice').forEach((b) => {
-      b.onclick = () => {
-        const i = Number(b.dataset.i);
-        resolve({ seikai: i === q.答え ? 1 : 0, kazu: 1, ms: Math.round(performance.now() - t0), kotae: q.選択肢[i] });
-      };
-    });
+    const kotae = [];
+    const toi = () => {
+      const i = kotae.length;
+      if (i >= q.問い.length) {
+        const seikai = kotae.filter((k, j) => k === q.問い[j].答え).length;
+        resolve({ seikai, kazu: q.問い.length, ms: Math.round(performance.now() - t0), kotae: kotae.map((k, j) => q.問い[j].選択肢[k]) });
+        return;
+      }
+      const t = q.問い[i];
+      box.innerHTML = `
+        <div class="honbun">${esc(q.文)}</div>
+        ${st.mode === 'zu' ? `<div class="box">${tapeZu(q.図)}</div>` : ''}
+        <p class="muted">問い ${i + 1}／${q.問い.length}</p>
+        <div class="toi">${esc(t.文)}</div>
+        <div class="btns tate">${t.選択肢.map((c, k) => `<button class="choice" data-i="${k}">${esc(c)}</button>`).join('')}</div>`;
+      box.querySelectorAll('.choice').forEach((b) => {
+        b.onclick = () => { kotae.push(Number(b.dataset.i)); toi(); };
+      });
+    };
+    toi();
   });
 }
 

@@ -22,7 +22,7 @@ export function tapeZu(z) {
   const end = x + betsuW;
   // 上のかっこ：何個か
   parts.push(`<path d="M${x0} 24 v-8 h${tapeEnd - x0} v8" fill="none" stroke="#2f6f8f" stroke-width="1.5"/>`);
-  parts.push(`<text x="${(x0 + tapeEnd) / 2}" y="12" font-size="12" text-anchor="middle" fill="#2f6f8f">${z.ひとつの名前} ${z.文字} ${z.ひとつの名前 === 'えんぴつ' ? '本' : z.ひとつの名前 === 'ノート' ? '冊' : '個'}分</text>`);
+  parts.push(`<text x="${(x0 + tapeEnd) / 2}" y="12" font-size="12" text-anchor="middle" fill="#2f6f8f">${z.ひとつの名前} ${z.文字} ${z.単位 || '個'}分</text>`);
   parts.push(`<text x="${x + betsuW / 2}" y="22" font-size="12" text-anchor="middle" fill="#8a5a2b">${z.べつの名前}</text>`);
   // 下のかっこ：代金
   parts.push(`<path d="M${x0} 72 v8 h${end - x0} v-8" fill="none" stroke="#23262b" stroke-width="1.5"/>`);

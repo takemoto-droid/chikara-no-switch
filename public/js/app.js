@@ -1,7 +1,7 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方・⑥学習につなぐ
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, isDemo, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo } from './kiroku.js';
-import { matomeA, matomePair, erabuCard, kotaeD, DASHIKATA, makeSteps } from './kurabe.js';
+import { matome, erabuCard, kotaeD, DASHIKATA, mieruKoumoku } from './kurabe.js';
 import { gameScreen } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
@@ -112,17 +112,33 @@ async function senseiHub() {
 }
 
 function seikaiCell(arr, kazu) {
-  return arr.length ? arr.map((n) => `${n}／${kazu}`).join('<br>') : '—';
+  return arr.length ? arr.map((n) => `${n}／${kazu}`).join('・') : '—';
 }
-function byou(ms) {
-  return ms == null ? '—' : `${Math.round(ms / 1000)}秒`;
+function byou(arr) {
+  return arr.length ? arr.map((ms) => (ms == null ? '—' : `${Math.round(ms / 1000)}秒`)).join('・') : '—';
 }
-const KEKKA_BUN = {
-  kiku: '聞いて答えたほうが、2回とも、揺れより大きく正解が多かった（候補）',
-  yomu: '自分のペースで読んで答えたほうが、2回とも、揺れより大きく正解が多かった（候補）',
-  nashi: '揺れより大きい差は、同じ向きに2回は出なかった。どの出し方でも同じくらい力を出せた（差なし）',
-  mada: 'まだ2回そろっていないので、比べていない',
-};
+const TANA_MEI = { A: '読む／聞く', B: '文だけ／図を添える', C: '続けて書く／区切る' };
+function kekkaBun(m) {
+  if (m.kekka === 'mada') return 'まだ2回そろっていないので、比べていない';
+  if (m.kekka === 'nashi') return '揺れより大きい差は、同じ向きに2回は出なかった。どちらの出し方でも同じくらい力を出せた（差なし）';
+  return `「${DASHIKATA[m.kekka]}」のほうが、2回とも、揺れより大きく正解が多かった（候補）`;
+}
+function tanaHtml(m) {
+  const [m1, m2] = m.kumi;
+  return `
+    <h3>${esc(TANA_MEI[m.kind])}</h3>
+    <div class="table-wrap"><table>
+      <tr><th>出し方</th><th>正解（1回目・2回目）</th><th>かかった時間</th></tr>
+      <tr><td>${esc(DASHIKATA[m1])}</td><td>${seikaiCell(m[m1], m.kazu)}</td><td>${byou(m.jikan[m1])}</td></tr>
+      <tr><td>${esc(DASHIKATA[m2])}</td><td>${seikaiCell(m[m2], m.kazu)}</td><td>${byou(m.jikan[m2])}</td></tr>
+    </table></div>
+    <p class="small">同じ出し方を2回やったときの揺れ：${m.yure == null ? '—' : `${m.yure}問`}　／　${esc(DASHIKATA[m2])}−${esc(DASHIKATA[m1])} の差：${m.sa.length ? m.sa.map((n) => `${n > 0 ? '+' : ''}${n}問`).join('、') : '—'}　／　確かめた回数：${m.kakunin}回</p>
+    <div class="box soft small"><strong>${esc(kekkaBun(m))}</strong></div>`;
+}
+function kakuninBun(k) {
+  if (typeof k !== 'object' || k == null) return `${k}回`;
+  return `読む／聞く ${k.A}回・図 ${k.B}回・区切り ${k.C}回`;
+}
 
 // ---- ④ 先生の画面（1人）
 async function senseiKo(id) {
@@ -133,12 +149,8 @@ async function senseiKo(id) {
   const tana = await data('tana');
   const checklist = await data('checklist');
   const cards = await data('cards');
-  const a = matomeA(rec);
-  const b = matomePair(rec, 'B');
-  const c = matomePair(rec, 'C');
   const ids = await atehamaruIds(id);
-  const atehamaru = ids.map((i) => checklist.項目.find((x) => x.id === i)?.文).filter(Boolean);
-  const steps = makeSteps(rec.junban);
+  const atehamaru = ids.map((i) => mieruKoumoku(checklist).find((x) => x.id === i)?.文).filter(Boolean);
   const koe = ['A-1', 'A-2', 'A-3', 'A-4'].map((s) => rec.kekka[s]?.koe).filter(Boolean)[0];
   const card = cards.カード[erabuCard(rec)];
 
@@ -147,19 +159,9 @@ async function senseiKo(id) {
     ${rec.owari ? '' : `<div class="box chui">ゲームの途中です。<a href="#/game/${enc(id)}">続きから始める</a></div>`}
 
     <h2>(a) 結果：本人の中で、出し方ごとに比べたもの</h2>
-    <div class="table-wrap"><table>
-      <tr><th>出し方</th><th>正解（1回目・2回目）</th><th>答えるのにかかった時間</th></tr>
-      <tr><td>読む</td><td>${seikaiCell(a.yomu, a.kazu)}</td><td>${a.jikan.yomu.map(byou).join('<br>') || '—'}</td></tr>
-      <tr><td>聞く</td><td>${seikaiCell(a.kiku, a.kazu)}</td><td>${a.jikan.kiku.map(byou).join('<br>') || '—'}</td></tr>
-    </table></div>
-    <p>同じ出し方を2回やったときの揺れ：${a.yure == null ? '—' : `${a.yure}問`}　／　聞く−読む の差：${a.sa.length ? a.sa.map((n) => `${n > 0 ? '+' : ''}${n}問`).join('、') : '—'}</p>
-    <div class="box soft"><strong>${esc(KEKKA_BUN[a.kekka])}</strong></div>
-    <p class="muted small">練習の1組は比べる数に入れていません。出し方の順は ${esc(DASHIKATA[rec.junban.saisho])} から始める ABBA です。読み上げの声：${esc(koe || '記録なし')}（ブラウザの声は端末ごとに違います）。</p>
-    <div class="table-wrap"><table>
-      <tr><th>ほかの出し方（1組だけ）</th><th>結果</th></tr>
-      <tr><td>図を添える／文だけ</td><td>${b.kakunin ? `${b.zu}／${b.kazu}　・　${b.bun}／${b.kazu}` : '—'}<br><span class="muted small">1回だけ・まだ決めない</span></td></tr>
-      <tr><td>区切る／続けて書く</td><td>${c.kakunin ? `${c.kugiri}／${c.kazu}　・　${c.tsuzuke}／${c.kazu}` : '—'}<br><span class="muted small">1回だけ・まだ決めない</span></td></tr>
-    </table></div>
+    <p class="muted small">どの組も ABBA の順で2回ずつ比べました。「候補」は、同じ出し方を2回やったときの揺れより大きい差が、同じ向きに2回出たときだけです。読む／聞くの練習の1組は、比べる数に入れていません。</p>
+    ${['A', 'B', 'C'].map((k) => tanaHtml(matome(rec, k))).join('')}
+    <p class="muted small">読み上げの声：${esc(koe || '記録なし')}</p>
     <p>子どもに渡したカード：<strong>${esc(card.名前)}</strong>（${esc(card.ひとこと)}）</p>
 
     <h2>(b) 選んだ答え</h2>
@@ -190,7 +192,7 @@ async function senseiKo(id) {
       <p>${whoLabel(k.dare)}<span class="label sankou">${esc(k.sankou)}</span></p>
       <p><span class="label">仮説</span><span class="kasetsu">${esc(k.kasetsu)}</span></p>
       <p>${esc(k.tsugi)}</p>
-      <p><span class="label">確かめた回数</span>${esc(k.kakunin)}回（読む・聞くを比べた組の数。練習は入れていない）</p>
+      <p><span class="label">確かめた回数</span>${esc(kakuninBun(k.kakunin))}（比べた組の数。練習は入れていない）</p>
       <h3>そう考えた理由（事実）</h3>
       <ul class="small">${k.konkyo.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
       <p class="muted small">${esc(k.sankou)}。${k.dare === 'claude' ? 'AI の下書き' : '決まった文の下書き'}なので、そのまま使わず、授業での様子と合わせて先生が判断してください。${k.wake ? esc(k.wake) : ''}</p>
@@ -226,7 +228,7 @@ async function check() {
     <p>期末や懇談の前に、授業で見た事実に当てはまる子を、項目ごとに選びます。</p>
     <div class="box chui small">点数にしません。基準を作りません。数も数えません。当てはまったことは「気づきの候補」として、その子の先生の画面に残るだけです。</div>
     <p class="draft">項目は下書き（先生未確認）です。</p>
-    <div id="items">${checklist.項目.map((it) => `
+    <div id="items">${mieruKoumoku(checklist).map((it) => `
       <div class="check-item"><div>${esc(it.文)}</div>
         <div class="chips">${kids.map((k) => `<button class="chip" data-item="${it.id}" data-kid="${esc(k.id)}" aria-pressed="${(marks[it.id] || []).includes(k.id)}">${esc(k.id)}</button>`).join('')}</div>
       </div>`).join('')}</div>

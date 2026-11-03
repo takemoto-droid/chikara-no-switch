@@ -166,7 +166,8 @@ try {
   await mieru('学習につなぐ');
 
   // 保存した結果を見る（デモの子2人）
-  for (const id of ['デモ1', 'デモ2']) {
+  const KITAI = { デモ1: /きくスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずスイッチ/ };
+  for (const id of Object.keys(KITAI)) {
     await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
     const t = await mieru(`デモ_${id}_先生`);
@@ -174,7 +175,7 @@ try {
     await page.goto(`${BASE}#/card/${encodeURIComponent(id)}`);
     await page.waitForSelector('.switch-card');
     const c = await mieru(`デモ_${id}_カード`);
-    tashika(id === 'デモ1' ? /きくスイッチ/.test(c) : /どれでもスイッチ/.test(c), `${id}：カードが結果に合う`);
+    tashika(KITAI[id].test(c) && /この日のゲームでは/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
     await page.goto(`${BASE}#/tsutae/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kondan', { timeout: 60000 });
     await mieru(`デモ_${id}_伝え方`);

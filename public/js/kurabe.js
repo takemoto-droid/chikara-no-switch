@@ -1,9 +1,9 @@
 // 比べ方と順番の決まり（画面とサーバーの両方で使う）
 // 決まりの元：docs/作り方の決まり.md の 3章
 // - 比べるのは同じ子の別の出し方とだけ
-// - 初回の1組は練習で、比べる数に入れない
+// - 初回の1組は練習で、比べる数に入れない（読む／聞く）
 // - 出し方の順番は ABBA。どの文章をどの出し方で出すかも入れ替える
-// - 「候補」は、揺れより大きい差が、同じ向きに2回出たときだけ
+// - 「候補」は、同じ出し方を2回やったときの揺れより大きい差が、同じ向きに2回出たときだけ
 
 export const DASHIKATA = {
   yomu: '読む',
@@ -14,49 +14,67 @@ export const DASHIKATA = {
   tsuzuke: '続けて書く',
 };
 
+// 棚ごとの比べる組（[もとの出し方, スイッチの出し方]）
+export const KUMI = {
+  A: ['yomu', 'kiku'],
+  B: ['bun', 'zu'],
+  C: ['tsuzuke', 'kugiri'],
+};
+
 export const RENSHU = ['A-r1', 'A-r2'];
 const RETSU = {
   A: ['A-r1', 'A-r2', 'A-1', 'A-2', 'A-3', 'A-4'],
-  B: ['B-1', 'B-2'],
-  C: ['C-1', 'C-2'],
+  B: ['B-1', 'B-2', 'B-3', 'B-4'],
+  C: ['C-1', 'C-2', 'C-3', 'C-4'],
   D: ['D1', 'D2', 'D3', 'D4'],
 };
+export const ZENBU = Object.values(RETSU).flat().length;
 
-// 予備の動き：Claude が使えないときの、決まった順
-export const YOBI_JUN = ['A-r1', 'A-r2', 'A-1', 'D1', 'A-2', 'B-1', 'A-3', 'D2', 'A-4', 'B-2', 'D3', 'C-1', 'C-2', 'D4'];
+// 予備の動き：Claude が使えないときの、決まった順（種類を混ぜる）
+export const YOBI_JUN = ['A-r1', 'A-r2', 'A-1', 'D1', 'A-2', 'B-1', 'A-3', 'C-1', 'A-4', 'D2', 'B-2', 'C-2', 'B-3', 'D3', 'C-3', 'B-4', 'C-4', 'D4'];
+
+function hash(s) {
+  let h = 0;
+  for (const ch of String(s)) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  return h;
+}
 
 // 子ごとの入れ替え。仮の番号から決めるので、同じ子は何度開いても同じ順になる
 export function makeJunban(karibango) {
-  let h = 0;
-  for (const ch of String(karibango)) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+  const h = hash(karibango);
   return {
-    saisho: h & 1 ? 'kiku' : 'yomu',
-    irekae: Boolean(h & 2),
-    zu: h & 4 ? 'B2' : 'B1',
-    kugiri: h & 8 ? 'C2' : 'C1',
+    A: { saisho: h & 1 ? 'kiku' : 'yomu', irekae: Boolean(h & 2) },
+    B: { saisho: h & 4 ? 'zu' : 'bun', irekae: Boolean(h & 8) },
+    C: { saisho: h & 16 ? 'kugiri' : 'tsuzuke', irekae: Boolean(h & 32) },
   };
 }
 
+function abba(kind, j, mondai) {
+  const [m1, m2] = KUMI[kind];
+  const a = j.saisho === m2 ? m2 : m1;
+  const b = a === m1 ? m2 : m1;
+  const order = j.irekae ? [mondai[1], mondai[0], mondai[3], mondai[2]] : mondai;
+  return [
+    { id: `${kind}-1`, kind, mode: a, mondai: order[0], kai: 1 },
+    { id: `${kind}-2`, kind, mode: b, mondai: order[1], kai: 1 },
+    { id: `${kind}-3`, kind, mode: b, mondai: order[2], kai: 2 },
+    { id: `${kind}-4`, kind, mode: a, mondai: order[3], kai: 2 },
+  ];
+}
+
 export function makeSteps(j) {
-  const hoka = j.saisho === 'yomu' ? 'kiku' : 'yomu';
-  const bunsho = j.irekae ? ['A2', 'A1', 'A4', 'A3'] : ['A1', 'A2', 'A3', 'A4'];
-  const s = [
-    { id: 'A-r1', kind: 'A', mode: j.saisho, mondai: 'A0a', renshu: true },
+  const hoka = j.A.saisho === 'yomu' ? 'kiku' : 'yomu';
+  return [
+    { id: 'A-r1', kind: 'A', mode: j.A.saisho, mondai: 'A0a', renshu: true },
     { id: 'A-r2', kind: 'A', mode: hoka, mondai: 'A0b', renshu: true },
-    { id: 'A-1', kind: 'A', mode: j.saisho, mondai: bunsho[0], kai: 1 },
-    { id: 'A-2', kind: 'A', mode: hoka, mondai: bunsho[1], kai: 1 },
-    { id: 'A-3', kind: 'A', mode: hoka, mondai: bunsho[2], kai: 2 },
-    { id: 'A-4', kind: 'A', mode: j.saisho, mondai: bunsho[3], kai: 2 },
-    { id: 'B-1', kind: 'B', mode: j.zu === 'B1' ? 'zu' : 'bun', mondai: 'B1' },
-    { id: 'B-2', kind: 'B', mode: j.zu === 'B2' ? 'zu' : 'bun', mondai: 'B2' },
-    { id: 'C-1', kind: 'C', mode: j.kugiri === 'C1' ? 'kugiri' : 'tsuzuke', mondai: 'C1' },
-    { id: 'C-2', kind: 'C', mode: j.kugiri === 'C2' ? 'kugiri' : 'tsuzuke', mondai: 'C2' },
+    ...abba('A', j.A, ['A1', 'A2', 'A3', 'A4']),
+    ...abba('B', j.B, ['B1', 'B2', 'B3', 'B4']),
+    ...abba('C', j.C, ['C1', 'C2', 'C3', 'C4']),
     { id: 'D1', kind: 'D', mondai: 'D1' },
     { id: 'D2', kind: 'D', mondai: 'D2' },
     { id: 'D3', kind: 'D', mondai: 'D3' },
     { id: 'D4', kind: 'D', mondai: 'D4' },
   ];
-  return s;
 }
 
 export function stepOf(record, id) {
@@ -91,107 +109,102 @@ export function yobiRiyuu(record, id) {
   if (id === 'A-r1') return `はじめは練習です。やり方に慣れるために、「${DASHIKATA[st.mode]}」出し方から始めます。`;
   if (id === 'A-r2') return `練習のもう1つです。今度は「${DASHIKATA[st.mode]}」出し方を試します。`;
   if (st.kind === 'A') return `読む出し方と聞く出し方を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
-  if (st.kind === 'B') return '出し方の種類を変えて、図のある問題と、文だけの問題を試します。';
-  if (st.kind === 'C') return '文章の書き方を変えて、区切りのある文章と、続けて書いた文章を試します。';
+  if (st.kind === 'B') return `図のある問題と文だけの問題を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
+  if (st.kind === 'C') return `区切った文章と続けて書いた文章を、同じ回数ずつ試したいので、次は「${DASHIKATA[st.mode]}」です。`;
   return '問題が続いたので、ここで選んで答える質問を1つはさみます。';
 }
 
-function seikaiOf(record, id) {
-  const k = record.kekka?.[id];
-  if (!k || k.yomiageNashi) return null;
-  return k.seikai;
-}
+const KAZU = { A: 4, B: 2, C: 4 };
 
-// 読む／聞くのまとめ（本人の中だけで比べる）
-export function matomeA(record) {
-  const steps = makeSteps(record.junban);
+// 1つの棚のまとめ（本人の中だけで比べる）
+export function matome(record, kind) {
+  const [m1, m2] = KUMI[kind];
+  const steps = makeSteps(record.junban).filter((s) => s.kind === kind && !s.renshu);
   const get = (id) => steps.find((s) => s.id === id);
-  const out = { yomu: [], kiku: [], jikan: { yomu: [], kiku: [] }, kazu: 4 };
-  for (const id of ['A-1', 'A-2', 'A-3', 'A-4']) {
-    const st = get(id);
-    const k = record.kekka?.[id];
-    if (!k || k.yomiageNashi) continue;
-    out[st.mode].push(k.seikai);
-    out.jikan[st.mode].push(k.ms ?? null);
-  }
-  // 1回目の比べ：A-1 と A-2、2回目：A-3 と A-4
-  const sa = [];
-  for (const [p, q] of [['A-1', 'A-2'], ['A-3', 'A-4']]) {
-    const a = seikaiOf(record, p);
-    const b = seikaiOf(record, q);
-    if (a == null || b == null) continue;
-    const kikuSide = get(p).mode === 'kiku' ? a : b;
-    const yomuSide = get(p).mode === 'yomu' ? a : b;
-    sa.push(kikuSide - yomuSide);
-  }
-  out.sa = sa; // 正の数：聞くほうが正解が多い
-  out.kakunin = sa.length; // 確かめた回数（比べた組の数）
-  if (out.yomu.length === 2 && out.kiku.length === 2) {
-    out.yure = Math.max(Math.abs(out.yomu[0] - out.yomu[1]), Math.abs(out.kiku[0] - out.kiku[1]));
-  } else {
-    out.yure = null;
-  }
-  if (sa.length < 2 || out.yure == null) {
-    out.kekka = 'mada';
-  } else if (Math.sign(sa[0]) === Math.sign(sa[1]) && sa[0] !== 0 && Math.min(Math.abs(sa[0]), Math.abs(sa[1])) > out.yure) {
-    out.kekka = sa[0] > 0 ? 'kiku' : 'yomu';
-  } else {
-    out.kekka = 'nashi';
-  }
-  return out;
-}
-
-// 図・区切りのまとめ（この便では1組だけなので、決めない）
-export function matomePair(record, kind) {
-  const steps = makeSteps(record.junban).filter((s) => s.kind === kind);
-  const out = { kakunin: 0, kekka: 'mada', kazu: kind === 'B' ? 1 : 4 };
+  const k = (id) => {
+    const r = record.kekka?.[id];
+    return !r || r.yomiageNashi || r.seikai == null ? null : r;
+  };
+  const out = { kind, kumi: [m1, m2], [m1]: [], [m2]: [], jikan: { [m1]: [], [m2]: [] }, kazu: KAZU[kind] };
   for (const st of steps) {
-    const k = record.kekka?.[st.id];
-    if (k) out[st.mode] = k.seikai;
+    const r = k(st.id);
+    if (!r) continue;
+    out[st.mode].push(r.seikai);
+    out.jikan[st.mode].push(r.ms ?? null);
   }
-  const modes = kind === 'B' ? ['zu', 'bun'] : ['kugiri', 'tsuzuke'];
-  if (modes.every((m) => out[m] != null)) out.kakunin = 1;
+  // 1回目の比べ：-1 と -2、2回目：-3 と -4。差は（スイッチの出し方）−（もとの出し方）
+  const sa = [];
+  for (const [p, q] of [[`${kind}-1`, `${kind}-2`], [`${kind}-3`, `${kind}-4`]]) {
+    const a = k(p);
+    const b = k(q);
+    if (!a || !b) continue;
+    const swSide = get(p).mode === m2 ? a.seikai : b.seikai;
+    const motoSide = get(p).mode === m1 ? a.seikai : b.seikai;
+    sa.push(swSide - motoSide);
+  }
+  out.sa = sa;
+  out.kakunin = sa.length; // 確かめた回数（比べた組の数）
+  out.yure = out[m1].length === 2 && out[m2].length === 2
+    ? Math.max(Math.abs(out[m1][0] - out[m1][1]), Math.abs(out[m2][0] - out[m2][1]))
+    : null;
+  if (sa.length < 2 || out.yure == null) out.kekka = 'mada';
+  else if (Math.sign(sa[0]) === Math.sign(sa[1]) && sa[0] !== 0 && Math.min(Math.abs(sa[0]), Math.abs(sa[1])) > out.yure) out.kekka = sa[0] > 0 ? m2 : m1;
+  else out.kekka = 'nashi';
+  out.tsuyosa = out.kekka === 'mada' || out.kekka === 'nashi' ? 0 : Math.min(Math.abs(sa[0]), Math.abs(sa[1])) / out.kazu;
   return out;
 }
 
-// スイッチカードを選ぶ。強みだけ。全員に1枚。
+export function matomeA(record) {
+  return matome(record, 'A');
+}
+
+// 候補になった出し方 → カード
+const CARD_OF = { kiku: 'kiku', yomu: 'yomu', zu: 'zu', kugiri: 'kugiru' };
+
+// スイッチカードを選ぶ。強みだけ。全員に1枚。候補が2つ以上なら、差のいちばん大きいものを1枚。
 export function erabuCard(record) {
-  const a = matomeA(record);
-  if (a.kekka === 'kiku') return 'kiku';
-  if (a.kekka === 'yomu') return 'yomu';
-  if (a.kekka === 'nashi') return 'dore';
+  const kouhoList = ['A', 'B', 'C']
+    .map((kind) => matome(record, kind))
+    .filter((m) => CARD_OF[m.kekka])
+    .sort((x, y) => y.tsuyosa - x.tsuyosa);
+  if (kouhoList.length) return CARD_OF[kouhoList[0].kekka];
+  if (matome(record, 'A').kekka === 'nashi') return 'dore';
   return 'tameshita';
 }
 
 export function kotaeD(record, tana) {
-  const out = [];
-  for (const id of ['D1', 'D2', 'D3', 'D4']) {
-    const q = tana.D.質問[id];
-    const k = record.kekka?.[id];
-    out.push({ id, toi: q.問い, kotae: k ? k.kotae : null });
-  }
-  return out;
+  return ['D1', 'D2', 'D3', 'D4'].map((id) => ({ id, toi: tana.D.質問[id].問い, kotae: record.kekka?.[id]?.kotae ?? null }));
+}
+
+const KEKKA_SETSUMEI = {
+  mada: 'まだ2回そろっていない',
+  nashi: '揺れより大きい差は、同じ向きに2回は出なかった（差なし）',
+};
+function summary(m) {
+  const [m1, m2] = m.kumi;
+  return {
+    各回の問いの数: m.kazu,
+    [`${DASHIKATA[m1]}の正解`]: m[m1],
+    [`${DASHIKATA[m2]}の正解`]: m[m2],
+    同じ出し方での揺れ: m.yure,
+    [`${DASHIKATA[m2]}−${DASHIKATA[m1]}の差_各回`]: m.sa,
+    確かめた回数: m.kakunin,
+    結果: KEKKA_SETSUMEI[m.kekka] || `「${DASHIKATA[m.kekka]}」のほうが、2回とも揺れより大きく正解が多かった（候補）`,
+  };
 }
 
 // Claude に送るまとめ（名前・仮の番号は入れない）
 export function claudeNiOkuru(record, tana, atehamaru) {
   return {
-    読む聞く: summaryA(matomeA(record)),
-    図: matomePair(record, 'B'),
-    区切り: matomePair(record, 'C'),
+    読む聞く: summary(matome(record, 'A')),
+    図: summary(matome(record, 'B')),
+    区切り: summary(matome(record, 'C')),
     選んだ答え: kotaeD(record, tana).map((d) => ({ 問い: d.toi, 答え: d.kotae ?? '（答えていない）' })),
     チェック項目で当てはまったこと: atehamaru,
   };
 }
 
-function summaryA(a) {
-  return {
-    各回の問いの数: a.kazu,
-    読むの正解: a.yomu,
-    聞くの正解: a.kiku,
-    同じ出し方での揺れ: a.yure,
-    聞くと読むの差_各回: a.sa,
-    確かめた回数: a.kakunin,
-    結果: { kiku: '聞くほうが2回とも揺れより大きく正解が多かった（候補）', yomu: '読むほうが2回とも揺れより大きく正解が多かった（候補）', nashi: '揺れより大きい差は、同じ向きに2回は出なかった（差なし）', mada: 'まだ2回そろっていない' }[a.kekka],
-  };
+// チェック項目のうち画面に出すもの：06 の項目＋「先生が選ぶ候補」のうち先生が選んだものだけ
+export function mieruKoumoku(checklist) {
+  return [...(checklist.項目 || []), ...(checklist.先生が選ぶ候補 || []).filter((x) => x.先生が選んだ === true)];
 }

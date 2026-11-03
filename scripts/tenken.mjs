@@ -8,7 +8,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, tenken, seihon, soudanSaki, mojiretsu } from '../lib/kotoba.mjs';
 import { yobiKasetsu, yobiTsutae } from '../lib/yobi.mjs';
-import { yobiRiyuu, makeSteps, erabuCard } from '../public/js/kurabe.js';
+import { yobiRiyuu, makeSteps } from '../public/js/kurabe.js';
 
 function files(dir) {
   return readdirSync(dir).flatMap((f) => {
@@ -25,7 +25,8 @@ function kiroku(name, texts) {
 }
 
 // 1. 画面とサーバー側
-const gamen = [...files(path.join(ROOT, 'public')), ...files(path.join(ROOT, 'lib')), ...files(path.join(ROOT, 'api')), path.join(ROOT, 'server.mjs')];
+const gamen = [...files(path.join(ROOT, 'public')), ...files(path.join(ROOT, 'lib')), ...files(path.join(ROOT, 'api')), path.join(ROOT, 'server.mjs')]
+  .filter((f) => /\.(html|js|mjs|css|json|md|txt)$/.test(f)); // 音声などの文字でないファイルは除く
 const gamenLines = [];
 for (const f of gamen) {
   readFileSync(f, 'utf8').split('\n').forEach((l) => gamenLines.push(l));
@@ -41,19 +42,24 @@ let kumiawase = 0;
 const kotaeRei = Object.values(tana.D.質問).map((q) => q.選択肢[1]);
 for (const saisho of ['yomu', 'kiku']) {
   for (const irekae of [false, true]) {
-    const junban = { saisho, irekae, zu: 'B1', kugiri: 'C1' };
+    const junban = { A: { saisho, irekae }, B: { saisho: irekae ? 'zu' : 'bun', irekae }, C: { saisho: irekae ? 'kugiri' : 'tsuzuke', irekae } };
     for (let n = 0; n < 5 ** 4; n++) {
       const s = [n % 5, Math.floor(n / 5) % 5, Math.floor(n / 25) % 5, Math.floor(n / 125) % 5];
-      const rec = { junban, kekka: { 'A-1': { seikai: s[0] }, 'A-2': { seikai: s[1] }, 'A-3': { seikai: s[2] }, 'A-4': { seikai: s[3] }, 'B-1': { seikai: 1 }, 'B-2': { seikai: 0 }, 'C-1': { seikai: 3 }, 'C-2': { seikai: 2 }, D1: { kotae: kotaeRei[0] }, D2: { kotae: kotaeRei[1] }, D3: { kotae: kotaeRei[2] }, D4: { kotae: kotaeRei[3] } } };
+      const b = s.map((x) => x % 3); // 図の組は問いが2つ
+      const kekka = {};
+      ['A', 'C'].forEach((k) => s.forEach((v, i) => { kekka[`${k}-${i + 1}`] = { seikai: k === 'C' ? s[(i + n) % 4] : v }; }));
+      b.forEach((v, i) => { kekka[`B-${i + 1}`] = { seikai: v }; });
+      ['D1', 'D2', 'D3', 'D4'].forEach((d, i) => { kekka[d] = { kotae: kotaeRei[i] }; });
+      const rec = { junban, kekka };
       kumiawase++;
       yobiTexts.push(...mojiretsu(yobiKasetsu(rec, tana, checklist.項目.slice(0, 3).map((x) => x.文))));
-      yobiTexts.push(...mojiretsu(yobiTsutae(rec, cards, erabuCard(rec))));
+      yobiTexts.push(...mojiretsu(yobiTsutae(rec, cards)));
       for (const st of makeSteps(junban)) yobiTexts.push(yobiRiyuu(rec, st.id));
     }
   }
 }
 // 途中の記録（まだ比べていない）
-yobiTexts.push(...mojiretsu(yobiKasetsu({ junban: { saisho: 'yomu' }, kekka: {} }, tana, [])));
+yobiTexts.push(...mojiretsu(yobiKasetsu({ junban: { A: { saisho: 'yomu' }, B: { saisho: 'bun' }, C: { saisho: 'tsuzuke' } }, kekka: {} }, tana, [])));
 kiroku(`予備の動きの文（結果の組み合わせ ${kumiawase} 通り）`, [...new Set(yobiTexts)]);
 
 // 3. Claude の出力
@@ -78,6 +84,10 @@ if (process.env.TENKEN_CLAUDE === '1' && process.env.ANTHROPIC_API_KEY) {
 } else {
   kekka['Claude の出力'] = { 説明: 'キーが無い（または TENKEN_CLAUDE=1 が無い）ので省略。Claude の出力は、サーバーが毎回この点検を通してから画面に出す（lib/claude.mjs）。' };
 }
+
+// 制作が書いた文書（出典の題名を写した 権利と出典.md・研究の言葉を引く 科学的根拠 は除く）
+kiroku('制作が書いた文書（docs/）', ['デプロイの手順.md', '先生が確かめる一覧.md', '合成データでの確かめ.md']
+  .flatMap((f) => readFileSync(path.join(ROOT, 'docs', f), 'utf8').split('\n')));
 
 // 4. README
 kiroku('README.md（先生の文を含む）', readFileSync(path.join(ROOT, 'README.md'), 'utf8').split('\n'));
