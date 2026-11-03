@@ -208,7 +208,7 @@ await ok('デモの子4〜6：くり返し出た候補は、①（デモ4）だ�
   }
   // ③：1回目だけ「その回の候補」
   assert.deepEqual(matomeKai(kai('デモ6'), 'A').rows.map((r) => r.ookii), [true, false, false]);
-  assert.deepEqual(erabuCardKai(kai('デモ4')), { card: 'kiku', kurikaeshi: { kind: 'A', mode: 'kiku', onaji: [1, 2, 3], onajiHi: ['2026-09-09', '2026-10-14', '2026-11-11'], zenkai: 3 } });
+  assert.deepEqual(erabuCardKai(kai('デモ4')), { card: 'kiku', kurikaeshi: { kind: 'A', mode: 'kiku', onaji: [1, 2, 3], onajiHi: ['2026-09-09', '2026-10-07', '2026-10-28'], zenkai: 3 } });
   assert.equal(erabuCardKai(kai('デモ5')).card, 'dore');
   // 1回だけの子は、くり返しにならない
   for (const id of ['デモ1', 'デモ2', 'デモ3']) assert.equal(erabuCardKai(kai(id)).kurikaeshi, null);
@@ -344,6 +344,34 @@ await ok('8：動画素材の画面写しがそろっている（npm run douga �
   for (const w of ['次を選んだ理由', 'スイッチカードを受け取る', 'まとめと仮説', '回ごとの表', 'デモ5_差が出なかった子のカード', '学習につなぐ']) {
     assert.ok(f.some((x) => x.includes(w) && x.endsWith('.png')), w);
   }
+});
+
+// ---- 5便
+await ok('F1-a：棚 C は「連絡を読んで中身を答える」形。どの問いも、その番目の文に答えがある', () => {
+  const tana = j('public/data/tana.json');
+  const C = tana.C.文章;
+  assert.deepEqual(Object.keys(C), ['C1', 'C2', 'C3', 'C4']);
+  for (const [id, p] of Object.entries(C)) {
+    assert.ok(p.前おき && p.連絡.length === 4 && p.問い.length === 4, id);
+    p.問い.forEach((q, i) => {
+      assert.equal(q.選択肢.length, 4, `${id} 問い${i + 1}`);
+      assert.ok(q.答え >= 0 && q.答え < 4);
+      assert.ok(p.連絡[i].includes(q.本文の根拠), `${id} 問い${i + 1} の答えが ${i + 1} 文目にない`);
+      assert.ok(q.選択肢[q.答え].startsWith(q.本文の根拠) || q.本文の根拠.startsWith(q.選択肢[q.答え].slice(0, 4)), `${id} 問い${i + 1}`);
+    });
+    // 並びを頭の中で動かす形をやめた
+    assert.ok(!/並べ|入れかえ|左から/.test(JSON.stringify(p)), `${id} に並べかえの言葉がある`);
+  }
+  // 長さと漢字の割合がそろっている（目安：90〜115字・漢字 28〜40%）
+  for (const p of Object.values(C)) {
+    const t = p.連絡.join('');
+    const kanji = [...t].filter((c) => /\p{Script=Han}/u.test(c)).length / t.length;
+    assert.ok(t.length >= 90 && t.length <= 115 && kanji >= 0.28 && kanji <= 0.4, t.slice(0, 10));
+  }
+});
+
+await ok('F1-e：デモの子の回の日付は、すべて 2026-11-08 より前', () => {
+  for (const [id, k] of Object.entries(demo.結果)) for (const r of k.kai) assert.ok(r.hi < '2026-11-08', `${id} ${r.hi}`);
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

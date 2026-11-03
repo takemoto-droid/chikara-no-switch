@@ -35,7 +35,7 @@ Anthropic の「Responsible Use of Anthropic's Models: Guidelines for Organizati
 
 | 指針が求めること | このアプリでしていること |
 |---|---|
-| 使う人が想定どおりかを確かめるしくみ（年齢の確認など） | 学校の授業の中で、先生のもとで使う前提です。公開デモは架空のデータだけで、子どもの記録はサーバーに残しません。**学校で使うときのログインのしかたは、まだ決めていません（先生と決める）。** |
+| 使う人が想定どおりかを確かめるしくみ（年齢の確認など） | 学校の授業の中で、先生のもとで使う前提です。公開デモは架空のデータだけで、子どもの記録はサーバーに残しません。学校で使うときは、学校のアカウントでのログインを前提にします（期間中は作りません）。 |
 | 不適切な内容をふせぐしくみ | 子どもとの自由な会話はありません。問題と選択肢は決まった棚から出します。Claude の文は言葉の正本で点検してから出します。 |
 | 問題を見つけて対応するしくみ | 先生の画面で、Claude が書いたものと、次を選んだ理由の記録をすべて見られます。言葉の点検は自動で走ります（`npm test`）。 |
 | 安全な使い方についての、未成年向けの説明 | 子ども向けの案内（何をするか・しないこと・AI のこと・相談先）があります。 |
@@ -48,9 +48,10 @@ Anthropic の「Responsible Use of Anthropic's Models: Guidelines for Organizati
 ## 7. 将来、学校で使うとき
 - 保護者の同意と、本人へのていねいな説明を前提にします。
 - 参加しなくても、成績などで不利益はありません。参加しない子にも、相談先の案内は同じ文で届けます。
-- 改正個人情報保護法は 2026年7月に成立し、まだ施行されていません。16歳未満の子どもについては、保護者が同意の相手になります（先生の投げ文による。施行の前に、公式の条文で確かめます）。
+- 改正個人情報保護法は 2026年7月に成立し、まだ施行されていません。16歳未満の子どもについては、保護者が同意の相手になります（出典：個人情報保護委員会「令和8年 改正個人情報保護法について」 https://www.ppc.go.jp/personalinfo/legal/r8kaiseihogohou 。**このページは制作の環境から開けなかったので、まだ確かめていません。先生が開いて確かめてください**）。
 
 ## 確かめたページ（2026-11-03 に開いて確かめた）
 - Anthropic「Responsible Use of Anthropic's Models: Guidelines for Organizations Serving Minors」 https://support.claude.com/en/articles/9307344-responsible-use-of-anthropic-s-models-guidelines-for-organizations-serving-minors （同じ記事の support.anthropic.com のアドレスは、制作の環境から開けなかった）
 - Anthropic「Commercial Terms of Service」 https://www.anthropic.com/legal/commercial-terms （2025年6月17日から有効）
 - Anthropic「Usage Policy」 https://www.anthropic.com/legal/aup （ページに書かれた有効日は 2026年11月12日。未成年に提供する組織は、上の指針に従うこと、AI と話していることを伝えることが書かれている）
+- 個人情報保護委員会「令和8年 改正個人情報保護法について」 https://www.ppc.go.jp/personalinfo/legal/r8kaiseihogohou （5便：制作の環境のネットワークの設定で開けなかった。未確認）

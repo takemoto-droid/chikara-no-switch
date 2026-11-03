@@ -86,7 +86,7 @@ function midashi(st) {
   if (st.kind === 'D') return '選んで答える質問';
   if (st.kind === 'A') return `${st.renshu ? '練習：' : ''}${st.mode === 'kiku' ? '聞いて' : '読んで'}答える問題`;
   if (st.kind === 'B') return '場面に合う式を選ぶ問題（計算はしません）';
-  return st.mode === 'kugiri' ? '指示を一文ずつ読んで答える問題' : '指示をまとめて読んで答える問題';
+  return st.mode === 'kugiri' ? '連絡を一文ずつ読んで答える問題' : '連絡をまとめて読んで答える問題';
 }
 
 function jikko(st, tana, box, yomiageOK) {
@@ -193,10 +193,10 @@ function bamenMondai(st, tana, box) {
   });
 }
 
-// 一気に／区切って：長めの指示に従って考え、合う答えを選ぶ
-// 一気に：4つの手順をまとめて読んでから、問い1〜4に答える
-// 区切って：手順を一文ずつ読み、1つ読むごとにその問いに答える
-// どちらも、問いに答えるときは指示は見えない。見返しは1回まで
+// 一気に／区切って：行事や授業の連絡（4つの文）を読んで、連絡の中身を答える（5便で作り直し）
+// 一気に：4つの文をまとめて読んでから、問い1〜4に答える
+// 区切って：一文ずつ読み、1つ読むごとにその文の問いに答える
+// どちらも、問いに答えるときは連絡は見えない。見返しは1回まで
 function shijiMondai(st, tana, box) {
   return new Promise((resolve) => {
     const p = tana.C.文章[st.mondai];
@@ -204,13 +204,13 @@ function shijiMondai(st, tana, box) {
     const kotae = [];
     let mikaeshi = 0;
     const t0 = performance.now(); // 時間は、読み始めから最後の答えまで（どちらの出し方も同じ数え方）
-    const shijiHtml = (upto) => `<div class="honbun"><p>${esc(p.前おき)}</p><ol>${p.指示.slice(0, upto).map((x, i) => (ikki || i === upto - 1 ? `<li>${esc(x)}</li>` : '')).join('')}</ol></div>`;
+    const shijiHtml = (upto) => `<div class="honbun"><p>${esc(p.前おき)}</p><ol>${p.連絡.slice(0, upto).map((x, i) => (ikki || i === upto - 1 ? `<li>${esc(x)}</li>` : '')).join('')}</ol></div>`;
     const yomu = (i) => {
-      // 一気に：はじめに全部。区切って：手順 i だけ
-      const upto = ikki ? p.指示.length : i + 1;
+      // 一気に：はじめに全部。区切って：i 番目の文だけ
+      const upto = ikki ? p.連絡.length : i + 1;
       box.innerHTML = `
-        <p class="muted">${ikki ? '指示を全部読んで、読めたら「読めた」を押してください。' : `手順 ${i + 1}／${p.指示.length}：読めたら「読めた」を押してください。`}</p>
-        ${ikki ? shijiHtml(upto) : `<div class="honbun">${i === 0 ? `<p>${esc(p.前おき)}</p>` : ''}<p>${esc(p.指示[i])}</p></div>`}
+        <p class="muted">${ikki ? '連絡を全部読んで、読めたら「読めた」を押してください。' : `連絡の ${i + 1}文目／${p.連絡.length}：読めたら「読めた」を押してください。`}</p>
+        ${ikki ? shijiHtml(upto) : `<div class="honbun">${i === 0 ? `<p>${esc(p.前おき)}</p>` : ''}<p>${esc(p.連絡[i])}</p></div>`}
         <div class="btns"><button id="next">読めた</button></div>`;
       box.querySelector('#next').onclick = () => toi(i);
     };
@@ -222,21 +222,21 @@ function shijiMondai(st, tana, box) {
       }
       const q = p.問い[i];
       box.innerHTML = `
-        <p class="muted">問い ${i + 1}／${p.問い.length}　手順 ${i + 1} まで、指示のとおりにしたとき</p>
+        <p class="muted">問い ${i + 1}／${p.問い.length}　連絡の中身について</p>
         <div class="toi">${esc(q.文)}</div>
-        <div class="btns"><button class="sub" id="mikaesu" ${mikaeshi >= 1 ? 'disabled' : ''}>指示をもう一度見る（1回だけ）</button></div>
+        <div class="btns"><button class="sub" id="mikaesu" ${mikaeshi >= 1 ? 'disabled' : ''}>連絡をもう一度見る（1回だけ）</button></div>
         <div id="mikaeshi-box"></div>
         <div class="btns tate">${q.選択肢.map((c, k) => `<button class="choice" data-i="${k}">${esc(c)}</button>`).join('')}</div>`;
       box.querySelector('#mikaesu').onclick = (e) => {
         mikaeshi++;
         e.target.disabled = true;
-        box.querySelector('#mikaeshi-box').innerHTML = ikki ? shijiHtml(p.指示.length) : `<div class="honbun"><p>${esc(p.指示[i])}</p></div>`;
+        box.querySelector('#mikaeshi-box').innerHTML = ikki ? shijiHtml(p.連絡.length) : `<div class="honbun"><p>${esc(p.連絡[i])}</p></div>`;
       };
       box.querySelectorAll('.choice').forEach((b) => {
         b.onclick = () => {
           kotae.push(Number(b.dataset.i));
           if (ikki) toi(i + 1);
-          else if (i + 1 < p.指示.length) yomu(i + 1);
+          else if (i + 1 < p.連絡.length) yomu(i + 1);
           else toi(i + 1);
         };
       });
