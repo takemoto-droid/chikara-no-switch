@@ -1,7 +1,7 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方・⑥学習につなぐ
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, getKid, owattaKai, newKai, isDemo, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo } from './kiroku.js';
-import { matome, matomeKai, erabuCardKai, cardNoBun, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
+import { matome, matomeKai, erabuCardKai, motteiruCards, cardNoBun, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
@@ -71,13 +71,18 @@ async function card(id) {
     return;
   }
   const cards = await data('cards');
-  const erabi = erabuCardKai(kai);
-  const c = cardNoBun(cards.カード[erabi.card], erabi.kurikaeshi);
+  const { cards: motte, atarashii } = motteiruCards(kai);
   const tsugiNoKai = !isDemo(id) && rec.owari;
+  const hyouji = (m) => cardHtml(cardNoBun(cards.カード[m.card], m.kurikaeshi), {
+    atarashii: kai.length > 1 && atarashii.includes(m.card),
+    moratta: m.kai ? `${m.kai}回目のゲーム${m.hi ? `（${m.hi}）` : ''}のあとで、もらったカード` : '',
+  });
+  const [mae, ...ushiro] = motte;
   app.innerHTML = `
     <h1>あなたのスイッチカード</h1>
-    ${cardHtml(c)}
-    <p class="muted">このカードは、力を出しやすかった出し方のしるしです。他の人とは比べていません。</p>
+    ${hyouji(mae)}
+    ${ushiro.length ? `<h2>持っているカード</h2><p class="muted small">これまでのゲームで、もらったカードです。</p>${ushiro.map(hyouji).join('')}` : ''}
+    <p class="muted">カードは、力を出しやすかった出し方のしるしです。他の人とは比べていません。</p>
     ${soudanHtml()}
     <div class="btns">
       <a class="btn" href="#/gakushu/${enc(id)}">このスイッチで数学の問題を解く（⑥）</a>
@@ -89,9 +94,11 @@ async function card(id) {
   if (b) b.onclick = () => { if (newKai(id)) location.hash = `#/game/${enc(id)}`; };
 }
 
-function cardHtml(c) {
+function cardHtml(c, { atarashii = false, moratta = '' } = {}) {
   return `<div class="switch-card" style="background:${esc(c.色)}">
+      ${atarashii ? '<p class="atarashii">あたらしいカード</p>' : ''}
       <p class="mei">${esc(c.名前)}</p>
+      ${moratta ? `<p class="moratta">${esc(moratta)}</p>` : ''}
       <p class="hitokoto">${esc(c.ひとこと)}</p>
       <div class="naka">
         <h3>これは何か</h3><p>${esc(c.これは何か)}</p>
@@ -159,10 +166,10 @@ function kaiHyouHtml(kai) {
         <td>${r.ookii ? 'はい（その回の候補）' : r.yure == null ? '—' : `いいえ（揺れ ${r.yure}）`}</td></tr>`);
     }
   }
-  const kuri = matome3.map((x) => `<li>${esc(TANA_MEI[x.kind])}：${x.kurikaeshi ? `<strong>くり返し出た候補「${esc(DASHIKATA[x.kurikaeshi])}」</strong>（${x.onaji.join('・')}回目で同じ向き）` : kai.length < 2 ? 'まだ1回だけなので、回をまたいだ比べはしていない' : 'くり返し出た候補はない'}</li>`).join('');
+  const kuri = matome3.map((x) => `<li>${esc(TANA_MEI[x.kind])}：${x.kurikaeshi ? `<strong>くり返し出た候補「${esc(DASHIKATA[x.kurikaeshi])}」</strong>（${x.onaji.join('・')}回目で同じ向き。別々の日は ${x.onajiHi.length} 日）` : x.zenHi.length < 2 ? 'まだ1日分だけなので、回をまたいだ比べはしていない（同じ日の回は1日として数える）' : 'くり返し出た候補はない'}</li>`).join('');
   return `
     <h2>(a') 回ごとの「出し方の差」</h2>
-    <p class="muted small">差は、その回の中の「${esc(DASHIKATA.kiku)}−${esc(DASHIKATA.yomu)}」のように、2つ目の出し方から1つ目の出し方を引いた正解の差（1組目・2組目）。素点は回ごとに比べません（2回目は慣れて正解が増えやすいため）。「くり返し出た候補」は、ある回でその回の候補になり、別の日の回でも同じ向きの差が出て、反対向きの候補が無いときだけです。</p>
+    <p class="muted small">差は、その回の中の「${esc(DASHIKATA.kiku)}−${esc(DASHIKATA.yomu)}」のように、2つ目の出し方から1つ目の出し方を引いた正解の差（1組目・2組目）。素点は回ごとに比べません（2回目は慣れて正解が増えやすいため）。「くり返し出た候補」は、ある回でその回の候補になり、別の日の回でも同じ向きの差が出て、反対向きの候補が無いときだけです。同じ日に2回したときは、1日として数えます。</p>
     <div class="table-wrap"><table>
       <tr><th>いつ</th><th>棚</th><th>差</th><th>向き</th><th>揺れより大きいか</th></tr>
       ${rows.join('')}

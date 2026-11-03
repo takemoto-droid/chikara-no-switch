@@ -5,7 +5,7 @@ import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { handle } from '../lib/api.mjs';
-import { matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, ZENBU, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun } from '../public/js/kurabe.js';
+import { matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, ZENBU, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
@@ -206,7 +206,7 @@ await ok('デモの子4〜6：くり返し出た候補は、①（デモ4）だ�
   }
   // ③：1回目だけ「その回の候補」
   assert.deepEqual(matomeKai(kai('デモ6'), 'A').rows.map((r) => r.ookii), [true, false, false]);
-  assert.deepEqual(erabuCardKai(kai('デモ4')), { card: 'kiku', kurikaeshi: { kind: 'A', mode: 'kiku', onaji: [1, 2, 3], zenkai: 3 } });
+  assert.deepEqual(erabuCardKai(kai('デモ4')), { card: 'kiku', kurikaeshi: { kind: 'A', mode: 'kiku', onaji: [1, 2, 3], onajiHi: ['2026-09-09', '2026-10-14', '2026-11-11'], zenkai: 3 } });
   assert.equal(erabuCardKai(kai('デモ5')).card, 'dore');
   // 1回だけの子は、くり返しにならない
   for (const id of ['デモ1', 'デモ2', 'デモ3']) assert.equal(erabuCardKai(kai(id)).kurikaeshi, null);
@@ -234,7 +234,7 @@ await ok('くり返し出た候補は、その回の中の差どうしで決ま�
 await ok('くり返しのカード：回の数を事実で書き、「伸びた」「上がった」が無い', () => {
   const e = erabuCardKai(kai('デモ4'));
   const c = cardNoBun(cards.カード[e.card], e.kurikaeshi);
-  assert.match(c.これは何か, /^これまでの3回のゲームのうち3回で、くり返し/);
+  assert.match(c.これは何か, /^これまでに別々の日にした3日分のゲームのうち、3日分で、くり返し/);
   for (const card of Object.values(cards.カード)) {
     const t = JSON.stringify(card);
     assert.ok(!/伸び|上がった/.test(t), card.名前);
@@ -259,12 +259,65 @@ await ok('はなす・じっくりのカードは、どの結果でも出ない�
 await ok('サーバーの関数：回の並びを読み、くり返しを予備の文にも書く', async () => {
   const [, r] = await handle('kasetsu', 'POST', { record: kai('デモ4')[2], kai: kai('デモ4'), atehamaru: [] }, {}, 'test3');
   assert.equal(r.dare, 'yobi');
-  assert.match(r.kasetsu, /3回のゲームのうち3回/);
+  assert.match(r.kasetsu, /3日分のゲームのうち、3日分/);
   assert.equal(r.kakunin.回, 3);
   assert.equal(r.kurikaeshi.mode, 'kiku');
   const [, t] = await handle('tsutae', 'POST', { record: kai('デモ6')[2], kai: kai('デモ6') }, {}, 'test3');
   assert.match(t.kondan, /3回のゲームでは/);
   assert.ok(!/伸び|上がった/.test(JSON.stringify([r, t])));
+});
+
+// ---- 4便
+await ok('0：くり返しの決まりは3便のゆるい形のまま（その回の候補1回＋別の日に同じ向き）', () => {
+  // 1回目：その回の候補（差 +2,+2・揺れ0）、2回目：同じ向きだが揺れより大きくない（差 +1,+1・揺れ1）→ くり返し
+  const r1 = { ...kaiA([1, 1], [3, 3], 1), hi: '2026-09-01' };
+  const r2 = { ...kaiA([1, 2], [2, 3], 2), hi: '2026-10-01' };
+  assert.equal(matomeKai([r1, r2], 'A').kurikaeshi, 'kiku');
+});
+
+await ok('0：くり返しが無いときは、いちばん新しい回からカードを渡す', () => {
+  const r1 = { ...kaiA([1, 1], [3, 3], 1), hi: '2026-09-01' }; // 1回目は聞くの候補
+  const r2 = { ...kaiA([2, 2], [2, 2], 2), hi: '2026-10-01' }; // 2回目は差なし
+  assert.deepEqual(watasuCards([r1, r2]).map((x) => x.card), ['dore']);
+  assert.deepEqual(watasuCards([r2, r1]).map((x) => x.card), ['kiku']);
+});
+
+await ok('1：くり返し出た棚ごとにカードがたまり、一度もらったカードは消えない。新しいカードが前に出る', () => {
+  const both = (y, k, n, hi) => {
+    const r = { ...kaiA(y, k, n), hi };
+    // 図の棚も：文で見る B-1,B-4／図で見る B-2,B-3
+    Object.assign(r.kekka, { 'B-1': { seikai: 0 }, 'B-2': { seikai: 2 }, 'B-3': { seikai: 2 }, 'B-4': { seikai: 0 } });
+    return r;
+  };
+  const r1 = both([1, 1], [3, 3], 1, '2026-09-01');
+  const r2 = both([1, 1], [3, 3], 2, '2026-10-01');
+  const m1 = motteiruCards([r1]);
+  assert.equal(m1.cards.length, 1); // 1回目は、その回のカード1枚（差の大きい棚）
+  const m2 = motteiruCards([r1, r2]);
+  assert.deepEqual(m2.cards.map((c) => c.card).sort(), ['kiku', 'zu']);
+  assert.ok(m2.cards.every((c) => c.kurikaeshi), 'どちらも、くり返しのカード');
+  assert.equal(m2.atarashii.length, 1, '2回目で増えたのは1枚');
+  assert.equal(m2.cards[0].card, m2.atarashii[0], '増えたカードが前');
+  // 3回目が差なしでも、もらったカードは消えない
+  const r3 = { ...kaiA([2, 2], [2, 2], 3), hi: '2026-11-01' };
+  const m3 = motteiruCards([r1, r2, r3]);
+  assert.ok(m3.cards.map((c) => c.card).includes('kiku'));
+  // 全員に1枚以上
+  assert.ok(motteiruCards([]).cards.length >= 1);
+  assert.ok(motteiruCards([{ ...kaiA([2, 2], [2, 2], 1), hi: '2026-09-01' }]).cards.length >= 1);
+});
+
+await ok('2：同じ日の2回目は、くり返しに数えない', () => {
+  const r1 = { ...kaiA([1, 1], [3, 3], 1), hi: '2026-09-01' };
+  const r2 = { ...kaiA([1, 1], [3, 3], 2), hi: '2026-09-01' }; // 同じ日
+  assert.equal(matomeKai([r1, r2], 'A').kurikaeshi, null);
+  const r3 = { ...kaiA([1, 2], [2, 3], 3), hi: '2026-10-01' }; // 別の日に同じ向き
+  const x = matomeKai([r1, r2, r3], 'A');
+  assert.equal(x.kurikaeshi, 'kiku');
+  assert.deepEqual(x.onajiHi, ['2026-09-01', '2026-10-01']);
+  assert.equal(x.zenHi.length, 2);
+  const e = erabuCardKai([r1, r2, r3]);
+  assert.match(cardNoBun(cards.カード.kiku, e.kurikaeshi).これは何か, /2日分のゲームのうち、2日分/);
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

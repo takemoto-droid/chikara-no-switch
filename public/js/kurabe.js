@@ -185,6 +185,9 @@ export function kaiNoMuki(m) {
   return null;
 }
 
+// 同じ日の回は、くり返しの数では1つの日として数える（4便：同じ日に2回やるのは止めないが、くり返しには数えない）
+const hiNoKagi = (r) => r.hi || `回${r.kai}`;
+
 export function matomeKai(kaiList, kind) {
   const rows = kaiList.map((rec, i) => {
     const m = matome(rec, kind);
@@ -193,37 +196,63 @@ export function matomeKai(kaiList, kind) {
   const kumi = KUMI[kind];
   let kurikaeshi = null;
   let onaji = [];
+  let onajiHi = [];
   for (const d of kumi) {
     const kouhoKai = rows.filter((r) => r.ookii && r.muki === d);
     const onajiKai = rows.filter((r) => r.muki === d);
+    const hi = [...new Set(onajiKai.map(hiNoKagi))];
     const hantai = rows.filter((r) => r.ookii && r.muki && r.muki !== d);
-    if (kouhoKai.length >= 1 && onajiKai.length >= 2 && hantai.length === 0) {
+    // 「その回の候補」が1回以上あり、同じ向きの差が2つ以上の別の日に出ていて、反対向きの候補が無い
+    if (kouhoKai.length >= 1 && hi.length >= 2 && hantai.length === 0) {
       kurikaeshi = d;
       onaji = onajiKai.map((r) => r.kai);
+      onajiHi = hi;
     }
   }
-  return { kind, kumi, rows, kurikaeshi, onaji, kaisu: rows.filter((r) => r.sa.length === 2).length };
+  const zenHi = [...new Set(rows.map(hiNoKagi))];
+  return { kind, kumi, rows, kurikaeshi, onaji, onajiHi, zenHi, kaisu: rows.filter((r) => r.sa.length === 2).length };
 }
 
-// 回をまたいだカード。くり返し出た候補があればそれを、無ければ最後の回のカード。
-export function erabuCardKai(kaiList) {
+// その時点で渡すカード：くり返し出た棚ごとに1枚。くり返しが無ければ、いちばん新しい回から1枚。
+export function watasuCards(kaiList) {
   const owatta = kaiList.filter((r) => r.owari !== false);
-  if (!owatta.length) return { card: 'tameshita', kurikaeshi: null };
+  if (!owatta.length) return [{ card: 'tameshita', kurikaeshi: null }];
   const kuri = ['A', 'B', 'C']
     .map((k) => matomeKai(owatta, k))
     .filter((x) => CARD_OF[x.kurikaeshi])
-    .sort((x, y) => y.onaji.length - x.onaji.length);
-  if (kuri.length) {
-    const x = kuri[0];
-    return { card: CARD_OF[x.kurikaeshi], kurikaeshi: { kind: x.kind, mode: x.kurikaeshi, onaji: x.onaji, zenkai: owatta.length } };
+    .sort((x, y) => y.onajiHi.length - x.onajiHi.length)
+    .map((x) => ({ card: CARD_OF[x.kurikaeshi], kurikaeshi: { kind: x.kind, mode: x.kurikaeshi, onaji: x.onaji, onajiHi: x.onajiHi, zenkai: x.zenHi.length } }));
+  if (kuri.length) return kuri;
+  return [{ card: erabuCard(owatta[owatta.length - 1]), kurikaeshi: null }];
+}
+
+// 持っているカード（4便）：回ごとに渡したカードがたまる。一度渡したカードは消えない。
+// 同じカードをまた渡したときは、新しいほうの文にする。新しく増えたカードを前に出す。
+export function motteiruCards(kaiList) {
+  const owatta = kaiList.filter((r) => r.owari !== false);
+  const held = new Map();
+  let atarashii = [];
+  for (let i = 1; i <= Math.max(owatta.length, 1); i++) {
+    const mae = owatta.slice(0, i);
+    const last = mae[mae.length - 1];
+    const ima = watasuCards(mae);
+    if (i === Math.max(owatta.length, 1)) atarashii = ima.filter((g) => !held.has(g.card)).map((g) => g.card);
+    ima.forEach((g, j) => held.set(g.card, { ...g, kai: last?.kai ?? null, hi: last?.hi ?? null, jun: i * 10 - j }));
   }
-  return { card: erabuCard(owatta[owatta.length - 1]), kurikaeshi: null };
+  const cards = [...held.values()].sort((x, y) => (atarashii.includes(y.card) - atarashii.includes(x.card)) || y.jun - x.jun);
+  return { cards, atarashii };
+}
+
+// いちばん前に出すカード（伝え方・学習につなぐ・仮説の予備の文が使う）
+export function erabuCardKai(kaiList) {
+  const { cards } = motteiruCards(kaiList);
+  return { card: cards[0].card, kurikaeshi: cards[0].kurikaeshi };
 }
 
 // カードの文に、回の数を入れる（くり返しのときだけ）
 export function cardNoBun(card, kurikaeshi) {
   if (!kurikaeshi || !card.くり返しのとき) return card;
-  const ireru = (t) => t.replaceAll('{全回}', String(kurikaeshi.zenkai)).replaceAll('{同じ回}', String(kurikaeshi.onaji.length));
+  const ireru = (t) => t.replaceAll('{全日}', String(kurikaeshi.zenkai)).replaceAll('{同じ日}', String((kurikaeshi.onajiHi || kurikaeshi.onaji).length));
   const k = card.くり返しのとき;
   return { ...card, ひとこと: ireru(k.ひとこと), これは何か: ireru(k.これは何か), 保護者向け: ireru(k.保護者向け) };
 }
@@ -252,7 +281,8 @@ function summary(m) {
 function kaiSummary(x) {
   return {
     回ごと: x.rows.map((r) => ({ 回: r.kai, 差_2組: r.sa, 揺れ: r.yure, 向き: r.muki ? DASHIKATA[r.muki] : 'なし', 揺れより大きいか: r.ookii ? 'はい（その回の候補）' : 'いいえ' })),
-    くり返し出た候補: x.kurikaeshi ? `「${DASHIKATA[x.kurikaeshi]}」（${x.onaji.join('・')}回目で同じ向き）` : 'なし',
+    くり返し出た候補: x.kurikaeshi ? `「${DASHIKATA[x.kurikaeshi]}」（${x.onaji.join('・')}回目で同じ向き。別々の日は${x.onajiHi.length}日）` : 'なし',
+    決まり: '同じ日の回は、くり返しの数では1つの日として数える',
   };
 }
 

@@ -191,8 +191,12 @@ try {
     await page.goto(`${BASE}#/card/${encodeURIComponent(id)}`);
     await page.waitForSelector('.switch-card');
     const c = await mieru(`デモ_${id}_カード`);
+    tashika(!/\d+\s*枚/.test(c), `${id}：カードの枚数が出ない`);
+    if (id === 'デモ6') {
+      tashika(/持っているカード/.test(c) && (await page.locator('.switch-card').count()) === 2 && /1回目のゲーム（2026-09-09）のあとで、もらったカード/.test(c), `${id}：1回目にもらったカードが手元に残っている`);
+    }
     if (id === 'デモ4') {
-      tashika(KITAI[id].test(c) && /これまでの3回のゲームのうち3回で、くり返し/.test(c), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
+      tashika(KITAI[id].test(c) && /別々の日にした3日分のゲームのうち、3日分で、くり返し/.test(c), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
       tashika(/くり返し出た候補「聞く」/.test(t), `${id}：先生の画面に「くり返し出た候補」が出る`);
     } else {
       tashika(KITAI[id].test(c) && /この日のゲームでは/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
