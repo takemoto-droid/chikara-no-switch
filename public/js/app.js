@@ -393,6 +393,47 @@ async function gakushu(id) {
   draw();
 }
 
+// ---- 子どもの安全とプライバシー（docs/子どもの安全とプライバシー.md の写しを出す）
+function mdNoHtml(md) {
+  const inline = (t) => esc(t)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/(https:\/\/[^\s）)]+)/g, '<a href="$1" rel="noopener" target="_blank">$1</a>');
+  const out = [];
+  let list = false;
+  let table = [];
+  const flushTable = () => {
+    if (!table.length) return;
+    const rows = table.filter((r) => !/^\|\s*-/.test(r)).map((r) => r.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
+    out.push(`<div class="table-wrap"><table>${rows.map((r, i) => `<tr>${r.map((c) => (i === 0 ? `<th>${inline(c)}</th>` : `<td>${inline(c)}</td>`)).join('')}</tr>`).join('')}</table></div>`);
+    table = [];
+  };
+  for (const line of md.split('\n')) {
+    if (line.startsWith('|')) { table.push(line); continue; }
+    flushTable();
+    if (list && !line.startsWith('- ')) { out.push('</ul>'); list = false; }
+    if (line.startsWith('# ')) out.push(`<h1>${inline(line.slice(2))}</h1>`);
+    else if (line.startsWith('## ')) out.push(`<h2>${inline(line.slice(3))}</h2>`);
+    else if (line.startsWith('> ')) out.push(`<p class="draft">${inline(line.slice(2))}</p>`);
+    else if (line.startsWith('- ')) { if (!list) { out.push('<ul>'); list = true; } out.push(`<li>${inline(line.slice(2))}</li>`); }
+    else if (line.trim()) out.push(`<p>${inline(line)}</p>`);
+  }
+  flushTable();
+  if (list) out.push('</ul>');
+  return out.join('');
+}
+
+async function anzen() {
+  michi(null);
+  dare('');
+  try {
+    const md = await (await fetch('anzen.md')).text();
+    app.innerHTML = `<div class="md-page">${mdNoHtml(md)}</div><div class="btns"><a class="btn sub" href="#/">はじめの画面へ</a></div>`;
+  } catch {
+    app.innerHTML = '<h1>子どもの安全とプライバシー</h1><p>ページを開けませんでした。</p>';
+  }
+}
+
 // ---- 画面の切りかえ
 async function route() {
   tomeru();
@@ -409,6 +450,7 @@ async function route() {
     else if (a === 'check') await check();
     else if (a === 'tsutae') await tsutae(b);
     else if (a === 'gakushu') await gakushu(b);
+    else if (a === 'anzen') await anzen();
     else await top();
   } catch (e) {
     app.innerHTML = `<h1>うまく開けませんでした</h1><p>${esc(e.message)}</p><p><a href="#/">はじめの画面へ</a></p>`;

@@ -320,4 +320,13 @@ await ok('2：同じ日の2回目は、くり返しに数えない', () => {
   assert.match(cardNoBun(cards.カード.kiku, e.kurikaeshi).これは何か, /2日分のゲームのうち、2日分/);
 });
 
+await ok('4：子どもの安全とプライバシーのページがあり、画面から開ける写しが同じ', () => {
+  const moto = readFileSync(path.join(ROOT, 'docs/子どもの安全とプライバシー.md'), 'utf8');
+  assert.equal(readFileSync(path.join(ROOT, 'public/anzen.md'), 'utf8'), moto, 'npm run utsusu で写し直してください');
+  assert.match(moto, /https:\/\/support\.claude\.com\/en\/articles\/9307344/);
+  assert.match(moto, /https:\/\/www\.anthropic\.com\/legal\/commercial-terms/);
+  assert.match(moto, /2026-11-03 に開いて確かめた/);
+  assert.match(readFileSync(path.join(ROOT, 'public/index.html'), 'utf8'), /#\/anzen/);
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);

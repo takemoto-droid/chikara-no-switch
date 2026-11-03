@@ -113,3 +113,5 @@ footer.ai p { margin: 4px 0; }
   h1 { font-size: 1.3rem; }
   .switch-card .mei { font-size: 1.35rem; }
 }
+/* 長い URL も折り返す（子どもの安全とプライバシーのページなど） */
+.md-page p, .md-page li, .md-page td { overflow-wrap: anywhere; }

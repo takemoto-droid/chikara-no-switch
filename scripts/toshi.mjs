@@ -93,6 +93,14 @@ try {
   const t0 = await mieru('はじめ');
   tashika(/AI（Anthropic の Claude）を使っています/.test(t0), 'AI を使っていることが画面に出る');
 
+  // 子どもの安全とプライバシー（画面のいちばん下から開ける）
+  await page.click('footer a[href="#/anzen"]');
+  await page.waitForSelector('h1:has-text("子どもの安全とプライバシー")');
+  const tAnzen = await mieru('子どもの安全とプライバシー');
+  tashika(/2026-11-03/.test(tAnzen) && /support\.claude\.com/.test(tAnzen), '子どもの安全とプライバシーのページが画面から開ける');
+  await page.goto(`${BASE}#/`);
+  await page.waitForSelector('text=保存した結果を見る');
+
   // ① 案内
   await page.click('text=その場で動かす');
   await page.waitForSelector('text=このゲームについて');

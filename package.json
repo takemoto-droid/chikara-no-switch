@@ -4,13 +4,16 @@
   "private": true,
   "description": "チカラのスイッチ：同じ問題を出し方だけ変えて解き、力が出た出し方をスイッチカードとして残すウェブアプリ",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.mjs",
     "start:yobi": "CHIKARA_KEY_NASHI=1 node server.mjs",
     "tenken": "node scripts/tenken.mjs",
     "toshi": "node scripts/toshi.mjs",
-    "test": "node scripts/tenken.mjs && node scripts/kurabe-test.mjs"
+    "test": "node scripts/tenken.mjs && node scripts/kurabe-test.mjs",
+    "utsusu": "node scripts/utsusu.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0"
