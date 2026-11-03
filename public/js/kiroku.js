@@ -66,6 +66,10 @@ export async function owattaKai(id) {
   return k ? k.kai.filter((r) => r.owari) : [];
 }
 
+export function isOtona(id) {
+  return String(id).startsWith('大人');
+}
+
 export function isDemo(id) {
   return String(id).startsWith('デモ');
 }
@@ -74,10 +78,11 @@ function atarashiiKai(id, n) {
   return { id, kai: n, hi: hiduke(), junban: makeJunban(`${id}-${n}-${Date.now()}`), kekka: {}, erabi: [], owari: false, hajime: Date.now() };
 }
 
-export function newKid() {
+// atama：呼び名の頭（子どもは「その場」、大人が試すときは「大人」）
+export function newKid(atama = 'その場') {
   const st = load();
   st.seq += 1;
-  const id = `その場${st.seq}`;
+  const id = `${atama}${st.seq}`;
   st.kids[id] = { id, kai: [atarashiiKai(id, 1)] };
   save(st);
   return id;
@@ -110,7 +115,8 @@ export function localKids() {
 
 export async function classList() {
   const d = await demo();
-  return [...d.クラス, ...localKids().map((k) => ({ id: k.id, 呼び名: `${k.id}（この端末で動かした子）` }))];
+  // 大人が試した記録は、クラスのチェック項目には出さない
+  return [...d.クラス, ...localKids().filter((k) => !isOtona(k.id)).map((k) => ({ id: k.id, 呼び名: `${k.id}（この端末で動かした子）` }))];
 }
 
 // チェック項目の印（項目 id → 当てはまる子の id の並び）

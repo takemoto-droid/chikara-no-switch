@@ -219,6 +219,32 @@ try {
     await mieru(`デモ_${id}_伝え方`);
   }
 
+  // Should：引き継ぎの記録の書き出し（デモ4）
+  await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent('デモ4')}`);
+  await page.waitForSelector('#hikitsugi');
+  await page.click('#hikitsugi');
+  await page.waitForSelector('#hikitsugi-dl');
+  await page.locator('#hikitsugi-box summary').click();
+  const tHiki = await mieru('引き継ぎの記録_デモ4');
+  tashika(/避ける言葉は見つかりませんでした/.test(tHiki) && /2026-10-28/.test(tHiki) && /2026年度/.test(tHiki), 'Should：引き継ぎの記録を書き出せる（回ごとの日付・年度つき）');
+
+  // Should：大人が自分で試す
+  await page.goto(`${BASE}#/`);
+  await page.click('text=大人が自分で試す');
+  await page.waitForSelector('text=大人の方へ');
+  await mieru('案内_大人');
+  await page.click('text=試してみる');
+  await page.waitForSelector('#hajimeru');
+  const rO = await susumu(99);
+  tashika(rO === 'owari', 'Should：大人もゲームを最後まで通せる');
+  await page.click('a[href^="#/card/"]');
+  await page.waitForSelector('.switch-card');
+  const tO = await mieru('カード_大人');
+  tashika(/まわりにお願いしてよいこと/.test(tO) && !/先生にお願いしてよいこと/.test(tO), 'Should：大人のカードは「まわりにお願いしてよいこと」');
+  await page.goto(`${BASE}#/check`);
+  await page.waitForSelector('.chip');
+  tashika((await page.locator('.chip[data-kid^="大人"]').count()) === 0, 'Should：大人の記録は、クラスのチェック項目に出ない');
+
   // PC の幅（1280px）でも、先生の画面・チェック項目・伝え方が崩れない
   page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));

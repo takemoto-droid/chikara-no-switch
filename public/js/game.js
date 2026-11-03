@@ -89,17 +89,36 @@ function midashi(st) {
   return st.mode === 'kugiri' ? '連絡を一文ずつ読んで答える問題' : '連絡をまとめて読んで答える問題';
 }
 
-function jikko(st, tana, box, yomiageOK) {
-  if (st.kind === 'A') return bunshoMondai(st, tana, box, yomiageOK);
+// 練習問題を Claude が作る（Should・5便）：キーがあり、should.json で使うときだけ。練習は比べる数に入れない
+let settei = { ai: false, renshu: false };
+export function setSettei(s) { settei = { ...settei, ...s }; }
+
+async function renshuNoMondai(st) {
+  if (!st.renshu || !settei.ai || !settei.renshu) return null;
+  try {
+    const r = await api('renshu', { mode: st.mode, n: st.id === 'A-r2' ? 2 : 1 }, 20000);
+    return r.dare === 'claude' && r.mondai ? r.mondai : null;
+  } catch {
+    return null;
+  }
+}
+
+async function jikko(st, tana, box, yomiageOK) {
+  if (st.kind === 'A') {
+    const tsukutta = await renshuNoMondai(st);
+    const k = await bunshoMondai(st, tana, box, yomiageOK, tsukutta);
+    return tsukutta ? { ...k, renshuDare: 'claude' } : k;
+  }
   if (st.kind === 'C') return shijiMondai(st, tana, box);
   if (st.kind === 'B') return bamenMondai(st, tana, box);
   return shitsumon(st, tana, box, yomiageOK);
 }
 
 // 読む／聞くの問題
-function bunshoMondai(st, tana, box, yomiageOK) {
+function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
   return new Promise((resolve) => {
-    const p = tana.A.文章[st.mondai];
+    const p = tsukutta || tana.A.文章[st.mondai];
+    const tsukuttaLabel = tsukutta ? '<p><span class="label ai">練習：この問題は Claude（AI）が作りました</span></p>' : '';
     const zenbun = p.本文.join('');
     const kiku = st.mode === 'kiku' && yomiageOK;
     const yomiageNashi = st.mode === 'kiku' && !yomiageOK;
@@ -109,7 +128,7 @@ function bunshoMondai(st, tana, box, yomiageOK) {
 
     // 1：本文
     if (kiku) {
-      box.innerHTML = `<p>文章を読み上げます。よく聞いてね。何回聞いてもかまいません。</p>
+      box.innerHTML = `${tsukuttaLabel}<p>文章を読み上げます。よく聞いてね。何回聞いてもかまいません。</p>
         <div class="btns"><button id="play">▶ 文章を聞く</button><button id="next" class="sub" disabled>聞けた</button></div>`;
       box.querySelector('#play').onclick = async () => {
         kikuKaisu++;
@@ -120,7 +139,7 @@ function bunshoMondai(st, tana, box, yomiageOK) {
       };
       box.querySelector('#next').onclick = () => toi();
     } else {
-      box.innerHTML = `<p>${yomiageNashi ? '（読み上げが使えないので、文字で出します）' : '文章を読んでね。読めたら「読めた」を押してください。'}</p>
+      box.innerHTML = `${tsukuttaLabel}<p>${yomiageNashi ? '（読み上げが使えないので、文字で出します）' : '文章を読んでね。読めたら「読めた」を押してください。'}</p>
         <div class="honbun">${honbunHtml}</div>
         <div class="btns"><button id="next">読めた</button></div>`;
       box.querySelector('#next').onclick = () => toi();

@@ -125,3 +125,6 @@ body[data-gamen="先生の画面"] main, body[data-gamen="先生の画面"] .mic
   .narabi { grid-template-columns: 1fr 1fr; align-items: start; }
 }
 .narabi > section.box { margin-top: 0; }
+
+/* 引き継ぎの記録の中身（Should） */
+.hikitsugi-pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px; max-height: 24em; overflow: auto; }

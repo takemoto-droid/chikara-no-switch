@@ -1,13 +1,15 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方・⑥学習につなぐ
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
-import { getRecord, getKid, owattaKai, newKai, isDemo, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo } from './kiroku.js';
+import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo, hiduke } from './kiroku.js';
+import { hikitsugiNoBun } from './hikitsugi.js';
 import { matome, matomeKai, erabuCardKai, motteiruCards, cardNoBun, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
-import { gameScreen } from './game.js';
+import { gameScreen, setSettei } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
 
 export const SOUDAN_UTSUSHI = '気になることや困っていることがあれば、いつでも担任の先生や、学校の相談の窓口に話してください。このゲームの結果があってもなくても、相談はできます。';
 const app = document.getElementById('app');
+let should = {};
 let joutai = { ai: false, soudan: '' };
 
 function michi(ima) {
@@ -34,6 +36,7 @@ async function top() {
     <div class="entrance">
       <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子の結果を、先生の画面で見ます。1回だけの子（差が出た子・差が出なかった子）と、3回分の記録がある子がいます。</span></div></a>
       <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②ゲーム → ③カード → ④先生の画面 → ⑤伝え方 → ⑥学習につなぐ、を順に動かします。公開デモでは、AI を呼べる回数に上限があります。上限に達したときは、決まった順・決まった文で最後まで動きます。</span></div></a>
+      ${should.otona?.使う ? '<a href="#/annai/otona"><div class="box"><strong>大人が自分で試す</strong><br><span class="muted">中学生向けのゲームを、大人の方も自分で試せます。結果は自分にだけ出ます。</span></div></a>' : ''}
     </div>
     ${mada.length ? `<div class="box soft"><h3>途中で止めたゲーム</h3>${mada.map((k) => `<p><a href="#/game/${enc(k.id)}">${esc(k.id)} の続きから始める</a></p>`).join('')}</div>` : ''}
     <h2>案内</h2>
@@ -43,8 +46,8 @@ async function top() {
 // ---- ① 案内
 async function annai(who) {
   michi(0);
-  const a = (await data('annai'))[who === 'ko' ? '子ども' : '保護者'];
-  dare(who === 'ko' ? '子どもの画面' : '保護者の画面');
+  const a = (await data('annai'))[who === 'ko' ? '子ども' : who === 'otona' ? '大人' : '保護者'];
+  dare(who === 'ko' ? '子どもの画面' : who === 'otona' ? '大人が試す画面' : '保護者の画面');
   app.innerHTML = `
     <h1>${esc(a.題)}</h1>
     ${a.段.map((d) => `<h2>${esc(d.見出し)}</h2><p>${esc(d.文)}</p>`).join('')}
@@ -52,19 +55,21 @@ async function annai(who) {
     <div class="btns">
       ${who === 'ko'
         ? '<a class="btn" href="#/hajimeru">ゲームをはじめる</a><a class="btn sub" href="#/annai/hogo">保護者向けの案内</a>'
-        : '<a class="btn" href="#/annai/ko">子ども向けの案内へ</a>'}
+        : who === 'otona'
+          ? '<a class="btn" href="#/hajimeru/otona">試してみる</a><a class="btn sub" href="#/">はじめの画面へ</a>'
+          : '<a class="btn" href="#/annai/ko">子ども向けの案内へ</a>'}
     </div>`;
 }
 
-async function hajimeru() {
-  const id = newKid();
+async function hajimeru(dare_) {
+  const id = newKid(dare_ === 'otona' ? '大人' : 'その場');
   location.replace(`#/game/${enc(id)}`);
 }
 
 // ---- ③ スイッチカード
 async function card(id) {
   michi(2);
-  dare('子どもの画面');
+  dare(isOtona(id) ? '大人が試す画面' : '子どもの画面');
   const rec = await getRecord(id);
   const kai = await owattaKai(id);
   if (!rec || !kai.length) {
@@ -77,6 +82,7 @@ async function card(id) {
   const hyouji = (m) => cardHtml(cardNoBun(cards.カード[m.card], m.kurikaeshi), {
     atarashii: kai.length > 1 && atarashii.includes(m.card),
     moratta: m.kai ? `${m.kai}回目のゲーム${m.hi ? `（${m.hi}）` : ''}のあとで、もらったカード` : '',
+    otona: isOtona(id),
   });
   const [mae, ...ushiro] = motte;
   app.innerHTML = `
@@ -87,7 +93,7 @@ async function card(id) {
     ${soudanHtml()}
     <div class="btns">
       <a class="btn" href="#/gakushu/${enc(id)}">このスイッチで数学の問題を解く（⑥）</a>
-      <a class="btn sub" href="#/sensei/ko/${enc(id)}">ここからは先生が見ます（④先生の画面）</a>
+      <a class="btn sub" href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果を見る（先生の画面と同じもの）' : 'ここからは先生が見ます（④先生の画面）'}</a>
     </div>
     ${rec.owari ? '' : `<div class="box soft"><p>${esc(rec.kai)}回目のゲームの途中です。</p><a class="btn sub" href="#/game/${enc(id)}">続きから始める</a></div>`}
     ${tsugiNoKai ? `<div class="box soft"><p>別の日に、もう一度ゲームをすると、回をまたいで比べられます（いまは ${kai.length} 回）。</p><button class="sub" id="tsugi-kai">別の日の回を始める</button></div>` : ''}`;
@@ -95,7 +101,7 @@ async function card(id) {
   if (b) b.onclick = () => { if (newKai(id)) location.hash = `#/game/${enc(id)}`; };
 }
 
-function cardHtml(c, { atarashii = false, moratta = '' } = {}) {
+function cardHtml(c, { atarashii = false, moratta = '', otona = false } = {}) {
   return `<div class="switch-card" style="background:${esc(c.色)}">
       ${atarashii ? '<p class="atarashii">あたらしいカード</p>' : ''}
       <p class="mei">${esc(c.名前)}</p>
@@ -104,7 +110,7 @@ function cardHtml(c, { atarashii = false, moratta = '' } = {}) {
       <div class="naka">
         <h3>これは何か</h3><p>${esc(c.これは何か)}</p>
         <h3>自分でできる使い方</h3><ul>${c.自分でできる使い方.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-        <h3>先生にお願いしてよいこと</h3><ul>${c.先生にお願いしてよいこと.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+        <h3>${otona ? 'まわりにお願いしてよいこと' : '先生にお願いしてよいこと'}</h3><ul>${c.先生にお願いしてよいこと.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
       </div>
     </div>`;
 }
@@ -227,7 +233,9 @@ async function senseiKo(id) {
       <a class="btn" href="#/tsutae/${enc(id)}">⑤ 伝え方の下書きへ</a>
       <a class="btn sub" href="#/gakushu/${enc(id)}">⑥ 学習につなぐ</a>
       <a class="btn sub" href="#/card/${enc(id)}">カードを見る</a>
+      ${should.hikitsugi?.使う && kai.length ? '<button class="sub" id="hikitsugi">引き継ぎの記録を書き出す</button>' : ''}
     </div>
+    <div id="hikitsugi-box"></div>
 
     <h2 class="kugiri-midashi">授業の手がかり</h2>
     <div class="narabi">
@@ -254,6 +262,27 @@ async function senseiKo(id) {
     <details class="box"><summary>ゲームで Claude が次を選んだ理由の記録</summary>
       <ol class="small">${(rec.erabi || []).map((e) => `<li>${esc(e.step)}：${esc(e.riyuu)} <span class="muted">（${e.dare === 'claude' ? 'Claude' : '決まった順'}）</span></li>`).join('') || '<li>記録なし</li>'}</ol>
     </details>`;
+
+  // 引き継ぎの記録の書き出し（Should・5便）：Markdown の表にして、ファイルで渡す。書き出す前に言葉を点検する
+  const hb = document.getElementById('hikitsugi');
+  if (hb) {
+    hb.onclick = async () => {
+      const bun = hikitsugiNoBun({ id, kai, cards, tana, atehamaru, kakuHi: hiduke() });
+      let tenkenBun = '';
+      try {
+        const r = await api('tenken', { text: bun });
+        tenkenBun = r.hits.length ? `避ける言葉が ${r.hits.length} か所あります。書き出したあとで直してください。` : '避ける言葉は見つかりませんでした。';
+      } catch { tenkenBun = '言葉の点検は、サーバーにつながらないのでできませんでした。'; }
+      const url = URL.createObjectURL(new Blob([bun], { type: 'text/markdown' }));
+      document.getElementById('hikitsugi-box').innerHTML = `
+        <div class="box soft">
+          <p>引き継ぎの記録を作りました（年をまたいでも、回ごとの差を並べて見られる形です）。${esc(tenkenBun)}</p>
+          <div class="btns"><a class="btn" id="hikitsugi-dl" href="${url}" download="引き継ぎ_${esc(id)}_${hiduke()}.md">ファイルで受け取る</a></div>
+          <details><summary>中身を見る</summary><pre class="hikitsugi-pre">${esc(bun)}</pre></details>
+          <p class="muted small">Should で作った機能です（あとで外せます）。</p>
+        </div>`;
+    };
+  }
 
   if (!kai.length) return;
   const box = document.getElementById('kasetsu');
@@ -472,8 +501,8 @@ async function route() {
   try {
     if (!a) await top();
     else if (a === 'annai') await annai(b);
-    else if (a === 'hajimeru') await hajimeru();
-    else if (a === 'game') { michi(1); dare('子どもの画面'); await gameScreen(app, b); }
+    else if (a === 'hajimeru') await hajimeru(b);
+    else if (a === 'game') { michi(1); dare(isOtona(b) ? '大人が試す画面' : '子どもの画面'); await gameScreen(app, b); }
     else if (a === 'card') await card(b);
     else if (a === 'sensei' && b === 'ko') await senseiKo(c2);
     else if (a === 'sensei') await senseiHub();
@@ -500,6 +529,8 @@ async function main() {
   document.getElementById('ai-joutai').textContent = joutai.ai
     ? 'いまは Claude を使っています。使えないときは、決まった順の予備の動きに切りかわります。'
     : 'いまは Claude を使わず、決まった順の予備の動きで出しています。';
+  try { should = await data('should'); } catch { should = {}; }
+  setSettei({ ai: Boolean(joutai.ai), renshu: Boolean(should.renshu?.使う) });
   window.addEventListener('hashchange', route);
   route();
 }

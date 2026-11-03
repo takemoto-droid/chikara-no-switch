@@ -384,4 +384,45 @@ await ok('F2：⑤ 伝え方に「学年・教科の先生への一言」があ�
   assert.match(e.error, /[\u3040-\u30ff\u4e00-\u9fff]/);
 });
 
+await ok('F4（Should）：引き継ぎの記録の書き出しは、回ごとの日付・年度・差の向きを並べ、言葉の点検を通る', async () => {
+  const { hikitsugiNoBun } = await import('../public/js/hikitsugi.js');
+  const { tenkenAll } = await import('../lib/kotoba.mjs');
+  const tana = j('public/data/tana.json');
+  for (const id of ['デモ1', 'デモ4', 'デモ6']) {
+    const k = kai(id).map((r, i) => ({ ...r, id, kai: i + 1 }));
+    const bun = hikitsugiNoBun({ id, kai: k, cards, tana, atehamaru: ['個別に聞くと答える'], kakuHi: '2026-11-03' });
+    assert.equal(tenkenAll(bun).length, 0, id);
+    assert.match(bun, /参考程度/);
+    for (const r of k) assert.ok(bun.includes(r.hi), `${id} ${r.hi}`);
+    assert.match(bun, /2026年度/);
+  }
+  const bun4 = hikitsugiNoBun({ id: 'デモ4', kai: kai('デモ4').map((r, i) => ({ ...r, kai: i + 1 })), cards, tana, atehamaru: [], kakuHi: '2026-11-03' });
+  assert.match(bun4, /「聞く」（別々の日 3日のうち 3日）/);
+});
+
+await ok('F4（Should）：練習問題を Claude が作る道筋。キーが無いと決まった練習問題、形が合えば使い、合わなければ使わない', async () => {
+  const [, r0] = await handle('renshu', 'POST', { mode: 'yomu', n: 1 }, {}, 'f4');
+  assert.equal(r0.dare, 'yobi');
+  assert.equal(r0.mondai, null);
+  const yoi = { honbun: ['図書室では、毎週水曜日に新しい本が入ります。', '入った本は、入口のたなに一週間ならびます。', '借りたい人は、カウンターで名前を書きます。', '返すときは、図書室の前の返却ポストに入れれば大丈夫です。'],
+    toi: [{ bun: '新しい本は、毎週水曜日に入る。', kotae: true, shurui: '本文どおり' }, { bun: '新しい本は、一週間入口に置かれる。', kotae: true, shurui: '言い換え' }, { bun: '新しい本は、毎週金曜日に入る。', kotae: false, shurui: '一語変え' }, { bun: '図書室では、本の読み聞かせ会がある。', kotae: false, shurui: '無関係' }] };
+  niseNoClaude(nisemono([yoi]));
+  const [, r1] = await handle('renshu', 'POST', { mode: 'kiku', n: 1 }, { ANTHROPIC_API_KEY: 'nise' }, 'f4a');
+  assert.equal(r1.dare, 'claude');
+  assert.equal(r1.mondai.本文.length, 4);
+  assert.equal(r1.mondai.問い.filter((q) => q.答え).length, 2);
+  const warui = { ...yoi, toi: yoi.toi.map((t) => ({ ...t, shurui: '本文どおり' })) };
+  niseNoClaude(nisemono([warui]));
+  const [, r2] = await handle('renshu', 'POST', { mode: 'kiku', n: 1 }, { ANTHROPIC_API_KEY: 'nise' }, 'f4b');
+  niseNoClaude(null);
+  assert.equal(r2.dare, 'yobi');
+  assert.equal(r2.mondai, null);
+});
+
+await ok('F4（Should）：作ったものは should.json で外せる', () => {
+  const sh = j('public/data/should.json');
+  for (const k of ['hikitsugi', 'renshu', 'otona']) assert.equal(typeof sh[k].使う, 'boolean', k);
+  assert.ok(j('public/data/annai.json').大人.Should);
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);

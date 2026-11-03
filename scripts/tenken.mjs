@@ -72,6 +72,14 @@ for (const saisho of ['yomu', 'kiku']) {
 }
 // 途中の記録（まだ比べていない）
 yobiTexts.push(...mojiretsu(yobiKasetsu([{ junban: { A: { saisho: 'yomu' }, B: { saisho: 'bun' }, C: { saisho: 'ikki' } }, kekka: {} }], tana, [])));
+// 引き継ぎの記録の書き出し（Should）：デモの子ぜんぶ
+{
+  const { hikitsugiNoBun } = await import('../public/js/hikitsugi.js');
+  const kids = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo.json'), 'utf8')).結果;
+  for (const [id, k] of Object.entries(kids)) {
+    yobiTexts.push(...hikitsugiNoBun({ id, kai: k.kai.map((r, i) => ({ ...r, kai: i + 1 })), cards, tana, atehamaru: checklist.項目.slice(0, 2).map((x) => x.文), kakuHi: '2026-11-03' }).split('\n').filter(Boolean));
+  }
+}
 // デモの子（回をまたぐ子を含む）
 const demoKids = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo.json'), 'utf8')).結果;
 for (const k of Object.values(demoKids)) {
