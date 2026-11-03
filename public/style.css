@@ -115,3 +115,13 @@ footer.ai p { margin: 4px 0; }
 }
 /* 長い URL も折り返す（子どもの安全とプライバシーのページなど） */
 .md-page p, .md-page li, .md-page td { overflow-wrap: anywhere; }
+
+/* 先生の画面は PC の幅では広く使う（4便） */
+body[data-gamen="先生の画面"] main, body[data-gamen="先生の画面"] .michi, body[data-gamen="先生の画面"] footer.ai { max-width: 1040px; }
+.narabi { display: grid; gap: 0 20px; }
+.narabi > section > h2:first-child, .narabi > section > h3:first-child { margin-top: 8px; }
+.kugiri-midashi { border-top: 2px solid var(--line); padding-top: 16px; margin-top: 28px; }
+@media (min-width: 900px) {
+  .narabi { grid-template-columns: 1fr 1fr; align-items: start; }
+}
+.narabi > section.box { margin-top: 0; }

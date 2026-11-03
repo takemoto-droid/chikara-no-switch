@@ -16,6 +16,7 @@ function michi(ima) {
 }
 function dare(t) {
   document.getElementById('dare').textContent = t || '';
+  document.body.dataset.gamen = t || '';
 }
 function soudanHtml() {
   return `<div class="box soudan"><h3>相談したいとき</h3><p>${esc(joutai.soudan)}</p></div>`;
@@ -168,7 +169,7 @@ function kaiHyouHtml(kai) {
   }
   const kuri = matome3.map((x) => `<li>${esc(TANA_MEI[x.kind])}：${x.kurikaeshi ? `<strong>くり返し出た候補「${esc(DASHIKATA[x.kurikaeshi])}」</strong>（${x.onaji.join('・')}回目で同じ向き。別々の日は ${x.onajiHi.length} 日）` : x.zenHi.length < 2 ? 'まだ1日分だけなので、回をまたいだ比べはしていない（同じ日の回は1日として数える）' : 'くり返し出た候補はない'}</li>`).join('');
   return `
-    <h2>(a') 回ごとの「出し方の差」</h2>
+    <h3>回ごとの「出し方の差」</h3>
     <p class="muted small">差は、その回の中の「${esc(DASHIKATA.kiku)}−${esc(DASHIKATA.yomu)}」のように、2つ目の出し方から1つ目の出し方を引いた正解の差（1組目・2組目）。素点は回ごとに比べません（2回目は慣れて正解が増えやすいため）。「くり返し出た候補」は、ある回でその回の候補になり、別の日の回でも同じ向きの差が出て、反対向きの候補が無いときだけです。同じ日に2回したときは、1日として数えます。</p>
     <div class="table-wrap"><table>
       <tr><th>いつ</th><th>棚</th><th>差</th><th>向き</th><th>揺れより大きいか</th></tr>
@@ -191,42 +192,68 @@ async function senseiKo(id) {
   const ids = await atehamaruIds(id);
   const atehamaru = ids.map((i) => mieruKoumoku(checklist).find((x) => x.id === i)?.文).filter(Boolean);
   const koe = ['A-1', 'A-2', 'A-3', 'A-4'].map((s) => rec.kekka[s]?.koe).filter(Boolean)[0];
-  const erabi = erabuCardKai(kai);
-  const card = cardNoBun(cards.カード[erabi.card], erabi.kurikaeshi);
-
+  // 先生の画面の見やすさ（4便）：上から「いま言えること」→「Claude の仮説」→「授業の手がかり」→「数字の根拠」の順。
+  // 細かい数字は後ろに置き、まとめと仮説を先に見せる。PC の幅では、まとめと仮説、手がかりの2つを横に並べる。
+  const { cards: motte } = motteiruCards(kai);
+  const matomeBun = ['A', 'B', 'C'].map((k) => {
+    const x = matomeKai(kai, k);
+    const m = matome(rec, k);
+    let bun;
+    if (x.kurikaeshi) bun = `<strong>くり返し出た候補「${esc(DASHIKATA[x.kurikaeshi])}」</strong>（別々の日 ${x.zenHi.length}日のうち ${x.onajiHi.length}日で同じ向き）`;
+    else if (m.kekka === 'mada') bun = 'まだ比べていない';
+    else if (m.kekka === 'nashi') bun = `差なし${kai.length > 1 ? '（どの日も、くり返し出た候補はない）' : ''}`;
+    else bun = `${kai.length > 1 ? `${esc(rec.kai)}回目だけの` : 'この日の'}候補「${esc(DASHIKATA[m.kekka])}」`;
+    return `<li>${esc(TANA_MEI[k])}：${bun}</li>`;
+  }).join('');
   app.innerHTML = `
     <h1>${esc(id)}${isDemo(id) ? '（架空の子）' : ''}</h1>
     ${saishin.owari ? '' : `<div class="box chui">${esc(saishin.kai)}回目のゲームの途中です。<a href="#/game/${enc(id)}">続きから始める</a></div>`}
     <p class="muted small">終わったゲーム：${kai.length}回${kai.length ? `（${kai.map((r) => `${r.kai}回目 ${esc(r.hi || '日付なし')}`).join('・')}）` : ''}</p>
 
-    ${kai.length ? kaiHyouHtml(kai) : ''}
-
-    <h2>(a) ${kai.length > 1 ? `いちばん新しい回（${esc(rec.kai)}回目）の結果` : '結果'}：本人の中で、出し方ごとに比べたもの</h2>
-    <p class="muted small">どの組も ABBA の順で2回ずつ比べました。「候補」は、同じ出し方を2回やったときの揺れより大きい差が、同じ向きに2回出たときだけです。読む／聞くの練習の1組は、比べる数に入れていません。</p>
-    ${['A', 'B', 'C'].map((k) => tanaHtml(matome(rec, k))).join('')}
-    <p class="muted small">読み上げの声：${esc(koe || '記録なし')}</p>
-    <p>子どもに渡したカード：<strong>${esc(card.名前)}</strong>（${esc(card.ひとこと)}）</p>
-
-    <h2>(b) 選んだ答え</h2>
-    <p class="muted small">比べる数には入れていません。</p>
-    <ul>${kotaeD(rec, tana).map((d) => `<li>${esc(d.toi)} →「${esc(d.kotae ?? '（まだ答えていない）')}」</li>`).join('')}</ul>
-
-    <h2>(c) チェック項目で当てはまったもの（気づきの候補）</h2>
-    ${atehamaru.length ? `<ul>${atehamaru.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="muted">まだありません。</p>'}
-    <p class="muted small">点数にしません。基準もありません。<a href="#/check">チェック項目を選ぶ</a></p>
-
-    <h2>(d) Claude の仮説</h2>
-    <div id="kasetsu" class="box" aria-live="polite">${kai.length ? 'Claude が下書きを書いています…' : 'ゲームが終わると、仮説の下書きが出ます。'}</div>
-
-    <details class="box"><summary>ゲームで Claude が次を選んだ理由の記録</summary>
-      <ol class="small">${(rec.erabi || []).map((e) => `<li>${esc(e.step)}：${esc(e.riyuu)} <span class="muted">（${e.dare === 'claude' ? 'Claude' : '決まった順'}）</span></li>`).join('') || '<li>記録なし</li>'}</ol>
-    </details>
+    <div class="narabi">
+      <section class="box soft">
+        <h2>まとめ：いま言えること</h2>
+        <ul>${matomeBun}</ul>
+        <p class="small">子どもが持っているカード：${motte.map((m) => `<strong>${esc(cards.カード[m.card].名前)}</strong>`).join('・')}</p>
+        <p class="muted small">本人の中で出し方を比べた結果です。他の子とは比べていません。くわしい数字は、下の「数字の根拠」にあります。</p>
+      </section>
+      <section>
+        <h2>Claude の仮説</h2>
+        <div id="kasetsu" class="box" aria-live="polite">${kai.length ? 'Claude が下書きを書いています…' : 'ゲームが終わると、仮説の下書きが出ます。'}</div>
+      </section>
+    </div>
 
     <div class="btns">
       <a class="btn" href="#/tsutae/${enc(id)}">⑤ 伝え方の下書きへ</a>
       <a class="btn sub" href="#/gakushu/${enc(id)}">⑥ 学習につなぐ</a>
       <a class="btn sub" href="#/card/${enc(id)}">カードを見る</a>
-    </div>`;
+    </div>
+
+    <h2 class="kugiri-midashi">授業の手がかり</h2>
+    <div class="narabi">
+      <section>
+        <h3>選んだ答え</h3>
+        <p class="muted small">比べる数には入れていません。</p>
+        <ul>${kotaeD(rec, tana).map((d) => `<li>${esc(d.toi)} →「${esc(d.kotae ?? '（まだ答えていない）')}」</li>`).join('')}</ul>
+      </section>
+      <section>
+        <h3>チェック項目で当てはまったもの（気づきの候補）</h3>
+        ${atehamaru.length ? `<ul>${atehamaru.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="muted">まだありません。</p>'}
+        <p class="muted small">点数にしません。基準もありません。<a href="#/check">チェック項目を選ぶ</a></p>
+      </section>
+    </div>
+
+    <h2 class="kugiri-midashi">数字の根拠</h2>
+    ${kai.length ? kaiHyouHtml(kai) : ''}
+
+    <h3>${kai.length > 1 ? `いちばん新しい回（${esc(rec.kai)}回目）の結果` : '結果'}：本人の中で、出し方ごとに比べたもの</h3>
+    <p class="muted small">どの組も ABBA の順で2回ずつ比べました。「候補」は、同じ出し方を2回やったときの揺れより大きい差が、同じ向きに2回出たときだけです。読む／聞くの練習の1組は、比べる数に入れていません。</p>
+    ${['A', 'B', 'C'].map((k) => tanaHtml(matome(rec, k))).join('')}
+    <p class="muted small">読み上げの声：${esc(koe || '記録なし')}</p>
+
+    <details class="box"><summary>ゲームで Claude が次を選んだ理由の記録</summary>
+      <ol class="small">${(rec.erabi || []).map((e) => `<li>${esc(e.step)}：${esc(e.riyuu)} <span class="muted">（${e.dare === 'claude' ? 'Claude' : '決まった順'}）</span></li>`).join('') || '<li>記録なし</li>'}</ol>
+    </details>`;
 
   if (!kai.length) return;
   const box = document.getElementById('kasetsu');

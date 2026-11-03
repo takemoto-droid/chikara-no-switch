@@ -25,7 +25,7 @@ await new Promise((r) => srv.stdout.once('data', r));
 const BASE = `http://localhost:${PORT}/?shiken=1`;
 const kiroku = { 画面: 0, 点検した文の数: 0, 避ける言葉: [], はみ出し: [], 理由: [], まちがい: [] };
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 375, height: 740 }, deviceScaleFactor: 1 });
+let page = await browser.newPage({ viewport: { width: 375, height: 740 }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
 
 function tashika(jouken, setsumei) {
@@ -146,7 +146,9 @@ try {
   await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
   const tSensei = await mieru('先生の画面');
   tashika(/仮説/.test(tSensei) && /確かめた回数/.test(tSensei) && /参考程度・決めるのは先生/.test(tSensei), '仮説に「仮説」「確かめた回数」「参考程度・決めるのは先生」が付く');
-  tashika(/\(a\)/.test(tSensei) && /\(b\) 選んだ答え/.test(tSensei) && /\(c\)/.test(tSensei) && /\(d\) Claude の仮説/.test(tSensei), '先生の画面に (a)〜(d) が出る');
+  const jun = ['まとめ：いま言えること', 'Claude の仮説', '選んだ答え', 'チェック項目で当てはまったもの', '回ごとの「出し方の差」', '本人の中で、出し方ごとに比べたもの'].map((w) => tSensei.indexOf(w));
+  tashika(jun.every((i) => i >= 0), '先生の画面に、結果・選んだ答え・チェック項目・Claude の仮説が出る');
+  tashika(jun.every((i, k) => k === 0 || i > jun[k - 1]), '先生の画面は、まとめ→仮説→授業の手がかり→数字の根拠の順');
   const kidId = decodeURIComponent(page.url().split('/').pop());
 
   // ④' チェック項目：この子を1つ選ぶ
@@ -157,7 +159,7 @@ try {
   await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
   const tSensei2 = await mieru('先生の画面_チェック後');
-  tashika(tSensei2.includes('口で聞くと答えるが、書くと止まる'), 'チェック項目が先生の画面の (c) に出る');
+  tashika(tSensei2.includes('口で聞くと答えるが、書くと止まる'), 'チェック項目が先生の画面に出る');
 
   // ⑤ 伝え方
   await page.click('text=⑤ 伝え方の下書きへ');
@@ -214,6 +216,19 @@ try {
     await page.waitForSelector('#kondan', { timeout: 60000 });
     await mieru(`デモ_${id}_伝え方`);
   }
+
+  // PC の幅（1280px）でも、先生の画面・チェック項目・伝え方が崩れない
+  page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+  page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
+  for (const [mei, hash, sel] of [['PC_先生の画面_デモ4', '#/sensei/ko/デモ4', '#kasetsu .kasetsu'], ['PC_先生の画面_デモ1', '#/sensei/ko/デモ1', '#kasetsu .kasetsu'], ['PC_チェック項目', '#/check', '.chip'], ['PC_伝え方_デモ4', '#/tsutae/デモ4', '#kondan'], ['PC_カード_デモ6', '#/card/デモ6', '.switch-card']]) {
+    await page.goto(`${BASE}${hash.replace(/デモ(\d)/, (m) => encodeURIComponent(m))}`);
+    await page.waitForSelector(sel, { timeout: 60000 });
+    await mieru(mei);
+  }
+  await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent('デモ4')}`);
+  await page.waitForSelector('#kasetsu .kasetsu');
+  const narabu = await page.evaluate(() => { const s = [...document.querySelectorAll('.narabi > section')]; return s.length >= 2 && Math.abs(s[0].getBoundingClientRect().top - s[1].getBoundingClientRect().top) < 5; });
+  tashika(narabu, 'PC の幅では、まとめと仮説が横に並ぶ');
 } catch (e) {
   kiroku.まちがい.push(String(e));
   await page.screenshot({ path: path.join(OUT, 'zz_error.png'), fullPage: true }).catch(() => {});
@@ -223,7 +238,7 @@ try {
 }
 
 console.log('\n=== 通し確認のまとめ ===');
-console.log(`見た画面：${kiroku.画面}　点検した文の行：${kiroku.点検した文の数}　避ける言葉：${kiroku.避ける言葉.length}件　はみ出し：${kiroku.はみ出し.length}件`);
+console.log(`見た画面：${kiroku.画面}（スマホの幅 375px と PC の幅 1280px）　点検した文の行：${kiroku.点検した文の数}　避ける言葉：${kiroku.避ける言葉.length}件　はみ出し：${kiroku.はみ出し.length}件`);
 console.log(`ゲームで出た「次を選んだ理由」：${kiroku.理由.length}回`);
 if (kiroku.避ける言葉.length) console.log(kiroku.避ける言葉);
 if (kiroku.はみ出し.length) console.log(kiroku.はみ出し);
