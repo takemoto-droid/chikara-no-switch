@@ -1,0 +1,26 @@
+# 秘密情報（API キーなど）は入れない
+.env
+.env.*
+!.env.example
+
+# 依存とビルド
+node_modules/
+dist/
+build/
+.next/
+.vercel/
+.wrangler/
+__pycache__/
+*.pyc
+
+# 実在の子どものデータは置かない（念のため）
+real_data/
+*.real.json
+
+# OS・エディタ
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log
