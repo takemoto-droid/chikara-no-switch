@@ -236,7 +236,7 @@ await ok('くり返し出た候補は、その回の中の差どうしで決ま�
 await ok('くり返しのカード：回の数を事実で書き、「伸びた」「上がった」が無い', () => {
   const e = erabuCardKai(kai('デモ4'));
   const c = cardNoBun(cards.カード[e.card], e.kurikaeshi);
-  assert.match(c.これは何か, /^これまでに別々の日にした3日分のゲームのうち、3日分で、くり返し/);
+  assert.match(c.これは何か, /^これまでに別々の日にした3日分のゲームのすべてで、くり返し/);
   for (const card of Object.values(cards.カード)) {
     const t = JSON.stringify(card);
     assert.ok(!/伸び|上がった/.test(t), card.名前);
@@ -261,7 +261,7 @@ await ok('はなす・じっくりのカードは、どの結果でも出ない�
 await ok('サーバーの関数：回の並びを読み、くり返しを予備の文にも書く', async () => {
   const [, r] = await handle('kasetsu', 'POST', { record: kai('デモ4')[2], kai: kai('デモ4'), atehamaru: [] }, {}, 'test3');
   assert.equal(r.dare, 'yobi');
-  assert.match(r.kasetsu, /3日分のゲームのうち、3日分/);
+  assert.match(r.kasetsu, /3日分のゲームのすべてで/);
   assert.equal(r.kakunin.回, 3);
   assert.equal(r.kurikaeshi.mode, 'kiku');
   const [, t] = await handle('tsutae', 'POST', { record: kai('デモ6')[2], kai: kai('デモ6') }, {}, 'test3');
@@ -319,7 +319,7 @@ await ok('2：同じ日の2回目は、くり返しに数えない', () => {
   assert.deepEqual(x.onajiHi, ['2026-09-01', '2026-10-01']);
   assert.equal(x.zenHi.length, 2);
   const e = erabuCardKai([r1, r2, r3]);
-  assert.match(cardNoBun(cards.カード.kiku, e.kurikaeshi).これは何か, /2日分のゲームのうち、2日分/);
+  assert.match(cardNoBun(cards.カード.kiku, e.kurikaeshi).これは何か, /2日分のゲームのすべてで/);
 });
 
 await ok('4：子どもの安全とプライバシーのページがあり、画面から開ける写しが同じ', () => {
@@ -423,6 +423,32 @@ await ok('F4（Should）：作ったものは should.json で外せる', () => {
   const sh = j('public/data/should.json');
   for (const k of ['hikitsugi', 'renshu', 'otona']) assert.equal(typeof sh[k].使う, 'boolean', k);
   assert.ok(j('public/data/annai.json').大人.Should);
+});
+
+// ---- 6便
+await ok('G1-h：⑤ 伝え方の予備の文に「○日分のうち○日分」の重なりが無く、保護者向け説明はカードの説明3つの形', async () => {
+  const { nichiBun } = await import('../public/js/kurabe.js');
+  assert.equal(nichiBun(3, 3), '3日分のゲームのすべてで');
+  assert.equal(nichiBun(3, 2), '3日分のゲームのうち、2日分で');
+  for (const id of ['デモ1', 'デモ4', 'デモ5', 'デモ6']) {
+    const [, t] = await handle('tsutae', 'POST', { record: kai(id)[kai(id).length - 1], kai: kai(id) }, {}, 'g1');
+    const zen = JSON.stringify(t);
+    assert.ok(!/(\d+)日分のうち\1日分/.test(zen) && !/(\d+)日分のゲームのうち、\1日分/.test(zen), id);
+    for (const w of ['これは何か：', '自分でできる使い方：', '先生にお願いしてよいこと：']) assert.ok(t.hogosha.includes(w), `${id} ${w}`);
+    assert.ok(!t.kondan.includes(t.hogosha.split('\n')[1].replace('これは何か：', '')), `${id} 懇談の下書きが保護者向け説明の写しになっている`);
+  }
+});
+
+await ok('G1-g・i・j：安全のページの出典、C3 の根拠、時間を言い切らない案内', () => {
+  const a = readFileSync(path.join(ROOT, 'docs/子どもの安全とプライバシー.md'), 'utf8');
+  assert.match(a, /第369回個人情報保護委員会・令和８年９月16日/);
+  assert.match(a, /PDF の中身までは、まだ確かめていない/);
+  assert.equal(readFileSync(path.join(ROOT, 'public/anzen.md'), 'utf8'), a);
+  const c3 = j('public/data/tana.json').C.文章.C3.問い[3];
+  assert.equal(c3.本文の根拠, '使ったコーンを倉庫にもどして');
+  const an = j('public/data/annai.json');
+  assert.ok(!/10分/.test(JSON.stringify(an.子ども)) && !/10分/.test(JSON.stringify(an.保護者)), '案内で時間を言い切らない');
+  assert.match(readFileSync(path.join(ROOT, 'docs/先生が確かめる一覧.md'), 'utf8'), /15〜20分ほど/);
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

@@ -250,9 +250,20 @@ export function erabuCardKai(kaiList) {
 }
 
 // カードの文に、回の数を入れる（くり返しのときだけ）
+// 「3日分のうち3日分で」のような重なりを避ける（6便）：すべての日なら「すべてで」と書く
+export function nichiBun(zen, onaji) {
+  return zen === onaji ? `${zen}日分のゲームのすべてで` : `${zen}日分のゲームのうち、${onaji}日分で`;
+}
+
 export function cardNoBun(card, kurikaeshi) {
   if (!kurikaeshi || !card.くり返しのとき) return card;
-  const ireru = (t) => t.replaceAll('{全日}', String(kurikaeshi.zenkai)).replaceAll('{同じ日}', String((kurikaeshi.onajiHi || kurikaeshi.onaji).length));
+  const zen = kurikaeshi.zenkai;
+  const onaji = (kurikaeshi.onajiHi || kurikaeshi.onaji).length;
+  const ireru = (t) => t
+    .replaceAll('{全日}日分のゲームのうち、{同じ日}日分で', nichiBun(zen, onaji))
+    .replaceAll('そのうち{同じ日}日分で', zen === onaji ? 'そのすべての日で' : `そのうち${onaji}日分で`)
+    .replaceAll('{全日}', String(zen))
+    .replaceAll('{同じ日}', String(onaji));
   const k = card.くり返しのとき;
   return { ...card, ひとこと: ireru(k.ひとこと), これは何か: ireru(k.これは何か), 保護者向け: ireru(k.保護者向け) };
 }
