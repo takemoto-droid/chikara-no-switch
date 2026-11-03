@@ -254,7 +254,7 @@ export function namaeWoAwaseru(cards, namae) {
 // カードの副題（比べた2つの出し方）。見つけたカード・どれでも・ためした。
 export function cardNoFukudai(cards, m) {
   const f = cards.副題 || {};
-  if (m.sodate) return f.そだてちゅう?.[m.card] ?? '';
+  if (m.sodate) return (m.ichininmae ? f.育てた?.[m.card] : f.そだてちゅう?.[m.card]) ?? '';
   if (m.card === 'dore') return f.どれでも ?? '';
   if (m.card === 'tameshita') return f.ためした ?? '';
   const kind = m.kind ?? CARD_KIND[m.card];
@@ -404,7 +404,8 @@ export function cardNoBun(card, kurikaeshi) {
 }
 
 export function kotaeD(record, tana) {
-  return ['D1', 'D2', 'D3', 'D4'].map((id) => ({ id, toi: tana.D.質問[id].問い, kotae: record.kekka?.[id]?.kotae ?? null }));
+  // D5〜D8（自分で思う強み・7便）は、答えた記録があるときだけ出す（6便までの記録には無いため）
+  return D_IDS.filter((id) => ['D1', 'D2', 'D3', 'D4'].includes(id) || record.kekka?.[id]).map((id) => ({ id, toi: tana.D.質問[id].問い, kotae: record.kekka?.[id]?.kotae ?? null }));
 }
 
 const KEKKA_SETSUMEI = {

@@ -38,6 +38,12 @@ def bunshu():
     for p in tana["A"]["文章"].values():
         out.append("".join(p["本文"]))
         out.extend(q["文"] for q in p["問い"])
+    # ⑥ 育てる（朝の練習）の読む／聞く：本文の全文・前半（はじめの半分の文。多いほうに切り上げ）・問いの文
+    renshu = load("renshu.json")
+    for p in renshu["A"]["文章"]:
+        out.append("".join(p["本文"]))
+        out.append("".join(p["本文"][: (len(p["本文"]) + 1) // 2]))
+        out.extend(q["文"] for q in p["問い"])
     # 棚D（選んで答える質問）：問いと選択肢
     for q in tana["D"]["質問"].values():
         out.append(f"{q['問い']}。{'。'.join(q['選択肢'])}。")

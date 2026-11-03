@@ -91,6 +91,7 @@ table { border-collapse: collapse; width: 100%; font-size: .95rem; }
 th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
 th { background: #f0ede5; font-weight: 700; }
 .table-wrap { overflow-x: auto; }
+.zu-waku { min-height: 120px; background: #fff; border: 2px dashed var(--muted); }
 .label { display: inline-block; font-size: .8rem; font-weight: 700; padding: 1px 8px; border-radius: 6px; background: #ebe8df; margin-right: 6px; }
 .label.ai { background: #dfe9f7; color: #24466e; }
 .label.yobi { background: #f3e8d2; color: #6b4a00; }

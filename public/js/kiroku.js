@@ -51,7 +51,26 @@ export async function getKid(id) {
   const k = d.結果[id] ? structuredClone(d.結果[id]) : load().kids[id];
   if (!k) return null;
   const kai = (k.kai || [k]).map((r, i) => ({ ...r, id, kai: r.kai ?? i + 1 }));
-  return { id, kai };
+  return { id, kai, renshu: k.renshu || [] };
+}
+
+// ⑥ 育てる：朝の練習の記録（日ごとの並び）。記録は本人のもの。この端末の中だけに残す
+export async function getRenshu(id) {
+  const k = await getKid(id);
+  return k ? k.renshu : [];
+}
+
+// 今日の練習を足す、または書き直す（同じ回の中で、ひとつ終わるごとに保存する）
+export function saveRenshu(id, entry) {
+  if (isDemo(id)) return;
+  const st = load();
+  const k = st.kids[id];
+  if (!k) return;
+  k.renshu = k.renshu || [];
+  const i = k.renshu.findIndex((r) => r.no === entry.no);
+  if (i >= 0) k.renshu[i] = entry;
+  else k.renshu.push(entry);
+  save(st);
 }
 
 // いちばん新しい回（ゲームの画面が使う）

@@ -6,6 +6,9 @@ import { matome, matomeKai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukuda
 import { gameScreen, setSettei } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
+import { cardHtml } from './card_html.js';
+import { sodateruGamen, renshuKirokuHtml } from './sodateru_gamen.js';
+import { sodateCards, sodateCardNoBun, ichininmaeOf, jibunDeErabu, DAN_JOUGEN, SODATE_MEI } from './sodateru.js';
 
 export const SOUDAN_UTSUSHI = '気になることや困っていることがあれば、いつでも担任の先生や、学校の相談の窓口に話してください。このゲームの結果があってもなくても、相談はできます。';
 const app = document.getElementById('app');
@@ -90,11 +93,18 @@ async function card(id) {
     otona: isOtona(id),
   });
   const [mae, ...ushiro] = motte;
+  const kid = await getKid(id);
+  const renshu = kid?.renshu || [];
+  const sodate = sodateCards(renshu, ichininmaeOf(kai, renshu));
+  const sodateHyouji = (m) => cardHtml(sodateCardNoBun(cards, m), { fukudai: cardNoFukudai(cards, m), level: m.level, levelMei: levelNoNamae(cards, m), jougen: DAN_JOUGEN, otona: isOtona(id) });
   app.innerHTML = `
     <h1>あなたのスイッチカード</h1>
     ${hyouji(mae)}
     ${ushiro.length ? `<h2>持っているカード</h2><p class="muted small">これまでのゲームで、もらったカードです。</p>${ushiro.map(hyouji).join('')}` : ''}
-    <p class="muted">カードは、力を出しやすかった出し方のしるしです。他の人とは比べていません。</p>
+    ${sodate.length ? `<h2>育てているスイッチ</h2><p class="muted small">朝の練習で育てているカードです。</p>${sodate.map(sodateHyouji).join('')}` : ''}
+    <p class="muted">カードは、出し方を比べた結果と、練習のしるしです。他の人とは比べていません。</p>
+    <div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 育てる（朝の練習）へ</a></div>
+    ${renshu.length ? `<h2>練習の記録</h2><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}` : ''}
     ${soudanHtml()}
     <div class="btns">
       <a class="btn sub" href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果を見る（先生の画面と同じもの）' : 'ここからは先生が見ます（④先生の画面）'}</a>
@@ -105,28 +115,19 @@ async function card(id) {
   if (b) b.onclick = () => { if (newKai(id)) location.hash = `#/game/${enc(id)}`; };
 }
 
-// レベルは、そのカードの中の印だけ（●の数）。カードの合計・順位・枚数は出さない。
-function levelHtml(level, levelMei, jougen) {
-  if (level == null) return '';
-  const tama = '●'.repeat(level) + '○'.repeat(Math.max(0, jougen - level));
-  return `<p class="level"><span class="tama" aria-hidden="true">${tama}</span><span>レベル：${esc(levelMei)}</span></p>`;
-}
-
-function cardHtml(c, { atarashii = false, susunda = false, fukudai = '', level = null, levelMei = '', jougen = LEVEL_JOUGEN, moratta = '', otona = false } = {}) {
-  return `<div class="switch-card" style="background:${esc(c.色)}">
-      ${atarashii ? '<p class="atarashii">あたらしいカード</p>' : ''}
-      ${susunda ? '<p class="atarashii">レベルが進んだカード</p>' : ''}
-      <p class="mei">${esc(c.名前)}</p>
-      ${fukudai ? `<p class="fukudai">— ${esc(fukudai)}</p>` : ''}
-      ${levelHtml(level, levelMei, jougen)}
-      ${moratta ? `<p class="moratta">${esc(moratta)}</p>` : ''}
-      <p class="hitokoto">${esc(c.ひとこと)}</p>
-      <div class="naka">
-        <h3>これは何か</h3><p>${esc(c.これは何か)}</p>
-        <h3>自分でできる使い方</h3><ul>${c.自分でできる使い方.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-        <h3>${otona ? 'まわりにお願いしてよいこと' : '先生にお願いしてよいこと'}</h3><ul>${c.先生にお願いしてよいこと.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
-      </div>
-    </div>`;
+// ④(e) 練習の記録：回数・段・楽になったか。本人が選んだ出し方は「本人の好み」と書く（候補ではない）
+function renshuSenseiHtml(renshu, kai, cards) {
+  if (!renshu.length) return '<p class="muted">まだ練習していません。</p>';
+  const sc = sodateCards(renshu, ichininmaeOf(kai, renshu));
+  const jibun = jibunDeErabu(renshu);
+  const yasumi = renshu.filter((r) => r.yasumi).length;
+  const hi = new Set(renshu.filter((r) => !r.yasumi && (r.hitotsu || []).length).map((r) => r.hi)).size;
+  return `
+    <p>育てているカード：${sc.map((m) => `<strong>${esc(cards.カード[m.card].名前)}</strong>（${esc(levelNoNamae(cards, m))}・レベル ${m.level}／${DAN_JOUGEN}${m.kara === 'hr' ? '・また見つけるのゲームで差が出なかった' : ''}）`).join('・')}</p>
+    <p class="small">練習した日：${hi}日${yasumi ? `・「今日はやらない」を選んだ日：${yasumi}日` : ''}</p>
+    ${jibun ? `<p class="small">出し方の差が見つからなかったので、本人が「${esc(SODATE_MEI[jibun])}」を選んで練習しています（本人の好み。候補ではありません）。</p>` : ''}
+    ${renshuKirokuHtml(renshu, { sensei: true })}
+    <p class="muted small">段が進むのは、同じ段で「正解が多い（3分の2以上）」ひとつが2回続いたときだけです（下がりません）。練習の記録は本人のものです。練習の効果（学力への）は確かめていません。</p>`;
 }
 
 // ---- ④ 先生の画面（子の一覧）
@@ -224,6 +225,7 @@ async function senseiKo(id) {
   // 先生の画面の見やすさ（4便）：上から「いま言えること」→「Claude の仮説」→「授業の手がかり」→「数字の根拠」の順。
   // 細かい数字は後ろに置き、まとめと仮説を先に見せる。PC の幅では、まとめと仮説、手がかりの2つを横に並べる。
   const { cards: motte } = motteiruCards(kai);
+  const kidRenshu = (await getKid(id))?.renshu || [];
   const matomeBun = ['A', 'B', 'C'].map((k) => {
     const x = matomeKai(kai, k);
     const m = matome(rec, k);
@@ -272,6 +274,9 @@ async function senseiKo(id) {
         <p class="muted small">点数にしません。基準もありません。<a href="#/check">チェック項目を選ぶ</a></p>
       </section>
     </div>
+
+    <h2 class="kugiri-midashi">練習の記録（⑥ 育てる）</h2>
+    ${renshuSenseiHtml(kidRenshu, kai, cards)}
 
     <h2 class="kugiri-midashi">数字の根拠</h2>
     ${kai.length ? kaiHyouHtml(kai) : ''}
@@ -470,6 +475,7 @@ async function route() {
     else if (a === 'hajimeru') await hajimeru(b);
     else if (a === 'game') { michi(1); dare(isOtona(b) ? '大人が試す画面' : '子どもの画面'); await gameScreen(app, b); }
     else if (a === 'card') await card(b);
+    else if (a === 'sodateru') { michi(5); dare(isOtona(b) ? '大人が試す画面' : '子どもの画面'); await sodateruGamen(app, b); }
     else if (a === 'sensei' && b === 'ko') await senseiKo(c2);
     else if (a === 'sensei') await senseiHub();
     else if (a === 'check') await check();

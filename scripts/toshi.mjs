@@ -5,7 +5,7 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { tenken } from '../lib/kotoba.mjs';
 
@@ -191,6 +191,50 @@ try {
   const tKai = await mieru('先生の画面_2回');
   tashika(/終わったゲーム：2回/.test(tKai) && /回ごとの「出し方の差」/.test(tKai) && /2回目/.test(tKai), '読み直しても2回分が残り、回ごとの差の表が出る');
   tashika(/ゲーム 2回で/.test(tKai), '仮説の「確かめた回数」に回の数が入る');
+
+  // ⑥ 育てる（朝の練習）：今日の練習の理由 → ひとつずつ → 段が進んだ理由 → 楽になったか → そだてちゅうのカード
+  const pool = JSON.parse(readFileSync(path.join(ROOT, 'public/data/renshu.json'), 'utf8'));
+  const zenToi = [...pool.A.文章, ...pool.B.問題, ...pool.C.文章].flatMap((x) => x.問い);
+  await page.goto(`${BASE}#/sodateru/${encodeURIComponent(kidId)}`);
+  await page.waitForSelector('#riyuu, .choice');
+  if (await vis('.choice')) { await mieru('育てる_出し方を選ぶ'); await page.locator('.choice').first().click(); await page.waitForSelector('#riyuu'); }
+  const tKyou = await mieru('育てる_今日の練習');
+  tashika(/今日の練習：/.test(tKyou) && /いまの段：/.test(tKyou) && (await page.locator('#riyuu').innerText()).length > 10, '⑥：今日の練習と、選んだ理由が画面に出る');
+  tashika(await vis('#yasumu'), '⑥：「今日はやらない」を選べる');
+  await page.click('#hajimeru');
+  let susunda = false;
+  for (let i = 0; i < 300; i++) {
+    if (await vis('h1:has-text("おつかれさまでした")')) break;
+    if (await vis('#tsugi')) { const t = await mieru('育てる_段が進んだ理由'); susunda ||= /2回続けて正解が多かったので/.test(t); await page.click('#tsugi'); continue; }
+    if (await vis('#next')) { if (i === 1) await mieru('育てる_ひとつ'); await page.click('#next'); continue; }
+    const toiBun = (await vis('.toi')) ? await page.locator('.toi').first().innerText() : '';
+    const q = zenToi.find((x) => x.文 === toiBun.trim());
+    if (await vis('.marubatsu button')) { await page.locator('.marubatsu button').nth(q && q.答え === false ? 1 : 0).click(); continue; }
+    if (await vis('.choice')) { await page.locator('.choice').nth(q && Number.isInteger(q.答え) ? q.答え : 0).click(); continue; }
+    await page.waitForTimeout(60);
+  }
+  tashika(susunda, '⑥：同じ段で2回続けて正解が多いと、段が進み、その理由が画面に出る');
+  const tRaku = await mieru('育てる_楽になったか');
+  tashika(/前より楽になった/.test(tRaku) && /今は答えない/.test(tRaku), '⑥：楽になったかを、選んで答える');
+  await page.locator('.choice', { hasText: '同じくらい' }).click();
+  await page.waitForSelector('.switch-card');
+  const tSodate = await mieru('育てる_そだてちゅうのカード');
+  tashika(/レベル：そだてちゅう/.test(tSodate) && /●●●○/.test(tSodate) && /を支えに、.+を育てている/.test(tSodate), '⑥：そだてちゅうのカードが現れ、レベル＝段（4つのうち3つ目）と副題が付く');
+  await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);
+  await page.waitForSelector('.switch-card');
+  const tCard2 = await mieru('カード_育てている');
+  tashika(/育てているスイッチ/.test(tCard2) && /練習の記録/.test(tCard2) && /同じくらい/.test(tCard2), '⑥：カードの画面に、育てているスイッチと、本人の練習の記録が出る');
+  tashika(!/\d+\s*枚/.test(tCard2), '⑥：カードの枚数が出ない');
+  // 今日はやらない
+  await page.goto(`${BASE}#/sodateru/${encodeURIComponent(kidId)}`);
+  await page.waitForSelector('#yasumu');
+  await page.click('#yasumu');
+  const tYasumi = await mieru('育てる_今日はやらない');
+  tashika(/今日はお休み/.test(tYasumi), '⑥：「今日はやらない」を選ぶと、練習しないで終わる');
+  await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
+  await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
+  const tRenshu = await mieru('先生の画面_練習の記録');
+  tashika(/練習の記録（⑥ 育てる）/.test(tRenshu) && /育てているカード：/.test(tRenshu) && /「今日はやらない」を選んだ日：1日/.test(tRenshu) && /楽になったか/.test(tRenshu), '④(e)：先生の画面に、練習の記録（回数・段・楽になったか・やらなかった日）が出る');
 
   // 保存した結果を見る（デモの子：1回だけの3人と、3回分の3人）
   const KITAI = { デモ1: /きいてスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずでスイッチ/, デモ4: /きいてスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/ };

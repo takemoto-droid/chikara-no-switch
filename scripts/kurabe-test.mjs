@@ -6,6 +6,7 @@ const require_fs = () => fsAll;
 import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
+import { danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
 import { dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
 
@@ -573,6 +574,150 @@ await ok('H3：カードの画面に、カードの合計・順位・枚数を�
   const app = readFileSync(path.join(ROOT, 'public/js/app.js'), 'utf8');
   const cardKansu = app.slice(app.indexOf('async function card('), app.indexOf('// ---- ④ 先生の画面'));
   assert.ok(!/motte\.length|cards\.length|枚目|合計|順位|ランキング|\d+枚/.test(cardKansu.replace(/\/\/.*$/gm, '')));
+});
+
+// ---- H4：⑥ 育てる（朝の練習）
+const hh = (mode, dan, seikai, kazu = 4, extra = {}) => ({ mode, dan, seikai, kazu, mondai: 'RA1', ...extra });
+await ok('H4：段は「正解が多い（3分の2以上）」が同じ段で2回続いたときだけ進み、下がらない。上限は段4', () => {
+  const r = (hi, ...hitotsu) => ({ hi, hitotsu });
+  assert.equal(danWoDasu([], 'yomu').dan, 1);
+  assert.equal(danWoDasu([r('2026-11-01', hh('yomu', 1, 3))], 'yomu').dan, 1, '1回だけでは進まない');
+  assert.equal(danWoDasu([r('2026-11-01', hh('yomu', 1, 3), hh('yomu', 1, 4))], 'yomu').dan, 2, '2回続けば進む');
+  assert.equal(danWoDasu([r('2026-11-01', hh('yomu', 1, 3), hh('yomu', 1, 2), hh('yomu', 1, 3))], 'yomu').dan, 1, '間に少ない回があると数え直し');
+  assert.equal(danWoDasu([r('2026-11-01', hh('yomu', 1, 3)), r('2026-11-02', hh('yomu', 1, 3))], 'yomu').dan, 2, '日をまたいでも続けて数える');
+  // 下がらない：段2 に進んだあと、正解がほとんど無くても段2 のまま
+  const x = [r('2026-11-01', hh('yomu', 1, 4), hh('yomu', 1, 4), hh('yomu', 2, 0), hh('yomu', 2, 0), hh('yomu', 2, 0))];
+  assert.equal(danWoDasu(x, 'yomu').dan, 2);
+  // 上限
+  const zen = [r('2026-11-01', ...[1, 1, 2, 2, 3, 3, 4, 4, 4, 4].map((d) => hh('yomu', d, 4, 4, { oshita: 0 })))];
+  assert.equal(danWoDasu(zen, 'yomu').dan, 4);
+  assert.deepEqual(danWoDasu(zen, 'yomu').agari.map((a) => a.made), [2, 3, 4]);
+  // 3問のひとつは2問正解で「多い」、2問のひとつは2問とも正解で「多い」
+  assert.ok(ookattaKa(hh('yomu', 1, 2, 3)));
+  assert.ok(!ookattaKa(hh('bun', 1, 1, 2)));
+  assert.ok(ookattaKa(hh('bun', 1, 2, 2)));
+  // ほかの出し方の練習は数えない
+  assert.equal(danWoDasu([r('2026-11-01', hh('kiku', 1, 4), hh('kiku', 1, 4))], 'yomu').dan, 1);
+});
+
+await ok('H4：読む・聞くの段3 は、押した回数が2回以下のときだけ段4 に進む。読み上げが使えなかったひとつは数えない', () => {
+  const r = (...hitotsu) => [{ hi: '2026-11-01', hitotsu }];
+  const ue = [1, 1, 2, 2].map((d) => hh('yomu', d, 4));
+  assert.equal(danWoDasu(r(...ue, hh('yomu', 3, 4, 4, { oshita: 3 }), hh('yomu', 3, 4, 4, { oshita: 3 })), 'yomu').dan, 3);
+  assert.equal(danWoDasu(r(...ue, hh('yomu', 3, 4, 4, { oshita: 2 }), hh('yomu', 3, 4, 4, { oshita: 1 })), 'yomu').dan, 4);
+  assert.equal(danWoDasu(r(hh('kiku', 1, 4, 4, { yomiageNashi: true }), hh('kiku', 1, 4, 4, { yomiageNashi: true })), 'kiku').dan, 1);
+  // 文・図・一気には押すボタンが無いので、段3 の条件は正解だけ
+  const b = [1, 1, 2, 2, 3, 3].map((d) => hh('bun', d, 2, 2));
+  assert.equal(danWoDasu(r(...b), 'bun').dan, 4);
+});
+
+await ok('H4：育てる出し方は見つけたカードから。見つからない子は本人が選ぶ。区切っては練習しない', () => {
+  const r = (y, k, n, hi) => ({ ...kaiA(y, k, n), hi });
+  assert.deepEqual(sodateKouho([r([1, 1], [3, 3], 1, '2026-09-01')]), ['yomu'], '聞くカード → 読むを育てる');
+  assert.deepEqual(sodateKouho([r([3, 3], [1, 1], 1, '2026-09-01')]), ['kiku'], '読むカード → 聞くを育てる');
+  assert.equal(sodateKouho([r([2, 2], [2, 2], 1, '2026-09-01')]), null, 'どれでもの子は本人が選ぶ');
+  assert.equal(jibunDeErabu([{ hi: '2026-11-01', jibun: 'zu', hitotsu: [] }]), 'zu');
+  assert.ok(!SODATE_MODES.includes('kugiri'));
+  assert.equal(hitotsuNoKazu(5), 2);
+  assert.equal(hitotsuNoKazu(10), 4);
+  assert.equal(hitotsuNoKazu(15), 6);
+});
+
+await ok('H4：練習の文は段階ごとにあり、棚と同じ作り。同じ文が続かない。置かない形が無い', () => {
+  const pool = j('public/data/renshu.json');
+  for (const [k, list] of [['A', pool.A.文章], ['B', pool.B.問題], ['C', pool.C.文章]]) {
+    for (const d of [1, 2]) assert.ok(list.filter((x) => x.段階 === d).length >= 3, `${k} 段階${d}`);
+    for (const x of list) assert.ok(x.下書き, `${x.id} は下書き`);
+  }
+  for (const p of pool.A.文章) {
+    assert.equal(p.本文.length, p.段階 === 1 ? 3 : 4, p.id);
+    assert.equal(p.問い.length, p.段階 === 1 ? 3 : 4, p.id);
+  }
+  for (const p of pool.C.文章) {
+    assert.equal(p.連絡.length, p.問い.length, p.id);
+    p.問い.forEach((q, i) => assert.ok(p.連絡[i].includes(q.本文の根拠), `${p.id} 問${i + 1} の答えは ${i + 1}文目にある（一文ずつ・二文ずつで出せる）`));
+  }
+  for (const p of pool.B.問題) {
+    assert.equal(p.問い.length, p.段階 === 1 ? 1 : 2, p.id);
+    assert.ok(p.要点 && p.言葉にする.選択肢[p.言葉にする.答え], p.id);
+    assert.equal(p.図.べつ == null, p.段階 === 1, p.id);
+  }
+  const zenbu = JSON.stringify([pool.A, pool.B, pool.C]); // 説明の文（入れない形の名前を書いている）は除く
+  for (const w of ['間違い探し', '違いを探', '覚えて', '数字タッチ', '目で追', '書き写', '記号']) assert.ok(!zenbu.includes(w), `置かない形：${w}`);
+  // 同じ文が続かない・その段階のものだけ
+  let rireki = [];
+  const tsukatta = [];
+  for (let i = 0; i < 8; i++) {
+    const p = erabuMondai(pool, 'yomu', 1, rireki);
+    assert.equal(p.段階, 1);
+    if (tsukatta.length) assert.notEqual(p.id, tsukatta[tsukatta.length - 1]);
+    tsukatta.push(p.id);
+    rireki = [{ hi: '2026-11-01', hitotsu: tsukatta.map((m) => ({ mode: 'yomu', dan: 1, mondai: m, seikai: 0, kazu: 3 })) }];
+  }
+  assert.equal(new Set(tsukatta.slice(0, 4)).size, 4, 'はじめの4回は、4つとも別の文');
+  assert.equal(erabuMondai(pool, 'ikki', 2, []).段階, 2);
+  assert.ok(erabuMondai(pool, 'bun', 1, []).id.startsWith('RB'));
+});
+
+await ok('H4：そだてちゅうのカードは練習を始めると現れ、レベル＝段。段4 で一人前（育てたときの文と副題）', () => {
+  const r = [{ hi: '2026-11-01', hitotsu: [1, 1, 2].map((d) => hh('yomu', d, 4)) }];
+  const [c] = sodateCards(r);
+  assert.equal(c.card, 'yomu');
+  assert.equal(c.level, 2);
+  assert.equal(c.ichininmae, false);
+  assert.equal(levelNoNamae(cards, c), 'そだてちゅう');
+  assert.equal(cardNoFukudai(cards, c), '聞くを支えに、読むを育てている');
+  assert.match(sodateCardNoBun(cards, c).ひとこと, /育てている/);
+  assert.equal(sodateCardNoBun(cards, c).名前, 'よんでスイッチ');
+  const zen = [{ hi: '2026-11-01', hitotsu: [1, 1, 2, 2, 3, 3].map((d) => hh('yomu', d, 4, 4, { oshita: 0 })) }];
+  const [d] = sodateCards(zen);
+  assert.equal(d.level, 4);
+  assert.equal(levelNoNamae(cards, d), '一人前');
+  assert.equal(cardNoFukudai(cards, d), '聞くを支えに、読むを育てた');
+  assert.match(sodateCardNoBun(cards, d).これは何か, /2回続けて正解が多く/);
+  assert.equal(sodateCards([]).length, 0, '練習していなければ、育てるカードは無い');
+  // カードの文に、効果をうたう言葉が無い
+  for (const m of SODATE_MODES) {
+    const t = JSON.stringify(cards.カード[m].育てたとき) + JSON.stringify(cards.カード[m].また見つけたとき);
+    assert.ok(!/伸び|上がった|学力が上がる|成績/.test(t), m);
+    assert.match(cards.カード[m].育てたとき.保護者向け, /学力への効果は確かめていません/);
+  }
+});
+
+await ok('H4：今日の練習の選び方（予備は練習した日が少ない出し方）。段は Claude が変えない', async () => {
+  const [st, r] = await handle('sodate', 'POST', { kouho: ['yomu', 'bun'], jokyou: [{ mode: 'yomu', dan: 2, hi: 3 }, { mode: 'bun', dan: 1, hi: 1 }] }, {});
+  assert.equal(st, 200);
+  assert.equal(r.mode, 'bun');
+  assert.equal(r.dare, 'yobi');
+  assert.match(r.riyuu, /2日目/);
+  const [, r1] = await handle('sodate', 'POST', { kouho: ['kiku'], jokyou: [{ mode: 'kiku', dan: 2, hi: 1, tsuzuki: 1 }] }, {});
+  assert.equal(r1.dare, 'kimari');
+  assert.match(r1.riyuu, /同じ段でもう一度/);
+  const [st2, r2] = await handle('sodate', 'POST', { kouho: ['nanika'] }, {});
+  assert.equal(st2, 400);
+  assert.match(r2.error, /育てる出し方/);
+});
+
+await ok('H4：子どもの練習の画面のもとに「苦手」と段階の名前が無い', () => {
+  for (const f of ['public/js/sodateru_gamen.js', 'public/js/sodateru.js']) {
+    const t = readFileSync(path.join(ROOT, f), 'utf8').replace(/\/\/.*$/gm, '');
+    assert.ok(!/苦手|やさしめ|むずかしめ|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面/.test(t), f);
+  }
+  assert.ok(!/苦手/.test(JSON.stringify(Object.values(DAN_NO_DASHIKATA))));
+});
+
+await ok('H5：また見つけるの日に、支えの出し方の差が出なかった出し方は一人前（そのときの文）。練習より前の日は数えない', () => {
+  const r = (y, k, n, hi) => ({ ...kaiA(y, k, n), hi });
+  const mae = r([1, 1], [3, 3], 1, '2026-09-01'); // 聞くの候補
+  const renshu = [{ hi: '2026-10-01', hitotsu: [hh('yomu', 1, 2)] }];
+  assert.deepEqual(ichininmaeOf([mae], renshu), []);
+  assert.deepEqual(ichininmaeOf([mae, r([2, 2], [2, 2], 2, '2026-11-01')], renshu), ['yomu'], '後の日に差なし');
+  assert.deepEqual(ichininmaeOf([mae, r([1, 1], [3, 3], 2, '2026-11-01')], renshu), [], 'まだ聞くの差がある');
+  assert.deepEqual(ichininmaeOf([mae, r([2, 2], [2, 2], 2, '2026-09-15')], renshu), [], '練習より前の日の差なしは数えない');
+  const [c] = sodateCards(renshu, ['yomu']);
+  assert.equal(c.level, 4);
+  assert.equal(c.kara, 'hr');
+  assert.match(sodateCardNoBun(cards, c).これは何か, /また見つける/);
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
