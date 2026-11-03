@@ -1,7 +1,7 @@
 // 記録の置き場所：この端末のブラウザの中（localStorage）だけ。サーバーには残さない。
 // 途中で止めても、ここから続きを始められる。
 // 3便から：1人の子が、別の日のゲームの「回」を重ねて持つ（kids[id] = { id, kai: [回1, 回2, …] }）。
-import { makeJunban } from './kurabe.js';
+import { makeJunban, matome } from './kurabe.js';
 
 const KEY = 'chikara-no-switch.v3'; // 3便で「回」を重ねる形にしたので v3
 const MAE_KEY = 'chikara-no-switch.v2';
@@ -108,12 +108,20 @@ export function newKid(atama = 'その場') {
 }
 
 // 別の日の回を始める（前の回が終わっているときだけ）
-export function newKai(id) {
+// shurui 'mijikai'：⑦ また見つける（3つの組だけの短いゲーム）。難しさの段階は、前の回の最後の段階から始める
+export function newKai(id, shurui = 'hr') {
   if (isDemo(id)) return false;
   const st = load();
   const k = st.kids[id];
   if (!k || !k.kai.length || !k.kai[k.kai.length - 1].owari) return false;
-  k.kai.push(atarashiiKai(id, k.kai.length + 1));
+  const r = atarashiiKai(id, k.kai.length + 1);
+  if (shurui === 'mijikai') {
+    const mae = k.kai[k.kai.length - 1];
+    r.shurui = 'mijikai';
+    r.dankai = { erabikata: '前の回の段階から' };
+    for (const kind of ['A', 'B', 'C']) r.dankai[kind] = { dankai: matome(mae, kind).dankai === 1 ? 1 : 2 };
+  }
+  k.kai.push(r);
   save(st);
   return true;
 }

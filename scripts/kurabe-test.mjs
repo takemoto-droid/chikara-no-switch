@@ -8,7 +8,7 @@ import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
-import { dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
+import { maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
@@ -469,9 +469,9 @@ await ok('G2：線を比べた表と選んだ線が残り、X2 の骨と5便の�
 });
 
 // ---- 7便：難しさの段階
-function hrWoSuru(junban, kotae) {
+function hrWoSuru(junban, kotae, hoka = {}) {
   // kotae(step) → 正解の数。ゲームと同じく、1つ答えるごとに段階を進める
-  const r = { junban, kekka: {} };
+  const r = { junban, kekka: {}, ...hoka };
   for (let i = 0; i < 60; i++) {
     const id = yobiNext(r);
     if (!id) break;
@@ -718,6 +718,43 @@ await ok('H5：また見つけるの日に、支えの出し方の差が出な�
   assert.equal(c.level, 4);
   assert.equal(c.kara, 'hr');
   assert.match(sodateCardNoBun(cards, c).これは何か, /また見つける/);
+});
+
+await ok('H5：⑦ また見つけるは3つの組だけ（練習と質問なし）で、前の回の段階から始める。回をまたいで比べ、カードが増えてレベルが進む', () => {
+  // 1回目：段階1（練習が低い）で、聞くのほうが正解が多い
+  const kiku = (st, kazu) => (st.renshu ? 1 : st.mode === 'kiku' ? kazu : Math.max(0, kazu - 2));
+  const r1 = { ...hrWoSuru(makeJunban('また1'), kiku), kai: 1, hi: '2026-09-01', owari: true };
+  assert.equal(r1.dankai.A.dankai, 1);
+  // ⑦：kiroku.newKai と同じく、前の回の段階を写して始める
+  const dankai = { erabikata: '前の回の段階から' };
+  for (const k of ['A', 'B', 'C']) dankai[k] = { dankai: matome(r1, k).dankai };
+  const r2 = { ...hrWoSuru(makeJunban('また2'), kiku, { shurui: 'mijikai', dankai }), kai: 2, hi: '2026-11-01', owari: true };
+  const steps = stepsOf(r2);
+  assert.equal(steps.length, 12, '3つの組（ABBA）×3');
+  assert.ok(steps.every((x) => !x.renshu && x.kind !== 'D'));
+  assert.equal(matome(r2, 'A').dankai, 1, '前の回の段階から');
+  assert.equal(matome(r2, 'A').kekka, 'kiku');
+  const x = matomeKai([r1, r2], 'A');
+  assert.equal(x.kurikaeshi, 'kiku');
+  const c = motteiruCards([r1, r2]).cards.find((m) => m.card === 'kiku');
+  assert.equal(c.level, 2, 'レベル：たしかめた');
+  // 前の回との違い（事実）
+  const chigai = maeTonoChigai([r1, r2]);
+  assert.equal(chigai.length, 3);
+  assert.equal(chigai[0].mae, 'その回の候補「聞く」');
+  // 3回目：差なしでも、カードは消えず、レベルは下がらない
+  const r3 = { ...hrWoSuru(makeJunban('また3'), (st, kazu) => Math.ceil(kazu / 2), { shurui: 'mijikai', dankai }), kai: 3, hi: '2026-12-01', owari: true };
+  const c3 = motteiruCards([r1, r2, r3]).cards.find((m) => m.card === 'kiku');
+  assert.ok(c3 && c3.level >= 2);
+  assert.equal(maeTonoChigai([r1, r2, r3])[0].ima, '差なし');
+});
+
+await ok('H5：⑦ の記録もサーバーが受け取れる（短い版の印と段階）', async () => {
+  const dankai = { A: { dankai: 1 }, B: { dankai: 2 }, C: { dankai: 2 } };
+  const r = { ...hrWoSuru(makeJunban('送る'), (st, kazu) => Math.ceil(kazu / 2), { shurui: 'mijikai', dankai }), kai: 2, hi: '2026-11-01' };
+  const [st, out] = await handle('kasetsu', 'POST', { kai: [r], atehamaru: [] }, {});
+  assert.equal(st, 200);
+  assert.ok(out.kasetsu);
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

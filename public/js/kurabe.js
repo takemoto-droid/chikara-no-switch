@@ -455,3 +455,20 @@ export function claudeNiOkuru(record, tana, atehamaru, kaiList) {
 export function mieruKoumoku(checklist) {
   return [...(checklist.項目 || []), ...(checklist.先生が選ぶ候補 || []).filter((x) => x.先生が選んだ === true)];
 }
+
+// ⑦ また見つける：前の回との違い（事実だけ。棚ごとに、前の回とこの回の結果を並べる）
+function kekkaNoKotoba(m) {
+  if (m.kekka === 'mada') return 'まだ比べていない';
+  if (m.kekka === 'nashi') return '差なし';
+  return `その回の候補「${DASHIKATA[m.kekka]}」`;
+}
+export function maeTonoChigai(kaiList) {
+  const owatta = kaiList.filter((r) => r.owari !== false);
+  if (owatta.length < 2) return [];
+  const [mae, ima] = owatta.slice(-2);
+  return ['A', 'B', 'C'].map((k) => {
+    const a = matome(mae, k);
+    const b = matome(ima, k);
+    return { kind: k, mae: kekkaNoKotoba(a), ima: kekkaNoKotoba(b), kawatta: a.kekka !== b.kekka, dankai: [a.dankai, b.dankai] };
+  });
+}

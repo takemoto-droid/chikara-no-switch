@@ -23,7 +23,7 @@ export async function gameScreen(el, id) {
   const frame = () => {
     const n = Object.keys(rec.kekka).length;
     el.innerHTML = `
-      <h1>ゲーム${rec.kai > 1 ? `（${rec.kai}回目）` : ''}</h1>
+      <h1>${rec.shurui === 'mijikai' ? `また見つける（${rec.kai}回目のゲーム・短い版）` : `ゲーム${rec.kai > 1 ? `（${rec.kai}回目）` : ''}`}</h1>
       <div class="progress" aria-hidden="true"><div style="width:${Math.round((n / zenbuOf(rec)) * 100)}%"></div></div>
       <div id="game-naka"></div>
       <div class="btns"><button class="sub" id="tomeru">ここで止める（続きはあとで）</button></div>
@@ -42,7 +42,7 @@ export async function gameScreen(el, id) {
     rec.owari = true;
     rec.owariJi = Date.now();
     saveRecord(rec);
-    el.innerHTML = `<h1>おつかれさまでした</h1><p>全部の問題に取り組みました。あなたのスイッチカードができました。</p>
+    el.innerHTML = `<h1>おつかれさまでした</h1><p>${rec.shurui === 'mijikai' ? '全部の問題に取り組みました。カードを見てみましょう。もらったカードは、なくなりません。' : '全部の問題に取り組みました。あなたのスイッチカードができました。'}</p>
       <div class="btns"><a class="btn" href="#/card/${encodeURIComponent(rec.id)}">スイッチカードを見る</a></div>`;
   };
 

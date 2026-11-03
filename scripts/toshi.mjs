@@ -182,15 +182,24 @@ try {
   await page.waitForSelector('#tsugi-kai');
   await page.click('#tsugi-kai');
   await page.waitForSelector('#hajimeru');
-  tashika(/2回目/.test(await page.locator('h1').innerText()), '別の日の回（2回目）を始められる');
+  const h1Mata = await page.locator('h1').innerText();
+  tashika(/2回目/.test(h1Mata) && /また見つける/.test(h1Mata) && /短い版/.test(h1Mata), '⑦：カードの画面から、また見つける（短いゲーム・2回目）を始められる');
+  await mieru('また見つける_はじめ');
   const r3 = await susumu(99);
-  tashika(r3 === 'owari', '2回目のゲームも最後まで通せた');
+  tashika(r3 === 'owari', '⑦：また見つけるの短いゲームも最後まで通せた');
+  const tMataOwari = await mieru('また見つける_おわり');
+  tashika(/なくなりません/.test(tMataOwari), '⑦：おわりの画面で、もらったカードはなくならないと伝える');
+  await page.click('a[href^="#/card/"]');
+  await page.waitForSelector('.switch-card');
+  const tMataCard = await mieru('また見つける_カード');
+  tashika(!/\d+\s*枚/.test(tMataCard) && !/合計|順位/.test(tMataCard), '⑦：カードの画面に、合計・順位・枚数が出ない');
   await page.reload();
   await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
   const tKai = await mieru('先生の画面_2回');
   tashika(/終わったゲーム：2回/.test(tKai) && /回ごとの「出し方の差」/.test(tKai) && /2回目/.test(tKai), '読み直しても2回分が残り、回ごとの差の表が出る');
   tashika(/ゲーム 2回で/.test(tKai), '仮説の「確かめた回数」に回の数が入る');
+  tashika(/前の回との違い/.test(tKai) && /また見つけるの短い版/.test(tKai), '⑦：先生の画面に、前の回との違いが事実で出る');
 
   // ⑥ 育てる（朝の練習）：今日の練習の理由 → ひとつずつ → 段が進んだ理由 → 楽になったか → そだてちゅうのカード
   const pool = JSON.parse(readFileSync(path.join(ROOT, 'public/data/renshu.json'), 'utf8'));

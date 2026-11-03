@@ -2,7 +2,7 @@
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
-import { matome, matomeKai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
+import { matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
@@ -110,9 +110,9 @@ async function card(id) {
       <a class="btn sub" href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果を見る（先生の画面と同じもの）' : 'ここからは先生が見ます（④先生の画面）'}</a>
     </div>
     ${rec.owari ? '' : `<div class="box soft"><p>${esc(rec.kai)}回目のゲームの途中です。</p><a class="btn sub" href="#/game/${enc(id)}">続きから始める</a></div>`}
-    ${tsugiNoKai ? `<div class="box soft"><p>別の日に、もう一度ゲームをすると、回をまたいで比べられます（いまは ${kai.length} 回）。</p><button class="sub" id="tsugi-kai">別の日の回を始める</button></div>` : ''}`;
+    ${tsugiNoKai ? `<div class="box soft"><h2>⑦ また見つける</h2><p>別の日に、3つの比べだけの短いゲーム（10分ほど）をもう一度すると、前のゲームとあわせて比べられます。カードが増えたり、レベルが進んだりします。もらったカードは、なくなりません。</p><button id="tsugi-kai">⑦ また見つける（短いゲーム）を始める</button></div>` : ''}`;
   const b = document.getElementById('tsugi-kai');
-  if (b) b.onclick = () => { if (newKai(id)) location.hash = `#/game/${enc(id)}`; };
+  if (b) b.onclick = () => { if (newKai(id, 'mijikai')) location.hash = `#/game/${enc(id)}`; };
 }
 
 // ④(e) 練習の記録：回数・段・楽になったか。本人が選んだ出し方は「本人の好み」と書く（候補ではない）
@@ -245,6 +245,7 @@ async function senseiKo(id) {
       <section class="box soft">
         <h2>まとめ：いま言えること</h2>
         <ul>${matomeBun}</ul>
+        ${kai.length > 1 ? `<p class="small"><strong>前の回との違い</strong>（${esc(kai[kai.length - 2].kai)}回目 → ${esc(rec.kai)}回目${rec.shurui === 'mijikai' ? '・また見つけるの短い版' : ''}）</p><ul class="small">${maeTonoChigai(kai).map((c) => `<li>${esc(TANA_MEI[c.kind])}：${esc(c.mae)} → ${esc(c.ima)}${c.kawatta ? '' : '（同じ）'}</li>`).join('')}</ul>` : ''}
         <p class="small">子どもが持っているカード：${motte.map((m) => `<strong>${esc(cards.カード[m.card].名前)}</strong>${m.level != null ? `（${esc(levelNoNamae(cards, m))}）` : ''}`).join('・')}</p>
         <p class="muted small">本人の中で出し方を比べた結果です。他の子とは比べていません。くわしい数字は、下の「数字の根拠」にあります。</p>
       </section>
