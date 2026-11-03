@@ -1,6 +1,8 @@
 // 比べ方・カード・Claude の書き直しの流れを確かめる（キーは使わない）
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import * as fsAll from 'node:fs';
+const require_fs = () => fsAll;
 import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
@@ -334,6 +336,14 @@ await ok('7：概要の下書きは、1文目が「誰の・何の困りごと�
   assert.match(t, /下書き（先生未確認）/);
   const ichibun = t.split('\n').find((l) => l && !l.startsWith('#') && !l.startsWith('>'));
   assert.match(ichibun, /^困りごとを自分では言葉にできない中学生は、/);
+});
+
+await ok('8：動画素材の画面写しがそろっている（npm run douga で作る）', () => {
+  const { readdirSync } = require_fs();
+  const f = readdirSync(path.join(ROOT, 'docs/動画素材'));
+  for (const w of ['次を選んだ理由', 'スイッチカードを受け取る', 'まとめと仮説', '回ごとの表', 'デモ5_差が出なかった子のカード', '学習につなぐ']) {
+    assert.ok(f.some((x) => x.includes(w) && x.endsWith('.png')), w);
+  }
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
