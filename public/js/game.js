@@ -1,7 +1,7 @@
 // ② ゲーム。Claude が次の問題を選び、その理由を画面に出す。途中で止めて、続きから始められる。
 import { esc, api, data, okuruKiroku, whoLabel } from './util.js';
 import { getRecord, saveRecord, isDemo } from './kiroku.js';
-import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA, ZENBU } from './kurabe.js';
+import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA, zenbuOf, dankaiWoSusumeru } from './kurabe.js';
 import { junbiYomiage, yomu, tomeru, koeNoNamae } from './yomiage.js';
 import { tapeZu } from './zu.js';
 
@@ -24,7 +24,7 @@ export async function gameScreen(el, id) {
     const n = Object.keys(rec.kekka).length;
     el.innerHTML = `
       <h1>ゲーム${rec.kai > 1 ? `（${rec.kai}回目）` : ''}</h1>
-      <div class="progress" aria-hidden="true"><div style="width:${Math.round((n / ZENBU) * 100)}%"></div></div>
+      <div class="progress" aria-hidden="true"><div style="width:${Math.round((n / zenbuOf(rec)) * 100)}%"></div></div>
       <div id="game-naka"></div>
       <div class="btns"><button class="sub" id="tomeru">ここで止める（続きはあとで）</button></div>
       ${yomiageOK ? '' : '<div class="box chui small">この端末では読み上げが使えません。聞く問題は文字で出します（その回は比べる数に入れません）。</div>'}`;
@@ -62,6 +62,11 @@ export async function gameScreen(el, id) {
       const nid = yobiNext(rec);
       r = { next: nid, riyuu: yobiRiyuu(rec, nid), dare: 'yobi', wake: 'サーバーにつながらないので、決まった順の予備の動きで出しています。' };
     }
+    // 組の途中で問題を変えたときは、子どもには「新しい文章で」とだけ言う（段階は言わない）
+    if (rec.atarashiiBunsho) {
+      r = { ...r, riyuu: `ここから、新しい問題で比べなおします。${r.riyuu}` };
+      rec.atarashiiBunsho = false;
+    }
     const st = stepOf(rec, r.next);
     const who = r.dare === 'claude' ? 'Claude（AI）が次の問題を選んだ理由' : r.dare === 'kimari' ? '決まった順' : '決まった順（予備の動き）';
     naka.innerHTML = `
@@ -75,6 +80,9 @@ export async function gameScreen(el, id) {
       if (yameta) return;
       rec.kekka[st.id] = kekka;
       rec.erabi = [...(rec.erabi || []), { step: st.id, riyuu: r.riyuu, dare: r.dare }];
+      // 段階を選ぶ・切りかえる（7便）。子どもの画面には段階を出さない。変えたことは先生の画面に事実で出す
+      const henka = dankaiWoSusumeru(rec);
+      if (henka.some((h) => h.kind !== 'all')) rec.atarashiiBunsho = true;
       saveRecord(rec);
       tsugi();
     };

@@ -43,6 +43,11 @@ async function mieru(name) {
   kiroku.点検した文の数 += lines.length;
   for (const l of lines) for (const h of tenken(l)) kiroku.避ける言葉.push({ 画面: name, 文: l });
   for (const l of lines) if (/はなすスイッチ|じっくりスイッチ|上がった|伸びた/.test(l)) kiroku.避ける言葉.push({ 画面: name, 文: l, わけ: '出さないカード・言葉' });
+  // 子どもの画面に、難しさの段階と「苦手」が出ていない（7便・R14）
+  const dareNoGamen = await page.evaluate(() => document.getElementById('dare')?.textContent || '');
+  if (/子どもの画面|大人が試す画面/.test(dareNoGamen)) {
+    for (const l of lines) if (/段階|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面|苦手/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に段階か「苦手」がある「${l.slice(0, 40)}」`);
+  }
   // 英語のままのエラーや空欄（undefined・null・NaN など）が画面に出ていない
   for (const l of lines) if (/\b(undefined|null|NaN|Error|TypeError|Failed to fetch)\b|\[object Object\]/.test(l)) kiroku.まちがい.push(`${name}：英語のまま・空欄の文「${l.slice(0, 40)}」`);
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -150,6 +155,7 @@ try {
   tashika(/仮説/.test(tSensei) && /確かめた回数/.test(tSensei) && /参考程度・決めるのは先生/.test(tSensei), '仮説に「仮説」「確かめた回数」「参考程度・決めるのは先生」が付く');
   const jun = ['まとめ：いま言えること', 'Claude の仮説', '選んだ答え', 'チェック項目で当てはまったもの', '回ごとの「出し方の差」', '本人の中で、出し方ごとに比べたもの'].map((w) => tSensei.indexOf(w));
   tashika(jun.every((i) => i >= 0), '先生の画面に、結果・選んだ答え・チェック項目・Claude の仮説が出る');
+  tashika(/比べた問題：/.test(tSensei), '先生の画面に「比べた問題」が事実で出る（段階は先生にだけ）');
   tashika(jun.every((i, k) => k === 0 || i > jun[k - 1]), '先生の画面は、まとめ→仮説→授業の手がかり→数字の根拠の順');
   const kidId = decodeURIComponent(page.url().split('/').pop());
 

@@ -142,6 +142,12 @@ function kekkaBun(m) {
   if (m.kekka === 'nashi') return '揺れより大きい差は、同じ向きに2回は出なかった。どちらの出し方でも同じくらい力を出せた（差なし）';
   return `「${DASHIKATA[m.kekka]}」のほうが、2回とも、揺れより大きく正解が多かった（候補）`;
 }
+// 段階の名前（先生の画面だけ。子どもの画面には出さない）
+let dankaiMei = null;
+function dankaiNoNamae(kind, L) {
+  return dankaiMei?.[kind]?.[String(L)] ?? '';
+}
+
 function tanaHtml(m) {
   const [m1, m2] = m.kumi;
   return `
@@ -151,6 +157,8 @@ function tanaHtml(m) {
       <tr><td>${esc(DASHIKATA[m1])}</td><td>${seikaiCell(m[m1], m.kazu)}</td><td>${byou(m.jikan[m1])}</td></tr>
       <tr><td>${esc(DASHIKATA[m2])}</td><td>${seikaiCell(m[m2], m.kazu)}</td><td>${byou(m.jikan[m2])}</td></tr>
     </table></div>
+    <p class="small">比べた問題：${esc(dankaiNoNamae(m.kind, m.dankai))}${m.kirikae ? `（はじめは${esc(dankaiNoNamae(m.kind, m.hajimeDankai))}。1組目のあとで変えたので、1組目は練習扱いにした）` : ''}</p>
+    ${m.kurabenikui?.length ? `<p class="small"><span class="label">比べにくかった</span>${esc(m.kurabenikui.join('・'))}</p>` : ''}
     <p class="small">同じ出し方を2回やったときの揺れ：${m.yure == null ? '—' : `${m.yure}問`}　／　${esc(DASHIKATA[m2])}−${esc(DASHIKATA[m1])} の差：${m.sa.length ? m.sa.map((n) => `${n > 0 ? '+' : ''}${n}問`).join('、') : '—'}　／　確かめた回数：${m.kakunin}回</p>
     <div class="box soft small"><strong>${esc(kekkaBun(m))}</strong></div>`;
 }
@@ -167,7 +175,7 @@ function kaiHyouHtml(kai) {
     const [m1, m2] = x.kumi;
     for (const r of x.rows) {
       rows.push(`<tr><td>${esc(r.kai)}回目<br><span class="muted small">${esc(r.hi || '')}</span></td><td>${esc(TANA_MEI[x.kind])}</td>
-        <td>${r.sa.length ? r.sa.map((n) => `${n > 0 ? '+' : ''}${n}`).join('・') : '—'}</td>
+        <td>${r.sa.length ? r.sa.map((n) => `${n > 0 ? '+' : ''}${n}`).join('・') : '—'}<br><span class="muted small">${esc(dankaiNoNamae(x.kind, r.dankai))}</span></td>
         <td>${r.muki ? esc(DASHIKATA[r.muki]) : '向きなし'}</td>
         <td>${r.ookii ? 'はい（その回の候補）' : r.yure == null ? '—' : `いいえ（揺れ ${r.yure}）`}</td></tr>`);
     }
@@ -175,7 +183,7 @@ function kaiHyouHtml(kai) {
   const kuri = matome3.map((x) => `<li>${esc(TANA_MEI[x.kind])}：${x.kurikaeshi ? `<strong>くり返し出た候補「${esc(DASHIKATA[x.kurikaeshi])}」</strong>（${x.onaji.join('・')}回目で同じ向き。別々の日は ${x.onajiHi.length} 日）` : x.zenHi.length < 2 ? 'まだ1日分だけなので、回をまたいだ比べはしていない（同じ日の回は1日として数える）' : 'くり返し出た候補はない'}</li>`).join('');
   return `
     <h3>回ごとの「出し方の差」</h3>
-    <p class="muted small">差は、その回の中の「${esc(DASHIKATA.kiku)}−${esc(DASHIKATA.yomu)}」のように、2つ目の出し方から1つ目の出し方を引いた正解の差（1組目・2組目）。素点は回ごとに比べません（2回目は慣れて正解が増えやすいため）。「くり返し出た候補」は、ある回でその回の候補になり、別の日の回でも同じ向きの差が出て、反対向きの候補が無いときだけです。同じ日に2回したときは、1日として数えます。</p>
+    <p class="muted small">差は、その回の中の「${esc(DASHIKATA.kiku)}−${esc(DASHIKATA.yomu)}」のように、2つ目の出し方から1つ目の出し方を引いた正解の差（1組目・2組目）。素点は回ごとに比べません（2回目は慣れて正解が増えやすいため）。「くり返し出た候補」は、ある回でその回の候補になり、別の日の回でも同じ向きの差が出て、反対向きの候補が無いときだけです。同じ日に2回したときは、1日として数えます。比べるのは同じ段階（問題の難しさ）の中だけです。</p>
     <div class="table-wrap"><table>
       <tr><th>いつ</th><th>棚</th><th>差</th><th>向き</th><th>揺れより大きいか</th></tr>
       ${rows.join('')}
@@ -192,6 +200,7 @@ async function senseiKo(id) {
   const kai = await owattaKai(id);
   const rec = kai.length ? kai[kai.length - 1] : saishin; // 比べるのは、終わった回のうちいちばん新しい回
   const tana = await data('tana');
+  dankaiMei = tana.段階?.名前 || null;
   const checklist = await data('checklist');
   const cards = await data('cards');
   const ids = await atehamaruIds(id);

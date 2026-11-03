@@ -187,6 +187,14 @@ out.push('', '- 差が無い子で決めつけない割合は高いが、差が�
   } catch { /* まだ無いとき */ }
 }
 
+// 6. 段階の比べ（7便）：scripts/dankai_kurabe.mjs の結果（docs/段階の比べ_7便.md）
+{
+  try {
+    const t = readFileSync(path.join(ROOT, 'docs', '段階の比べ_7便.md'), 'utf8').split('\n').slice(1).join('\n').replace(/^## /gm, '### ');
+    out.push('', '## 6. 難しさの段階（7便）', '', '1〜5 は、いつも段階2（ふつう）で数えた。7便で足した段階の選び方を、ゲームと同じしくみで比べた結果（`node scripts/dankai_kurabe.mjs`）：', t.trim());
+  } catch { /* まだ無いとき */ }
+}
+
 out.push('', '## 読み方の注意', '', '- これは合成データです。問題の本当の難しさは、まだ分かりません。大人や子どもで試して、難しさの仮の値を置きかえる必要があります。', '- 子どもで確かめた結果ではありません。効果を示すものでもありません。');
 
 const text = out.join('\n');

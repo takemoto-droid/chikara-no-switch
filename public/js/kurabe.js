@@ -22,16 +22,20 @@ export const KUMI = {
 };
 
 export const RENSHU = ['A-r1', 'A-r2'];
-const RETSU = {
-  A: ['A-r1', 'A-r2', 'A-1', 'A-2', 'A-3', 'A-4'],
-  B: ['B-1', 'B-2', 'B-3', 'B-4'],
-  C: ['C-1', 'C-2', 'C-3', 'C-4'],
-  D: ['D1', 'D2', 'D3', 'D4'],
-};
-export const ZENBU = Object.values(RETSU).flat().length;
+export const D_IDS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'];
 
-// 予備の動き：Claude が使えないときの、決まった順（種類を混ぜる）
-export const YOBI_JUN = ['A-r1', 'A-r2', 'A-1', 'D1', 'A-2', 'B-1', 'A-3', 'C-1', 'A-4', 'D2', 'B-2', 'C-2', 'B-3', 'D3', 'C-3', 'B-4', 'C-4', 'D4'];
+// 難しさの段階（7便・06 第3.1版の 3-3）。段階は子どもに見せない。比べるのは同じ段階の中だけ
+export const DANKAI_MONDAI = {
+  A: { 1: ['A1Y', 'A2Y', 'A3Y', 'A4Y'], 2: ['A1', 'A2', 'A3', 'A4'] },
+  B: { 1: ['B1Y', 'B2Y', 'B3Y', 'B4Y'], 2: ['B1', 'B2', 'B3', 'B4'] },
+  C: { 1: ['C1Y', 'C2Y', 'C3Y', 'C4Y'], 2: ['C1', 'C2', 'C3', 'C4'] },
+};
+// 選び方と切りかえの線（合成データで決めた。scripts/dankai_kurabe.mjs・docs/合成データでの確かめ.md）
+export const DANKAI_KIJUN = {
+  yasashime: 3 / 8, // はじめの練習（読む／聞く 2つ・8問）の正解率がこれ以下なら、段階1から
+  hobo0: 0.125, // 組（2つ）の正解率がこれ以下なら「ほぼ0」
+  zenbu: 1, // 組の正解率がこれなら「ほぼ全部正解」
+};
 
 function hash(s) {
   let h = 0;
@@ -49,48 +53,109 @@ export function makeJunban(karibango) {
   };
 }
 
-function abba(kind, j, mondai) {
+function abba(kind, j, mondai, kara, dankai) {
   const [m1, m2] = KUMI[kind];
   const a = j.saisho === m2 ? m2 : m1;
   const b = a === m1 ? m2 : m1;
   const order = j.irekae ? [mondai[1], mondai[0], mondai[3], mondai[2]] : mondai;
   return [
-    { id: `${kind}-1`, kind, mode: a, mondai: order[0], kai: 1 },
-    { id: `${kind}-2`, kind, mode: b, mondai: order[1], kai: 1 },
-    { id: `${kind}-3`, kind, mode: b, mondai: order[2], kai: 2 },
-    { id: `${kind}-4`, kind, mode: a, mondai: order[3], kai: 2 },
+    { id: `${kind}-${kara}`, kind, mode: a, mondai: order[0], kai: 1, dankai },
+    { id: `${kind}-${kara + 1}`, kind, mode: b, mondai: order[1], kai: 1, dankai },
+    { id: `${kind}-${kara + 2}`, kind, mode: b, mondai: order[2], kai: 2, dankai },
+    { id: `${kind}-${kara + 3}`, kind, mode: a, mondai: order[3], kai: 2, dankai },
   ];
 }
 
-export function makeSteps(j) {
+// その棚の段階：{ dankai: はじめの段階, kirikae: { to: 変えた先 } | null }
+export function dankaiOf(dankai, kind) {
+  const d = dankai?.[kind];
+  return { dankai: d?.dankai === 1 ? 1 : 2, kirikae: d?.kirikae && [1, 2].includes(d.kirikae.to) ? d.kirikae : null };
+}
+
+// 棚ごとの問題の並び。1組目のあとで段階を変えたら、1組目は練習扱いにして、新しい段階で ABBA をやり直す
+function tanaNoSteps(kind, j, dankai) {
+  const d = dankaiOf(dankai, kind);
+  const mae = abba(kind, j[kind], DANKAI_MONDAI[kind][d.dankai], 1, d.dankai);
+  if (!d.kirikae) return mae;
+  return [
+    ...mae.slice(0, 2).map((st) => ({ ...st, renshuAtsukai: true })),
+    ...abba(kind, j[kind], DANKAI_MONDAI[kind][d.kirikae.to], 5, d.kirikae.to),
+  ];
+}
+
+// shurui：'hr'（② 見つける）／'mijikai'（⑦ また見つける：練習と質問なし・3つの組だけ）
+export function makeSteps(j, dankai = null, shurui = 'hr') {
+  const hr = shurui !== 'mijikai';
   const hoka = j.A.saisho === 'yomu' ? 'kiku' : 'yomu';
   return [
-    { id: 'A-r1', kind: 'A', mode: j.A.saisho, mondai: 'A0a', renshu: true },
-    { id: 'A-r2', kind: 'A', mode: hoka, mondai: 'A0b', renshu: true },
-    ...abba('A', j.A, ['A1', 'A2', 'A3', 'A4']),
-    ...abba('B', j.B, ['B1', 'B2', 'B3', 'B4']),
-    ...abba('C', j.C, ['C1', 'C2', 'C3', 'C4']),
-    { id: 'D1', kind: 'D', mondai: 'D1' },
-    { id: 'D2', kind: 'D', mondai: 'D2' },
-    { id: 'D3', kind: 'D', mondai: 'D3' },
-    { id: 'D4', kind: 'D', mondai: 'D4' },
+    ...(hr ? [
+      { id: 'A-r1', kind: 'A', mode: j.A.saisho, mondai: 'A0a', renshu: true, dankai: 2 },
+      { id: 'A-r2', kind: 'A', mode: hoka, mondai: 'A0b', renshu: true, dankai: 2 },
+    ] : []),
+    ...tanaNoSteps('A', j, dankai),
+    ...tanaNoSteps('B', j, dankai),
+    ...tanaNoSteps('C', j, dankai),
+    ...(hr ? D_IDS.map((id) => ({ id, kind: 'D', mondai: id })) : []),
   ];
+}
+
+export function stepsOf(record) {
+  return makeSteps(record.junban, record.dankai, record.shurui);
 }
 
 export function stepOf(record, id) {
-  return makeSteps(record.junban).find((s) => s.id === id);
+  return stepsOf(record).find((s) => s.id === id);
+}
+
+export function zenbuOf(record) {
+  return stepsOf(record).length;
+}
+
+// 練習が終わったら段階を選ぶ。組の1つ目が終わったら、切りかえを見る。変えたことを返す（先生の画面と理由に使う）
+export function dankaiWoSusumeru(record) {
+  const henka = [];
+  const k = record.kekka || {};
+  if (!record.dankai && (record.shurui === 'mijikai' || RENSHU.every((id) => k[id]))) {
+    let L = 2;
+    if (record.shurui !== 'mijikai') {
+      const s = RENSHU.reduce((a, id) => a + (k[id].seikai ?? 0), 0);
+      const n = RENSHU.reduce((a, id) => a + (k[id].kazu ?? 4), 0);
+      if (s / n <= DANKAI_KIJUN.yasashime) L = 1;
+    }
+    record.dankai = { A: { dankai: L }, B: { dankai: L }, C: { dankai: L }, erabikata: `はじめの練習の正解 ${RENSHU.reduce((a, id) => a + (k[id].seikai ?? 0), 0)}／${RENSHU.reduce((a, id) => a + (k[id].kazu ?? 4), 0)}` };
+    henka.push({ kind: 'all', to: L });
+  }
+  if (!record.dankai) return henka;
+  for (const kind of ['A', 'B', 'C']) {
+    const d = dankaiOf(record.dankai, kind);
+    if (d.kirikae) continue;
+    const r1 = [`${kind}-1`, `${kind}-2`].map((id) => k[id]);
+    if (r1.some((x) => !x || x.seikai == null) || r1.some((x) => x.yomiageNashi)) continue;
+    if (record.dankai[kind].mita) continue; // 1組目を見たのは1回だけ
+    record.dankai[kind].mita = true;
+    const ritsu = (r1[0].seikai + r1[1].seikai) / ((r1[0].kazu ?? 1) + (r1[1].kazu ?? 1));
+    let to = null;
+    if (ritsu <= DANKAI_KIJUN.hobo0 && d.dankai === 2) to = 1;
+    if (ritsu >= DANKAI_KIJUN.zenbu && d.dankai === 1) to = 2;
+    if (to) {
+      record.dankai[kind].kirikae = { to, ritsu };
+      henka.push({ kind, to });
+    }
+  }
+  return henka;
 }
 
 // 今、次に出してよいもの（Claude はこの中から選ぶ）
 export function kouho(record) {
   const done = record.kekka || {};
+  const steps = stepsOf(record);
   const heads = [];
   for (const k of ['A', 'B', 'C', 'D']) {
-    const head = RETSU[k].find((id) => !done[id]);
-    if (head) heads.push(head);
+    const head = steps.find((st) => st.kind === k && !done[st.id]);
+    if (head) heads.push(head.id);
   }
   // 練習が終わるまでは練習だけ
-  if (RENSHU.some((id) => !done[id])) return heads.filter((id) => id.startsWith('A-r'));
+  if (record.shurui !== 'mijikai' && RENSHU.some((id) => !done[id])) return heads.filter((id) => id.startsWith('A-r'));
   return heads;
 }
 
@@ -98,9 +163,15 @@ export function owatta(record) {
   return kouho(record).length === 0;
 }
 
+// 予備の動き：Claude が使えないときの決まった順。棚の進み具合がいちばん少ない棚から出す（同じなら A・D・B・C の順）
 export function yobiNext(record) {
   const c = kouho(record);
-  return YOBI_JUN.find((id) => c.includes(id)) || null;
+  if (!c.length) return null;
+  const steps = stepsOf(record);
+  const done = record.kekka || {};
+  const susumi = (k) => steps.filter((st) => st.kind === k && done[st.id]).length / Math.max(1, steps.filter((st) => st.kind === k).length);
+  const jun = ['A', 'D', 'B', 'C'];
+  return [...c].sort((x, y) => susumi(x[0]) - susumi(y[0]) || jun.indexOf(x[0]) - jun.indexOf(y[0]))[0];
 }
 
 export function yobiRiyuu(record, id) {
@@ -114,36 +185,45 @@ export function yobiRiyuu(record, id) {
   return '問題が続いたので、ここで選んで答える質問を1つはさみます。';
 }
 
-const KAZU = { A: 4, B: 2, C: 4 };
+const KAZU = { A: { 1: 3, 2: 4 }, B: { 1: 1, 2: 2 }, C: { 1: 3, 2: 4 } };
 
-// 1つの棚のまとめ（本人の中だけで比べる）
+// 1つの棚のまとめ（本人の中だけで比べる）。比べるのは、最後の段階の2組だけ（段階をまたいで比べない）
 export function matome(record, kind) {
   const [m1, m2] = KUMI[kind];
-  const steps = makeSteps(record.junban).filter((s) => s.kind === kind && !s.renshu);
+  const zen = stepsOf(record).filter((s) => s.kind === kind && !s.renshu);
+  const d = dankaiOf(record.dankai, kind);
+  const L = d.kirikae ? d.kirikae.to : d.dankai;
+  const kara = d.kirikae ? 5 : 1; // 切りかえたら -5〜-8 で比べる
+  const ids = [0, 1, 2, 3].map((i) => `${kind}-${kara + i}`);
+  const steps = zen.filter((s) => ids.includes(s.id));
   const get = (id) => steps.find((s) => s.id === id);
   const k = (id) => {
     const r = record.kekka?.[id];
     return !r || r.yomiageNashi || r.seikai == null ? null : r;
   };
-  const out = { kind, kumi: [m1, m2], [m1]: [], [m2]: [], jikan: { [m1]: [], [m2]: [] }, kazu: KAZU[kind] };
+  const out = { kind, kumi: [m1, m2], [m1]: [], [m2]: [], jikan: { [m1]: [], [m2]: [] }, kazu: KAZU[kind][L], dankai: L, hajimeDankai: d.dankai, kirikae: d.kirikae ? d.kirikae.to : null, renshuAtsukai: zen.filter((s) => s.renshuAtsukai).map((s) => s.id) };
   for (const st of steps) {
     const r = k(st.id);
     if (!r) continue;
     out[st.mode].push(r.seikai);
     out.jikan[st.mode].push(r.ms ?? null);
   }
-  // 1回目の比べ：-1 と -2、2回目：-3 と -4。差は（スイッチの出し方）−（もとの出し方）
+  // 1回目の比べ：1つ目と2つ目、2回目：3つ目と4つ目。差は（スイッチの出し方）−（もとの出し方）
   const sa = [];
-  for (const [p, q] of [[`${kind}-1`, `${kind}-2`], [`${kind}-3`, `${kind}-4`]]) {
+  const kumiNoRitsu = [];
+  for (const [p, q] of [[ids[0], ids[1]], [ids[2], ids[3]]]) {
     const a = k(p);
     const b = k(q);
     if (!a || !b) continue;
     const swSide = get(p).mode === m2 ? a.seikai : b.seikai;
     const motoSide = get(p).mode === m1 ? a.seikai : b.seikai;
     sa.push(swSide - motoSide);
+    kumiNoRitsu.push((a.seikai + b.seikai) / ((a.kazu ?? out.kazu) + (b.kazu ?? out.kazu)));
   }
   out.sa = sa;
   out.kakunin = sa.length; // 確かめた回数（比べた組の数）
+  // 比べにくかった組：正解がほとんど無い・ほとんど全部正解（先生にだけ事実で出す）
+  out.kurabenikui = kumiNoRitsu.map((x, i) => (x <= DANKAI_KIJUN.hobo0 ? `${i + 1}組目は正解がほとんど無かった` : x >= DANKAI_KIJUN.zenbu ? `${i + 1}組目は全部正解だった` : null)).filter(Boolean);
   out.yure = out[m1].length === 2 && out[m2].length === 2
     ? Math.max(Math.abs(out[m1][0] - out[m1][1]), Math.abs(out[m2][0] - out[m2][1]))
     : null;
@@ -191,25 +271,30 @@ const hiNoKagi = (r) => r.hi || `回${r.kai}`;
 export function matomeKai(kaiList, kind) {
   const rows = kaiList.map((rec, i) => {
     const m = matome(rec, kind);
-    return { kai: rec.kai ?? i + 1, hi: rec.hi ?? null, sa: m.sa, yure: m.yure, muki: kaiNoMuki(m), ookii: m.kekka !== 'nashi' && m.kekka !== 'mada', kekka: m.kekka, kazu: m.kazu };
+    return { kai: rec.kai ?? i + 1, hi: rec.hi ?? null, sa: m.sa, yure: m.yure, muki: kaiNoMuki(m), ookii: m.kekka !== 'nashi' && m.kekka !== 'mada', kekka: m.kekka, kazu: m.kazu, dankai: m.dankai, kirikae: m.kirikae, kurabenikui: m.kurabenikui };
   });
   const kumi = KUMI[kind];
   let kurikaeshi = null;
   let onaji = [];
   let onajiHi = [];
-  for (const d of kumi) {
-    const kouhoKai = rows.filter((r) => r.ookii && r.muki === d);
-    const onajiKai = rows.filter((r) => r.muki === d);
-    const hi = [...new Set(onajiKai.map(hiNoKagi))];
-    const hantai = rows.filter((r) => r.ookii && r.muki && r.muki !== d);
-    // 「その回の候補」が1回以上あり、同じ向きの差が2つ以上の別の日に出ていて、反対向きの候補が無い
-    if (kouhoKai.length >= 1 && hi.length >= 2 && hantai.length === 0) {
-      kurikaeshi = d;
-      onaji = onajiKai.map((r) => r.kai);
-      onajiHi = hi;
+  let zenHi = [...new Set(rows.map(hiNoKagi))];
+  // 比べるのは同じ段階の中だけ（7便）：段階ごとに分けて、くり返しを見る
+  for (const L of [...new Set(rows.map((r) => r.dankai))]) {
+    const rL = rows.filter((r) => r.dankai === L);
+    for (const d of kumi) {
+      const kouhoKai = rL.filter((r) => r.ookii && r.muki === d);
+      const onajiKai = rL.filter((r) => r.muki === d);
+      const hi = [...new Set(onajiKai.map(hiNoKagi))];
+      const hantai = rL.filter((r) => r.ookii && r.muki && r.muki !== d);
+      // 「その回の候補」が1回以上あり、同じ向きの差が2つ以上の別の日に出ていて、反対向きの候補が無い
+      if (kouhoKai.length >= 1 && hi.length >= 2 && hantai.length === 0) {
+        kurikaeshi = d;
+        onaji = onajiKai.map((r) => r.kai);
+        onajiHi = hi;
+        zenHi = [...new Set(rL.map(hiNoKagi))];
+      }
     }
   }
-  const zenHi = [...new Set(rows.map(hiNoKagi))];
   return { kind, kumi, rows, kurikaeshi, onaji, onajiHi, zenHi, kaisu: rows.filter((r) => r.sa.length === 2).length };
 }
 

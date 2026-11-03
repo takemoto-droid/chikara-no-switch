@@ -7,7 +7,7 @@ import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { handle } from '../lib/api.mjs';
-import { matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, ZENBU, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards } from '../public/js/kurabe.js';
+import { dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
@@ -60,7 +60,7 @@ await ok('図・区切りも2組（ABBA）で、同じ決まりで候補にな�
   assert.equal(matome(r, 'B').kekka, 'zu');
   r.kekka['B-4'].seikai = 1; // 揺れ1・差 +2,+1 → 候補にしない
   assert.equal(matome(r, 'B').kekka, 'nashi');
-  assert.equal(ZENBU, 18);
+  assert.equal(zenbuOf({ junban: j }), 22); // 練習2・読む聞く4・図4・区切り4・質問8（7便で質問を8に）
 });
 
 await ok('どの結果でもカードは1枚で、強みのカード（この便で使うもの）', () => {
@@ -83,12 +83,14 @@ await ok('練習が終わるまでは練習だけ。予備の順で最後まで�
   const r = { junban: makeJunban('テスト'), kekka: {} };
   assert.deepEqual(kouho(r), ['A-r1']);
   const jun = [];
-  for (let i = 0; i < 20; i++) {
+  for (let i = 0; i < 40; i++) {
     const id = yobiNext(r);
     if (!id) break;
     jun.push(id);
-    r.kekka[id] = { seikai: 1 };
+    r.kekka[id] = { seikai: 2, kazu: 4 }; // 半分ずつ正解（段階は2のまま・切りかえなし）
+    dankaiWoSusumeru(r);
   }
+  assert.equal(jun.length, zenbuOf(r));
   assert.equal(jun.length, makeSteps(r.junban).length);
   // ABBA の順が守られている
   assert.deepEqual(jun.filter((x) => /^A-\d/.test(x)), ['A-1', 'A-2', 'A-3', 'A-4']);
@@ -348,9 +350,10 @@ await ok('8：動画素材の画面写しがそろっている（npm run douga �
 await ok('F1-a：棚 C は「連絡を読んで中身を答える」形。どの問いも、その番目の文に答えがある', () => {
   const tana = j('public/data/tana.json');
   const C = tana.C.文章;
-  assert.deepEqual(Object.keys(C), ['C1', 'C2', 'C3', 'C4']);
+  assert.deepEqual(Object.keys(C), ['C1', 'C2', 'C3', 'C4', 'C1Y', 'C2Y', 'C3Y', 'C4Y']);
   for (const [id, p] of Object.entries(C)) {
-    assert.ok(p.前おき && p.連絡.length === 4 && p.問い.length === 4, id);
+    const n = p.段階 === 1 ? 3 : 4; // 段階1は連絡3文・問い3つ（7便）
+    assert.ok(p.前おき && p.連絡.length === n && p.問い.length === n, id);
     p.問い.forEach((q, i) => {
       assert.equal(q.選択肢.length, 4, `${id} 問い${i + 1}`);
       assert.ok(q.答え >= 0 && q.答え < 4);
@@ -361,7 +364,7 @@ await ok('F1-a：棚 C は「連絡を読んで中身を答える」形。どの
     assert.ok(!/並べ|入れかえ|左から/.test(JSON.stringify(p)), `${id} に並べかえの言葉がある`);
   }
   // 長さと漢字の割合がそろっている（目安：90〜115字・漢字 28〜40%）
-  for (const p of Object.values(C)) {
+  for (const p of Object.values(C).filter((x) => x.段階 !== 1)) {
     const t = p.連絡.join('');
     const kanji = [...t].filter((c) => /\p{Script=Han}/u.test(c)).length / t.length;
     assert.ok(t.length >= 90 && t.length <= 115 && kanji >= 0.28 && kanji <= 0.4, t.slice(0, 10));
@@ -462,6 +465,58 @@ await ok('G2：線を比べた表と選んだ線が残り、X2 の骨と5便の�
   // 骨と5便の線：揺れは大きいほう（読む 2・2／聞く 4・3 → 揺れ1。差 +2,+1 は候補にしない）
   assert.equal(matomeA(rec([2, 4, 3, 2])).yure, 1);
   assert.equal(matomeA(rec([2, 4, 3, 2])).kekka, 'nashi');
+});
+
+// ---- 7便：難しさの段階
+function hrWoSuru(junban, kotae) {
+  // kotae(step) → 正解の数。ゲームと同じく、1つ答えるごとに段階を進める
+  const r = { junban, kekka: {} };
+  for (let i = 0; i < 60; i++) {
+    const id = yobiNext(r);
+    if (!id) break;
+    const st = stepsOf(r).find((x) => x.id === id);
+    const kazu = st.kind === 'D' ? undefined : st.kind === 'B' ? (st.dankai === 1 ? 1 : 2) : st.renshu ? 4 : (st.dankai === 1 ? 3 : 4);
+    r.kekka[id] = st.kind === 'D' ? { kotae: '今は答えない' } : { seikai: kotae(st, kazu), kazu };
+    dankaiWoSusumeru(r);
+  }
+  return r;
+}
+await ok('H2：練習の正解率で段階を選ぶ（3/8 以下なら段階1から）', () => {
+  const j = makeJunban('段階');
+  const hikui = hrWoSuru(j, (st, kazu) => (st.renshu ? 1 : Math.ceil(kazu / 2)));
+  assert.equal(hikui.dankai.A.dankai, 1);
+  assert.ok(stepsOf(hikui).filter((x) => x.kind === 'A' && !x.renshu).every((x) => x.dankai === 1 && /Y$/.test(x.mondai)));
+  const futsuu = hrWoSuru(j, (st, kazu) => Math.ceil(kazu / 2));
+  assert.equal(futsuu.dankai.A.dankai, 2);
+});
+
+await ok('H2：1組目がほぼ0なら、次の組から段階を変え、変える前の組は練習扱い。比べるのは同じ段階の中だけ', () => {
+  const j = makeJunban('切りかえ');
+  // 練習はふつう（段階2）。読む／聞くの1組目は0問、あとは半分
+  const r = hrWoSuru(j, (st, kazu) => (st.id === 'A-1' || st.id === 'A-2' ? 0 : st.renshu ? 4 : Math.ceil(kazu / 2)));
+  assert.deepEqual(r.dankai.A.kirikae.to, 1);
+  const a = stepsOf(r).filter((x) => x.kind === 'A' && !x.renshu);
+  assert.deepEqual(a.map((x) => x.id), ['A-1', 'A-2', 'A-5', 'A-6', 'A-7', 'A-8']);
+  assert.ok(a.slice(0, 2).every((x) => x.renshuAtsukai && x.dankai === 2));
+  assert.ok(a.slice(2).every((x) => x.dankai === 1));
+  const m = matome(r, 'A');
+  assert.equal(m.dankai, 1);
+  assert.equal(m.kirikae, 1);
+  assert.equal(m.kakunin, 2);
+  assert.equal(m.kazu, 3);
+  // 1組目の 0問は、比べる数に入っていない
+  assert.ok(![...m.yomu, ...m.kiku].includes(0));
+  // 2組目以降は見ない（切りかえは1回だけ）
+  assert.equal(r.dankai.B.kirikae, undefined);
+});
+
+await ok('H2：子どもの画面のもと（ゲーム・カード・案内）に、段階の言葉が無い', () => {
+  const game = readFileSync(path.join(ROOT, 'public/js/game.js'), 'utf8');
+  const card = j('public/data/cards.json');
+  const annai = j('public/data/annai.json');
+  for (const [mei, t] of [['game.js', game], ['cards', JSON.stringify(card.カード)], ['annai', JSON.stringify(annai.子ども)]]) {
+    assert.ok(!/段階|やさしめ|むずかしめ|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面/.test(t.replace(/\/\/.*$/gm, '')), mei);
+  }
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
