@@ -329,4 +329,11 @@ await ok('4：子どもの安全とプライバシーのページがあり、画
   assert.match(readFileSync(path.join(ROOT, 'public/index.html'), 'utf8'), /#\/anzen/);
 });
 
+await ok('7：概要の下書きは、1文目が「誰の・何の困りごとか」で始まる', () => {
+  const t = readFileSync(path.join(ROOT, 'docs/概要_下書き.md'), 'utf8');
+  assert.match(t, /下書き（先生未確認）/);
+  const ichibun = t.split('\n').find((l) => l && !l.startsWith('#') && !l.startsWith('>'));
+  assert.match(ichibun, /^困りごとを自分では言葉にできない中学生は、/);
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);
