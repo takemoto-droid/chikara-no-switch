@@ -7,11 +7,11 @@ import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { handle } from '../lib/api.mjs';
-import { dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards } from '../public/js/kurabe.js';
+import { dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
-const cards = j('public/data/cards.json');
+const cards = namaeWoAwaseru(j('public/data/cards.json'), j('public/data/card_namae.json'));
 let n = 0;
 const ok = (name, fn) => Promise.resolve(fn()).then(() => { n++; console.log(`○ ${name}`); });
 
@@ -74,7 +74,7 @@ await ok('どの結果でもカードは1枚で、強みのカード（この便
   }
   assert.equal(erabuCard({ junban: rec([0, 0, 0, 0]).junban, kekka: {} }), 'tameshita');
   for (const id of ['kiku', 'zu', 'kugiru', 'kuchi', 'jikan']) assert.ok(cards.カード[id], `06 の5種類：${id}`);
-  for (const c of Object.values(cards.カード)) assert.match(c.これは何か, /^この日のゲームでは/);
+  for (const c of Object.values(cards.カード).filter((x) => !/育てるカード/.test(x['06の種類']))) assert.match(c.これは何か, /^この日のゲームでは/);
   assert.ok(cards.カード.kiku.自分でできる使い方.includes('長い文は、声に出して読んでみる。'));
   assert.ok(cards.カード.kiku.先生にお願いしてよいこと.includes('「説明は口でも言ってください」'));
 });
@@ -517,6 +517,62 @@ await ok('H2：子どもの画面のもと（ゲーム・カード・案内）�
   for (const [mei, t] of [['game.js', game], ['cards', JSON.stringify(card.カード)], ['annai', JSON.stringify(annai.子ども)]]) {
     assert.ok(!/段階|やさしめ|むずかしめ|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面/.test(t.replace(/\/\/.*$/gm, '')), mei);
   }
+});
+
+await ok('H3：カードのレベルは下がらない。上限は3。副題とレベルの名前が付く', () => {
+  const r = (y, k, n, hi) => ({ ...kaiA(y, k, n), hi });
+  const r1 = r([1, 1], [3, 3], 1, '2026-09-01');
+  const r2 = r([1, 1], [3, 3], 2, '2026-10-01');
+  const r3 = r([1, 1], [3, 3], 3, '2026-11-01');
+  const r4 = r([3, 3], [1, 1], 4, '2026-11-02'); // 反対向きの候補
+  const r5 = r([1, 1], [3, 3], 5, '2026-11-03');
+  const kiku = (list) => motteiruCards(list).cards.find((c) => c.card === 'kiku');
+  assert.equal(kiku([r1]).level, 1);
+  assert.equal(kiku([r1, r2]).level, 2);
+  assert.equal(kiku([r1, r2, r3]).level, 3);
+  assert.equal(kiku([r1, r2, r3, r4]).level, 3, '反対向きの日があっても、下がらない');
+  assert.equal(kiku([r1, r2, r3, r4, r5]).level, LEVEL_JOUGEN, '上限より上にならない');
+  assert.deepEqual(motteiruCards([r1]).agatta, []);
+  assert.deepEqual(motteiruCards([r1, r2]).agatta, ['kiku']);
+  assert.deepEqual(motteiruCards([r1, r2, r3, r4]).agatta, [], '進まなかった日は出さない');
+  assert.equal(levelNoNamae(cards, kiku([r1])), 'みつけた');
+  assert.equal(levelNoNamae(cards, kiku([r1, r2])), 'たしかめた');
+  assert.equal(levelNoNamae(cards, kiku([r1, r2, r3])), 'しっかり');
+  assert.deepEqual(motteiruCards([r1, r2, r3]).agatta, ['kiku'], '同じカードのレベルが進んだことは分かる');
+  assert.equal(cards.カード.kiku.名前, 'きいてスイッチ');
+  assert.equal(cardNoFukudai(cards, kiku([r1])), '読むと聞くを比べて');
+  assert.equal(cardNoFukudai(cards, { card: 'dore' }), '3つの比べで差なし');
+  assert.equal(cardNoFukudai(cards, { card: 'zu', kind: 'B' }), '文と図を比べて');
+  assert.equal(cardNoFukudai(cards, { card: 'kugiru' }), '一気にと区切ってを比べて');
+  // ためしたカードにはレベルを付けない
+  assert.equal(motteiruCards([]).cards[0].level, null);
+  // どれでもカードは、差なしだった別々の日の数
+  const n1 = r([2, 2], [2, 2], 1, '2026-09-01');
+  const n2 = r([2, 2], [2, 2], 2, '2026-09-01');
+  const n3 = r([2, 2], [2, 2], 3, '2026-10-01');
+  assert.equal(motteiruCards([n1, n2]).cards[0].level, 1, '同じ日は1日');
+  assert.equal(motteiruCards([n1, n2, n3]).cards[0].level, 2);
+});
+
+await ok('H3：カードの名前は card_namae.json の1つだけにある（cards.json と画面のコードには書かない）', () => {
+  const namae = j('public/data/card_namae.json');
+  const moto = j('public/data/cards.json');
+  for (const [id, c] of Object.entries(moto.カード)) assert.equal(c.名前, '（card_namae.json）', id);
+  for (const id of Object.keys(moto.カード)) assert.ok(namae.名前[id], `名前がある：${id}`);
+  const mei = Object.values(namae.名前).filter((x) => !/はなす|じっくり/.test(x));
+  for (const f of ['public/js/app.js', 'public/js/game.js', 'public/js/kurabe.js', 'public/js/hikitsugi.js', 'lib/yobi.mjs', 'lib/api.mjs']) {
+    const t = readFileSync(path.join(ROOT, f), 'utf8');
+    for (const x of mei) assert.ok(!t.includes(x), `${f} に「${x}」を書かない`);
+  }
+  for (const x of [...Object.values(namae.レベル.見つけた), ...Object.values(namae.副題.見つけた), namae.副題.どれでも]) {
+    for (const f of ['public/js/app.js', 'public/js/kurabe.js']) assert.ok(!readFileSync(path.join(ROOT, f), 'utf8').includes(x), `${f} に「${x}」を書かない`);
+  }
+});
+
+await ok('H3：カードの画面に、カードの合計・順位・枚数を出さない', () => {
+  const app = readFileSync(path.join(ROOT, 'public/js/app.js'), 'utf8');
+  const cardKansu = app.slice(app.indexOf('async function card('), app.indexOf('// ---- ④ 先生の画面'));
+  assert.ok(!/motte\.length|cards\.length|枚目|合計|順位|ランキング|\d+枚/.test(cardKansu.replace(/\/\/.*$/gm, '')));
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

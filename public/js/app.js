@@ -2,7 +2,7 @@
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
-import { matome, matomeKai, erabuCardKai, motteiruCards, cardNoBun, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
+import { matome, matomeKai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
@@ -77,10 +77,15 @@ async function card(id) {
     return;
   }
   const cards = await data('cards');
-  const { cards: motte, atarashii } = motteiruCards(kai);
+  const { cards: motte, atarashii, agatta } = motteiruCards(kai);
   const tsugiNoKai = !isDemo(id) && rec.owari;
   const hyouji = (m) => cardHtml(cardNoBun(cards.カード[m.card], m.kurikaeshi), {
     atarashii: kai.length > 1 && atarashii.includes(m.card),
+    susunda: agatta.includes(m.card),
+    fukudai: cardNoFukudai(cards, m),
+    level: m.level,
+    levelMei: levelNoNamae(cards, m),
+    jougen: m.sodate ? 4 : LEVEL_JOUGEN,
     moratta: m.kai ? `${m.kai}回目のゲーム${m.hi ? `（${m.hi}）` : ''}のあとで、もらったカード` : '',
     otona: isOtona(id),
   });
@@ -100,10 +105,20 @@ async function card(id) {
   if (b) b.onclick = () => { if (newKai(id)) location.hash = `#/game/${enc(id)}`; };
 }
 
-function cardHtml(c, { atarashii = false, moratta = '', otona = false } = {}) {
+// レベルは、そのカードの中の印だけ（●の数）。カードの合計・順位・枚数は出さない。
+function levelHtml(level, levelMei, jougen) {
+  if (level == null) return '';
+  const tama = '●'.repeat(level) + '○'.repeat(Math.max(0, jougen - level));
+  return `<p class="level"><span class="tama" aria-hidden="true">${tama}</span><span>レベル：${esc(levelMei)}</span></p>`;
+}
+
+function cardHtml(c, { atarashii = false, susunda = false, fukudai = '', level = null, levelMei = '', jougen = LEVEL_JOUGEN, moratta = '', otona = false } = {}) {
   return `<div class="switch-card" style="background:${esc(c.色)}">
       ${atarashii ? '<p class="atarashii">あたらしいカード</p>' : ''}
+      ${susunda ? '<p class="atarashii">レベルが進んだカード</p>' : ''}
       <p class="mei">${esc(c.名前)}</p>
+      ${fukudai ? `<p class="fukudai">— ${esc(fukudai)}</p>` : ''}
+      ${levelHtml(level, levelMei, jougen)}
       ${moratta ? `<p class="moratta">${esc(moratta)}</p>` : ''}
       <p class="hitokoto">${esc(c.ひとこと)}</p>
       <div class="naka">
@@ -228,7 +243,7 @@ async function senseiKo(id) {
       <section class="box soft">
         <h2>まとめ：いま言えること</h2>
         <ul>${matomeBun}</ul>
-        <p class="small">子どもが持っているカード：${motte.map((m) => `<strong>${esc(cards.カード[m.card].名前)}</strong>`).join('・')}</p>
+        <p class="small">子どもが持っているカード：${motte.map((m) => `<strong>${esc(cards.カード[m.card].名前)}</strong>${m.level != null ? `（${esc(levelNoNamae(cards, m))}）` : ''}`).join('・')}</p>
         <p class="muted small">本人の中で出し方を比べた結果です。他の子とは比べていません。くわしい数字は、下の「数字の根拠」にあります。</p>
       </section>
       <section>

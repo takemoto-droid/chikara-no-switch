@@ -8,7 +8,7 @@ import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT, tenken, seihon, soudanSaki, mojiretsu } from '../lib/kotoba.mjs';
 import { yobiKasetsu, yobiTsutae } from '../lib/yobi.mjs';
-import { yobiRiyuu, makeSteps } from '../public/js/kurabe.js';
+import { yobiRiyuu, makeSteps, namaeWoAwaseru } from '../public/js/kurabe.js';
 
 function files(dir) {
   return readdirSync(dir).flatMap((f) => {
@@ -38,7 +38,7 @@ kiroku('画面とサーバー側のファイル', gamenLines);
 
 // 2. 予備の動きの文
 const tana = JSON.parse(readFileSync(path.join(ROOT, 'public/data/tana.json'), 'utf8'));
-const cards = JSON.parse(readFileSync(path.join(ROOT, 'public/data/cards.json'), 'utf8'));
+const cards = namaeWoAwaseru(JSON.parse(readFileSync(path.join(ROOT, 'public/data/cards.json'), 'utf8')), JSON.parse(readFileSync(path.join(ROOT, 'public/data/card_namae.json'), 'utf8')));
 const checklist = JSON.parse(readFileSync(path.join(ROOT, 'public/data/checklist.json'), 'utf8'));
 const yobiTexts = [];
 let kumiawase = 0;

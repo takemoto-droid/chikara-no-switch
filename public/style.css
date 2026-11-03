@@ -77,6 +77,9 @@ button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #
 
 .switch-card { border-radius: 20px; padding: 20px; color: #fff; margin: 16px 0; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
 .switch-card .mei { font-size: 1.6rem; font-weight: 700; margin: 0; }
+.switch-card .fukudai { font-size: .95rem; margin: 2px 0 0; opacity: .95; }
+.switch-card .level { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0 0; font-size: .9rem; }
+.switch-card .level .tama { letter-spacing: 2px; font-size: 1rem; }
 .switch-card .hitokoto { font-size: 1.1rem; margin: 4px 0 0; }
 .switch-card .atarashii { display: inline-block; background: #fff4c2; color: #6b4a00; font-weight: 700; font-size: .85rem; padding: 2px 10px; border-radius: 99px; margin: 0 0 8px; }
 .switch-card .moratta { font-size: .85rem; margin: 2px 0 0; opacity: .9; }

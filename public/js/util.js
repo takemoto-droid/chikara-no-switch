@@ -1,4 +1,5 @@
 // 画面づくりの小さな道具
+import { namaeWoAwaseru } from './kurabe.js';
 export function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -22,7 +23,11 @@ export async function api(name, body, ms = 20000) {
 
 const dataCache = {};
 export async function data(name) {
-  if (!dataCache[name]) dataCache[name] = await (await fetch(`data/${name}.json`)).json();
+  if (!dataCache[name]) {
+    const yomu = async (n) => (await fetch(`data/${n}.json`)).json();
+    // カードの名前・副題・レベルの名前は card_namae.json から重ねる（7便）
+    dataCache[name] = name === 'cards' ? namaeWoAwaseru(await yomu('cards'), await yomu('card_namae')) : await yomu(name);
+  }
   return dataCache[name];
 }
 

@@ -240,6 +240,33 @@ export function matomeA(record) {
 
 // 候補になった出し方 → カード
 const CARD_OF = { kiku: 'kiku', yomu: 'yomu', zu: 'zu', kugiri: 'kugiru' };
+// 見つけたカードが、どの比べから出たか（副題に使う）
+export const CARD_KIND = { kiku: 'A', yomu: 'A', zu: 'B', kugiru: 'C' };
+
+// カードの名前・副題・レベルの名前は public/data/card_namae.json の1つにまとめる（7便）。
+// cards.json の文に、名前を重ねる。名前を変えるときは card_namae.json だけを書きかえる。
+export function namaeWoAwaseru(cards, namae) {
+  const カード = {};
+  for (const [id, c] of Object.entries(cards.カード)) カード[id] = { ...c, 名前: namae.名前[id] ?? c.名前 };
+  return { ...cards, カード, 副題: namae.副題, レベル: namae.レベル };
+}
+
+// カードの副題（比べた2つの出し方）。見つけたカード・どれでも・ためした。
+export function cardNoFukudai(cards, m) {
+  const f = cards.副題 || {};
+  if (m.sodate) return f.そだてちゅう?.[m.card] ?? '';
+  if (m.card === 'dore') return f.どれでも ?? '';
+  if (m.card === 'tameshita') return f.ためした ?? '';
+  const kind = m.kind ?? CARD_KIND[m.card];
+  return kind ? f.見つけた?.[kind] ?? '' : '';
+}
+
+// レベルの名前（card_namae.json の「レベル」）
+export function levelNoNamae(cards, m) {
+  if (m.level == null) return '';
+  const L = m.sodate ? cards.レベル?.育てる : cards.レベル?.見つけた;
+  return L?.[m.level - 1] ?? '';
+}
 
 // スイッチカードを選ぶ。強みだけ。全員に1枚。候補が2つ以上なら、差のいちばん大きいものを1枚。
 export function erabuCard(record) {
@@ -313,19 +340,42 @@ export function watasuCards(kaiList) {
 
 // 持っているカード（4便）：回ごとに渡したカードがたまる。一度渡したカードは消えない。
 // 同じカードをまた渡したときは、新しいほうの文にする。新しく増えたカードを前に出す。
+// 見つけたカードのレベル（7便）：1＝その日の候補、2＝別々の日の2日で同じ向き、3＝3日以上で同じ向き。上限は3。
+// どれでもカードは、差なしだった別々の日の数（上限3）。ためしたカードには、レベルを付けない。
+// レベルは下がらない：回を足すたびに、前のレベルとの大きいほうを残す。
+export const LEVEL_JOUGEN = 3;
+function hiNoKazu(kaiList) {
+  return new Set(kaiList.map((r) => r.hi || `回${r.kai}`)).size;
+}
+function cardNoLevel(g, mae) {
+  if (g.card === 'tameshita') return null;
+  if (g.card === 'dore') return Math.min(LEVEL_JOUGEN, hiNoKazu(mae.filter((r) => erabuCard(r) === 'dore')));
+  if (g.kurikaeshi) return Math.min(LEVEL_JOUGEN, Math.max(2, (g.kurikaeshi.onajiHi || g.kurikaeshi.onaji).length));
+  return 1;
+}
+
 export function motteiruCards(kaiList) {
   const owatta = kaiList.filter((r) => r.owari !== false);
   const held = new Map();
   let atarashii = [];
+  let agatta = [];
   for (let i = 1; i <= Math.max(owatta.length, 1); i++) {
     const mae = owatta.slice(0, i);
     const last = mae[mae.length - 1];
     const ima = watasuCards(mae);
-    if (i === Math.max(owatta.length, 1)) atarashii = ima.filter((g) => !held.has(g.card)).map((g) => g.card);
-    ima.forEach((g, j) => held.set(g.card, { ...g, kai: last?.kai ?? null, hi: last?.hi ?? null, jun: i * 10 - j }));
+    const saigo = i === Math.max(owatta.length, 1);
+    if (saigo) atarashii = ima.filter((g) => !held.has(g.card)).map((g) => g.card);
+    ima.forEach((g, j) => {
+      const moto = held.get(g.card);
+      const lv = cardNoLevel(g, mae);
+      const level = lv == null ? null : Math.max(lv, moto?.level ?? 0);
+      if (saigo && moto && level != null && level > (moto.level ?? 0)) agatta.push(g.card);
+      held.set(g.card, { ...g, kind: CARD_KIND[g.card] ?? null, level, kai: last?.kai ?? null, hi: last?.hi ?? null, jun: i * 10 - j });
+    });
   }
+  agatta = agatta.filter((c) => !atarashii.includes(c));
   const cards = [...held.values()].sort((x, y) => (atarashii.includes(y.card) - atarashii.includes(x.card)) || y.jun - x.jun);
-  return { cards, atarashii };
+  return { cards, atarashii, agatta };
 }
 
 // いちばん前に出すカード（伝え方・仮説の予備の文が使う）

@@ -1,7 +1,7 @@
 // 引き継ぎの記録の書き出し（Should・5便）
 // 先生の間の引き継ぎのために、回ごとの「出し方の差」と、くり返し出た候補・カード・選んだ答え・気づきの候補を、
 // 年をまたいでも並べて見られる形（Markdown の表）で書き出す。名前は入れない（呼び名だけ）。
-import { matomeKai, motteiruCards, cardNoBun, kotaeD, DASHIKATA, TANA_MEI } from './kurabe.js';
+import { matomeKai, motteiruCards, cardNoBun, levelNoNamae, kotaeD, DASHIKATA, TANA_MEI } from './kurabe.js';
 
 export function hikitsugiNoBun({ id, kai, cards, tana, atehamaru, kakuHi }) {
   const owatta = kai.filter((r) => r.owari !== false);
@@ -38,7 +38,8 @@ export function hikitsugiNoBun({ id, kai, cards, tana, atehamaru, kakuHi }) {
   L.push('');
   for (const m of motteiruCards(owatta).cards) {
     const c = cardNoBun(cards.カード[m.card], m.kurikaeshi);
-    L.push(`- ${c.名前}：${c.ひとこと}（${m.kai ?? ''}回目のゲームのあとで）`);
+    const lv = levelNoNamae(cards, m);
+    L.push(`- ${c.名前}${lv ? `（レベル：${lv}）` : ''}：${c.ひとこと}（${m.kai ?? ''}回目のゲームのあとで）`);
   }
   L.push('');
   L.push('## 選んで答えた質問（回ごと）');
