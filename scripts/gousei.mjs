@@ -9,6 +9,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT } from '../lib/kotoba.mjs';
+import { yobiKasetsu } from '../lib/yobi.mjs';
 import { matome, matomeKai, erabuCard, makeSteps, KUMI } from '../public/js/kurabe.js';
 
 const tana = JSON.parse(readFileSync(path.join(ROOT, 'public/data/tana.json'), 'utf8'));
@@ -151,6 +152,31 @@ for (const [mei, kouka] of [['本当は差が無い（空ぶりの割合）', {}
   out.push('');
 }
 out.push('- 空ぶりは、1回ごとに見ると回を重ねるほど増えるが、「くり返し出た候補」にすると少なく保てる。', '- 本当に差がある子は、回を重ねるほど「くり返し出た候補」として見つかりやすくなる。ただ、3回でも見のがしは多い。「候補が出ない」は「差が無い」ではない。');
+
+// 4. 仮説が設定どおりだった割合（5便・X1）
+// 予備の文の仮説（キーが無いときに出す決まった文）で数える。Claude の仮説は、キーが来てから数える。
+out.push('', '## 4. 仮説が設定どおりだった割合（予備の文の仮説・3日分のゲーム）', '');
+out.push('合成の子に、別々の日にゲームを3回させ、先生の画面に出る仮説（予備の文）を読んだ。', '');
+out.push('| 合成の子 | 人数 | 設定どおりだった割合 | 「設定どおり」の意味 |', '|---|---|---|---|');
+{
+  const M = 3000;
+  const tanaD = tana;
+  const MODE_GO = { kiku: '聞いて', zu: '図で見る', kugiri: '区切って' };
+  for (const [mei, kouka] of [['差が無い合成の子', {}], ['聞くで差がある合成の子', { kiku: 1 }], ['図で見るで差がある合成の子', { zu: 1 }], ['区切って読むで差がある合成の子', { kugiri: 1 }]]) {
+    let ok = 0;
+    for (let i = 0; i < M; i++) {
+      const theta = THETA.heikin + THETA.bure * normal();
+      const kai = [0, 1, 2].map((k) => ({ ...gameWoSuru(theta, kouka, NARE * k), kai: k + 1, hi: `2026-0${k + 7}-01`, owari: true }));
+      const k = yobiKasetsu(kai, tanaD, []).kasetsu;
+      const kuri = /日分で同じ向きの差が出たので/.test(k);
+      const mode = Object.keys(kouka)[0];
+      if (!mode) { if (!kuri) ok++; } else if (kuri && k.includes(MODE_GO[mode])) ok++;
+    }
+    const imi = Object.keys(kouka).length ? '効くように作った出し方を「くり返し出た」として挙げた' : '「くり返し出た」出し方を挙げなかった（決めつけなかった）';
+    out.push(`| ${mei} | ${M} | ${wariai(ok / M)} | ${imi} |`);
+  }
+}
+out.push('', '- 差が無い子で決めつけない割合は高いが、差がある子を3日分で言い当てられる割合は低い。仮説は「参考程度・決めるのは先生」と添える理由の1つ。');
 
 out.push('', '## 読み方の注意', '', '- これは合成データです。問題の本当の難しさは、まだ分かりません。大人や子どもで試して、難しさの仮の値を置きかえる必要があります。', '- 子どもで確かめた結果ではありません。効果を示すものでもありません。');
 

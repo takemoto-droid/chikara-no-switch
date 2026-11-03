@@ -43,6 +43,8 @@ async function mieru(name) {
   kiroku.点検した文の数 += lines.length;
   for (const l of lines) for (const h of tenken(l)) kiroku.避ける言葉.push({ 画面: name, 文: l });
   for (const l of lines) if (/はなすスイッチ|じっくりスイッチ|上がった|伸びた/.test(l)) kiroku.避ける言葉.push({ 画面: name, 文: l, わけ: '出さないカード・言葉' });
+  // 英語のままのエラーや空欄（undefined・null・NaN など）が画面に出ていない
+  for (const l of lines) if (/\b(undefined|null|NaN|Error|TypeError|Failed to fetch)\b|\[object Object\]/.test(l)) kiroku.まちがい.push(`${name}：英語のまま・空欄の文「${l.slice(0, 40)}」`);
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   if (over > 0) kiroku.はみ出し.push({ 画面: name, はみ出し: over });
   await page.screenshot({ path: path.join(OUT, `${String(kiroku.画面).padStart(2, '0')}_${name}.png`), fullPage: true });

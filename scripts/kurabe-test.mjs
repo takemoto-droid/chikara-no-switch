@@ -374,4 +374,14 @@ await ok('F1-e：デモの子の回の日付は、すべて 2026-11-08 より前
   for (const [id, k] of Object.entries(demo.結果)) for (const r of k.kai) assert.ok(r.hi < '2026-11-08', `${id} ${r.hi}`);
 });
 
+await ok('F2：⑤ 伝え方に「学年・教科の先生への一言」がある。サーバーのエラーは日本語', async () => {
+  for (const id of ['デモ1', 'デモ4', 'デモ5']) {
+    const [, t] = await handle('tsutae', 'POST', { record: kai(id)[kai(id).length - 1], kai: kai(id) }, {}, 'f2');
+    assert.ok(t.hitokoto && t.hitokoto.length > 20, id);
+  }
+  const [st, e] = await handle('kasetsu', 'POST', { record: { junban: 5 } }, {}, 'f2');
+  assert.equal(st, 400);
+  assert.match(e.error, /[\u3040-\u30ff\u4e00-\u9fff]/);
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);

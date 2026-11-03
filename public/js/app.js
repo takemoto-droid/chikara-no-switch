@@ -33,7 +33,7 @@ async function top() {
     <p>同じ問題を、出し方（読む・聞く・図で見る・一文ずつ区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
     <div class="entrance">
       <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子の結果を、先生の画面で見ます。1回だけの子（差が出た子・差が出なかった子）と、3回分の記録がある子がいます。</span></div></a>
-      <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②ゲーム → ③カード → ④先生の画面 → ⑤伝え方 → ⑥学習につなぐ、を順に動かします。</span></div></a>
+      <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②ゲーム → ③カード → ④先生の画面 → ⑤伝え方 → ⑥学習につなぐ、を順に動かします。公開デモでは、AI を呼べる回数に上限があります。上限に達したときは、決まった順・決まった文で最後まで動きます。</span></div></a>
     </div>
     ${mada.length ? `<div class="box soft"><h3>途中で止めたゲーム</h3>${mada.map((k) => `<p><a href="#/game/${enc(k.id)}">${esc(k.id)} の続きから始める</a></p>`).join('')}</div>` : ''}
     <h2>案内</h2>
@@ -332,6 +332,9 @@ async function tsutae(id) {
       <h2>カードの保護者向け説明（${esc(t.cardMei)}）</h2>
       <p class="muted small">求められたときに渡すための文です。</p>
       <textarea id="hogosha" aria-label="カードの保護者向け説明">${esc(t.hogosha)}</textarea>
+      <h2>学年・教科の先生への一言</h2>
+      <p class="muted small">同じ学年や、ほかの教科の先生に伝えるための短い文です。</p>
+      <textarea id="hitokoto" aria-label="学年・教科の先生への一言">${esc(t.hitokoto || '')}</textarea>
       <div class="btns"><button id="tenken">言葉を点検する</button><button class="sub" id="again">もう一度書いてもらう</button></div>
       <div id="tenken-kekka" aria-live="polite"></div>
       <p class="muted small">Claude の文は、言葉の正本で点検してから出しています。先生が書きかえたら「言葉を点検する」で、もう一度確かめられます。決めるのは先生です。</p>
@@ -339,7 +342,7 @@ async function tsutae(id) {
     box.querySelector('#again').onclick = () => yobidasu(true);
     box.querySelector('#tenken').onclick = async () => {
       const out = [];
-      for (const [name, el] of [['懇談の下書き', box.querySelector('#kondan')], ['保護者向け説明', box.querySelector('#hogosha')]]) {
+      for (const [name, el] of [['懇談の下書き', box.querySelector('#kondan')], ['保護者向け説明', box.querySelector('#hogosha')], ['先生への一言', box.querySelector('#hitokoto')]]) {
         const r = await api('tenken', { text: el.value });
         if (r.hits.length === 0) { out.push(`<p>${name}：避ける言葉は見つかりませんでした。</p>`); continue; }
         const t2 = el.value.normalize('NFKC');
@@ -480,7 +483,8 @@ async function route() {
     else if (a === 'anzen') await anzen();
     else await top();
   } catch (e) {
-    app.innerHTML = `<h1>うまく開けませんでした</h1><p>${esc(e.message)}</p><p><a href="#/">はじめの画面へ</a></p>`;
+    console.error(e); // くわしい中身は開発者の画面にだけ出す（英語のまま画面に出さない）
+    app.innerHTML = '<h1>うまく開けませんでした</h1><p>もう一度、はじめの画面から開いてください。続くときは、先生に知らせてください。</p><p><a href="#/">はじめの画面へ</a></p>';
   }
   window.scrollTo(0, 0);
   app.focus({ preventScroll: true });
