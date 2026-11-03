@@ -1,4 +1,4 @@
-// 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方・⑥学習につなぐ
+// 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方（②見つける＝game.js、⑥育てる＝sodateru.js）
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
@@ -35,7 +35,7 @@ async function top() {
     <p>同じ問題を、出し方（読む・聞く・図で見る・一文ずつ区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
     <div class="entrance">
       <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子の結果を、先生の画面で見ます。1回だけの子（差が出た子・差が出なかった子）と、3回分の記録がある子がいます。</span></div></a>
-      <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②ゲーム → ③カード → ④先生の画面 → ⑤伝え方 → ⑥学習につなぐ、を順に動かします。公開デモでは、AI を呼べる回数に上限があります。上限に達したときは、決まった順・決まった文で最後まで動きます。</span></div></a>
+      <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②見つける（HR のゲーム）→ ③カード → ④先生の画面 → ⑤伝え方 → ⑥育てる（朝の練習）→ ⑦また見つける、を順に動かします。公開デモでは、AI を呼べる回数に上限があります。上限に達したときは、決まった順・決まった文で最後まで動きます。</span></div></a>
       ${should.otona?.使う ? '<a href="#/annai/otona"><div class="box"><strong>大人が自分で試す</strong><br><span class="muted">中学生向けのゲームを、大人の方も自分で試せます。結果は自分にだけ出ます。</span></div></a>' : ''}
     </div>
     ${mada.length ? `<div class="box soft"><h3>途中で止めたゲーム</h3>${mada.map((k) => `<p><a href="#/game/${enc(k.id)}">${esc(k.id)} の続きから始める</a></p>`).join('')}</div>` : ''}
@@ -92,7 +92,6 @@ async function card(id) {
     <p class="muted">カードは、力を出しやすかった出し方のしるしです。他の人とは比べていません。</p>
     ${soudanHtml()}
     <div class="btns">
-      <a class="btn" href="#/gakushu/${enc(id)}">このスイッチで数学の問題を解く（⑥）</a>
       <a class="btn sub" href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果を見る（先生の画面と同じもの）' : 'ここからは先生が見ます（④先生の画面）'}</a>
     </div>
     ${rec.owari ? '' : `<div class="box soft"><p>${esc(rec.kai)}回目のゲームの途中です。</p><a class="btn sub" href="#/game/${enc(id)}">続きから始める</a></div>`}
@@ -231,7 +230,6 @@ async function senseiKo(id) {
 
     <div class="btns">
       <a class="btn" href="#/tsutae/${enc(id)}">⑤ 伝え方の下書きへ</a>
-      <a class="btn sub" href="#/gakushu/${enc(id)}">⑥ 学習につなぐ</a>
       <a class="btn sub" href="#/card/${enc(id)}">カードを見る</a>
       ${should.hikitsugi?.使う && kai.length ? '<button class="sub" id="hikitsugi">引き継ぎの記録を書き出す</button>' : ''}
     </div>
@@ -367,7 +365,7 @@ async function tsutae(id) {
       <div class="btns"><button id="tenken">言葉を点検する</button><button class="sub" id="again">もう一度書いてもらう</button></div>
       <div id="tenken-kekka" aria-live="polite"></div>
       <p class="muted small">Claude の文は、言葉の正本で点検してから出しています。先生が書きかえたら「言葉を点検する」で、もう一度確かめられます。決めるのは先生です。</p>
-      <div class="btns"><a class="btn" href="#/gakushu/${enc(id)}">⑥ 学習につなぐ</a><a class="btn sub" href="#/sensei/ko/${enc(id)}">先生の画面へもどる</a></div>`;
+      <div class="btns"><a class="btn sub" href="#/sensei/ko/${enc(id)}">先生の画面へもどる</a></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
     box.querySelector('#tenken').onclick = async () => {
       const out = [];
@@ -394,62 +392,6 @@ async function tsutae(id) {
     }
   };
   yobidasu(false);
-}
-
-// ---- ⑥ 学習につなぐ
-async function gakushu(id) {
-  michi(5);
-  dare('子どもの画面');
-  const rec = await getRecord(id);
-  const kai = rec ? await owattaKai(id) : [];
-  const g = (await data('gakushu')).問題;
-  const cards = await data('cards');
-  const erabi = erabuCardKai(kai);
-  const cardId = erabi.card;
-  const c = cardNoBun(cards.カード[cardId], erabi.kurikaeshi);
-  const yomiageOK = await junbiYomiage();
-  const sw = { kiku: cardId === 'kiku', kugiri: cardId === 'kugiru', zu: cardId === 'zu' };
-  const naze = {
-    kiku: 'きくスイッチで出しています。問題文を読み上げます。',
-    zu: 'ずスイッチで出しています。場面の図を添えています。',
-    kugiru: 'くぎるスイッチで出しています。問題文を一文ずつ分けています。',
-    yomu: 'よむスイッチで出しています。自分のペースで、何回でも読み返せます。',
-    dore: 'どれでもスイッチです。使いたいスイッチを、自分で選んでね。',
-    tameshita: '使いたいスイッチを、自分で選んでね。',
-  }[cardId];
-  const zenbun = g.本文.join('');
-  const draw = () => {
-    app.innerHTML = `
-      <h1>学習につなぐ：数学の問題</h1>
-      <p><span class="label" style="background:${esc(c.色)};color:#fff">${esc(c.名前)}</span>${esc(naze)}</p>
-      <div class="toggle" role="group" aria-label="出し方のスイッチ">
-        <button data-sw="kiku" aria-pressed="${sw.kiku}" ${yomiageOK ? '' : 'disabled'}>読み上げ</button>
-        <button data-sw="kugiri" aria-pressed="${sw.kugiri}">一文ずつ</button>
-        <button data-sw="zu" aria-pressed="${sw.zu}">図で見る</button>
-      </div>
-      ${yomiageOK ? '' : '<p class="muted small">この端末では読み上げが使えません。</p>'}
-      <div class="honbun" style="margin-top:12px">${sw.kugiri ? g.本文.map((x) => `<p>${esc(x)}</p>`).join('') : esc(zenbun)}</div>
-      ${sw.kiku ? '<div class="btns"><button class="sub" id="play">▶ 問題文を聞く</button></div>' : ''}
-      ${sw.zu ? `<div class="box">${tapeZu(g.図)}</div>` : ''}
-      <div class="btns tate">${g.選択肢.map((x, i) => `<button class="choice" data-i="${i}">${esc(x)}</button>`).join('')}</div>
-      <div id="kotae" aria-live="polite"></div>
-      <p class="draft">この問題は下書き（先生未確認）です。</p>
-      <div class="btns"><a class="btn sub" href="#/">はじめの画面へ</a>${rec ? `<a class="btn sub" href="#/sensei/ko/${enc(id)}">先生の画面へ</a>` : ''}</div>`;
-    app.querySelectorAll('[data-sw]').forEach((b) => {
-      b.onclick = () => { sw[b.dataset.sw] = !sw[b.dataset.sw]; tomeru(); draw(); };
-    });
-    const play = app.querySelector('#play');
-    if (play) play.onclick = () => yomu(zenbun);
-    app.querySelectorAll('.choice').forEach((b) => {
-      b.onclick = () => {
-        const ok = Number(b.dataset.i) === g.答え;
-        app.querySelector('#kotae').innerHTML = ok
-          ? `<div class="box soft"><p><strong>正解です。</strong></p><p>${esc(g.とき方)}</p></div>`
-          : `<div class="box"><p>もう一度考えてみよう。</p><p>ヒント：${esc(g.ヒント)}</p></div>`;
-      };
-    });
-  };
-  draw();
 }
 
 // ---- 子どもの安全とプライバシー（docs/子どもの安全とプライバシー.md の写しを出す）
@@ -508,7 +450,6 @@ async function route() {
     else if (a === 'sensei') await senseiHub();
     else if (a === 'check') await check();
     else if (a === 'tsutae') await tsutae(b);
-    else if (a === 'gakushu') await gakushu(b);
     else if (a === 'anzen') await anzen();
     else await top();
   } catch (e) {

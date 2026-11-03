@@ -80,13 +80,6 @@ try {
   await page.waitForSelector('.switch-card');
   await utsusu('デモ5_差が出なかった子のカード', 'どの日も差が出なかった子にも、カードが届く（デモの子5・架空）', '.switch-card');
 
-  // 4. ⑥ 学習につなぐ
-  await page.goto(`${BASE}#/gakushu/${enc('デモ4')}`);
-  await page.waitForSelector('.choice');
-  await utsusu('学習につなぐ', '⑥ 学習につなぐ：見つかった出し方（きくスイッチ）で、数学の問題を出し直す', 'h1');
-  await page.locator('.choice').nth(1).click();
-  await page.waitForSelector('#kotae .box');
-  await utsusu('学習につなぐ_答えたあと', '⑥ 答えたあと', '#kotae');
 } finally {
   await ctx.close(); // ここで録画が書き出される
   await browser.close();

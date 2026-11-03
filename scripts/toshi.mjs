@@ -1,4 +1,4 @@
-// 通し確認：スマホの幅で ①→②→③→④→⑤→⑥ を最後まで動かし、
+// 通し確認：スマホの幅で ①→②→③→④→⑤→⑥→⑦ を最後まで動かし、
 // 各画面の文を言葉の正本で点検し、横にはみ出していないかを確かめる。
 // 使い方：npm run toshi（Playwright と Chromium が入っている端末で）
 // キー無し（予備の動き）で確かめる。キーありで確かめるときは TOSHI_KEY_ARI=1 を付ける。
@@ -170,13 +170,6 @@ try {
   await page.waitForSelector('#tenken-kekka p');
   const tTsutae = await mieru('伝え方');
   tashika(/避ける言葉は見つかりませんでした/.test(tTsutae), '伝え方の下書きが点検を通る');
-
-  // ⑥ 学習につなぐ
-  await page.click('a.btn:has-text("⑥ 学習につなぐ")');
-  await page.waitForSelector('.choice');
-  await page.locator('.choice').nth(1).click();
-  await page.waitForSelector('#kotae .box');
-  await mieru('学習につなぐ');
 
   // 回をまたぐ：同じ子で、別の日の回をもう1回する → 読み直しても2回分が残る
   await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);

@@ -243,7 +243,7 @@ export function motteiruCards(kaiList) {
   return { cards, atarashii };
 }
 
-// いちばん前に出すカード（伝え方・学習につなぐ・仮説の予備の文が使う）
+// いちばん前に出すカード（伝え方・仮説の予備の文が使う）
 export function erabuCardKai(kaiList) {
   const { cards } = motteiruCards(kaiList);
   return { card: cards[0].card, kurikaeshi: cards[0].kurikaeshi };

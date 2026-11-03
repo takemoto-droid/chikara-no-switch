@@ -37,4 +37,4 @@ export function whoLabel(dare) {
   return '<span class="label yobi">予備の動き（決まった文）</span>';
 }
 
-export const MICHI = ['① 案内', '② ゲーム', '③ スイッチカード', '④ 先生の画面', '⑤ 伝え方', '⑥ 学習につなぐ'];
+export const MICHI = ['① 案内', '② 見つける', '③ スイッチカード', '④ 先生の画面', '⑤ 伝え方', '⑥ 育てる', '⑦ また見つける'];

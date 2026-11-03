@@ -176,12 +176,10 @@ await ok('サーバーの関数：偽の Claude がよい文を返せば Claude 
 
 await ok('前もって作った音声が、読み上げる文をすべて持っている', () => {
   const tana = j('public/data/tana.json');
-  const g = j('public/data/gakushu.json');
   const onsei = j('public/onsei/onsei.json').音声;
   const bun = [];
   for (const p of Object.values(tana.A.文章)) { bun.push(p.本文.join('')); p.問い.forEach((q) => bun.push(q.文)); }
   for (const q of Object.values(tana.D.質問)) bun.push(`${q.問い}。${q.選択肢.join('。')}。`);
-  bun.push(g.問題.本文.join(''));
   const nai = bun.filter((t) => !onsei[t]);
   assert.deepEqual(nai, [], '音声の無い文があります。scripts/onsei_tsukuru.py で作り直してください');
 });
@@ -341,7 +339,7 @@ await ok('7：概要の下書きは、1文目が「誰の・何の困りごと�
 await ok('8：動画素材の画面写しがそろっている（npm run douga で作る）', () => {
   const { readdirSync } = require_fs();
   const f = readdirSync(path.join(ROOT, 'docs/動画素材'));
-  for (const w of ['次を選んだ理由', 'スイッチカードを受け取る', 'まとめと仮説', '回ごとの表', 'デモ5_差が出なかった子のカード', '学習につなぐ']) {
+  for (const w of ['次を選んだ理由', 'スイッチカードを受け取る', 'まとめと仮説', '回ごとの表', 'デモ5_差が出なかった子のカード']) {
     assert.ok(f.some((x) => x.includes(w) && x.endsWith('.png')), w);
   }
 });

@@ -33,7 +33,6 @@ def load(name):
 
 def bunshu():
     tana = load("tana.json")
-    gakushu = load("gakushu.json")
     out = []
     # 棚A（読む／聞く）：本文の全文と、問いの文
     for p in tana["A"]["文章"].values():
@@ -42,8 +41,6 @@ def bunshu():
     # 棚D（選んで答える質問）：問いと選択肢
     for q in tana["D"]["質問"].values():
         out.append(f"{q['問い']}。{'。'.join(q['選択肢'])}。")
-    # ⑥ 学習につなぐ
-    out.append("".join(gakushu["問題"]["本文"]))
     return list(dict.fromkeys(out))
 
 
