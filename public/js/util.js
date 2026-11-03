@@ -33,7 +33,7 @@ export async function data(name) {
 
 // 記録のうち、サーバーに送る部分だけ（名前・番号は送らない）
 export function okuruKiroku(rec) {
-  return { junban: rec.junban, kekka: rec.kekka, kai: rec.kai, dankai: rec.dankai, shurui: rec.shurui, hi: rec.hi };
+  return { junban: rec.junban, kekka: rec.kekka, kai: rec.kai, dankai: rec.dankai, shurui: rec.shurui, hi: rec.hi, doreNashi: rec.doreNashi || undefined };
 }
 
 export function whoLabel(dare) {

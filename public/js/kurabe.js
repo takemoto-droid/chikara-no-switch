@@ -185,7 +185,7 @@ export function yobiRiyuu(record, id) {
   return '問題が続いたので、ここで選んで答える質問を1つはさみます。';
 }
 
-const KAZU = { A: { 1: 3, 2: 4 }, B: { 1: 1, 2: 2 }, C: { 1: 3, 2: 4 } };
+const KAZU = { A: { 1: 3, 2: 4 }, B: { 1: 2, 2: 2 }, C: { 1: 3, 2: 4 } }; // 8便：段階1の B も問い2つ
 
 // 1つの棚のまとめ（本人の中だけで比べる）。比べるのは、最後の段階の2組だけ（段階をまたいで比べない）
 export function matome(record, kind) {
@@ -335,7 +335,11 @@ export function watasuCards(kaiList) {
     .sort((x, y) => y.onajiHi.length - x.onajiHi.length)
     .map((x) => ({ card: CARD_OF[x.kurikaeshi], kurikaeshi: { kind: x.kind, mode: x.kurikaeshi, onaji: x.onaji, onajiHi: x.onajiHi, zenkai: x.zenHi.length } }));
   if (kuri.length) return kuri;
-  return [{ card: erabuCard(owatta[owatta.length - 1]), kurikaeshi: null }];
+  const last = owatta[owatta.length - 1];
+  const c = erabuCard(last);
+  // 8便 K4：育てたカードが一人前になった回（doreNashi の印）は、「どれでも」を新しく出さない
+  if (c === 'dore' && last.doreNashi) return [];
+  return [{ card: c, kurikaeshi: null }];
 }
 
 // 持っているカード（4便）：回ごとに渡したカードがたまる。一度渡したカードは消えない。
@@ -374,6 +378,8 @@ export function motteiruCards(kaiList) {
     });
   }
   agatta = agatta.filter((c) => !atarashii.includes(c));
+  // 全員に1枚以上（印のせいで1枚も無くなるときは、印を使わない。ふつうは起きない：一人前の前に見つけたカードがあるため）
+  if (!held.size) return motteiruCards(owatta.map((r) => ({ ...r, doreNashi: false })));
   const cards = [...held.values()].sort((x, y) => (atarashii.includes(y.card) - atarashii.includes(x.card)) || y.jun - x.jun);
   return { cards, atarashii, agatta };
 }

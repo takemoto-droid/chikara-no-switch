@@ -2,6 +2,7 @@
 // 途中で止めても、ここから続きを始められる。
 // 3便から：1人の子が、別の日のゲームの「回」を重ねて持つ（kids[id] = { id, kai: [回1, 回2, …] }）。
 import { makeJunban, matome } from './kurabe.js';
+import { doreNashiWoTsukeru } from './sodateru.js';
 
 const KEY = 'chikara-no-switch.v3'; // 3便で「回」を重ねる形にしたので v3
 const MAE_KEY = 'chikara-no-switch.v2';
@@ -50,8 +51,9 @@ export async function getKid(id) {
   const d = await demo();
   const k = d.結果[id] ? structuredClone(d.結果[id]) : load().kids[id];
   if (!k) return null;
-  const kai = (k.kai || [k]).map((r, i) => ({ ...r, id, kai: r.kai ?? i + 1 }));
-  return { id, kai, renshu: k.renshu || [] };
+  const renshu = k.renshu || [];
+  const kai = doreNashiWoTsukeru((k.kai || [k]).map((r, i) => ({ ...r, id, kai: r.kai ?? i + 1 })), renshu);
+  return { id, kai, renshu };
 }
 
 // ⑥ 育てる：朝の練習の記録（日ごとの並び）。記録は本人のもの。この端末の中だけに残す

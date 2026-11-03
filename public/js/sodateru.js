@@ -130,6 +130,12 @@ export function erabuMondai(pool, mode, dankai, renshu) {
 // ⑦ また見つける：練習を始めた日より後の日のゲームで、その棚の「支えの出し方」の差が出なくなった（差なし）出し方。
 // 練習を始める前に支えの出し方の候補が出ていて、後の日に、その棚を比べられて（まだ でない）、差なし か 育てた出し方の向き のとき。
 export function ichininmaeOf(kaiList, renshu) {
+  return [...new Set(ichininmaeNoKai(kaiList, renshu).map((x) => x.mode))];
+}
+
+// 一人前になった回（8便 K4）：練習を始めた後の日で、支えの出し方の差が出なくなった回。
+// この回では「どれでも」を新しいカードとして出さない（「見つからないとき」の札と、育てた結果が重ならないように）
+export function ichininmaeNoKai(kaiList, renshu) {
   const owatta = (kaiList || []).filter((r) => r.owari !== false);
   const out = [];
   for (const m of SODATE_MODES) {
@@ -140,13 +146,19 @@ export function ichininmaeOf(kaiList, renshu) {
     const mae = owatta.filter((r) => (r.hi || '') <= hi[0]);
     const ato = owatta.filter((r) => (r.hi || '') > hi[0]);
     const maeNiAtta = mae.some((r) => matome(r, kind).kekka === sasae);
-    const chijinda = ato.some((r) => {
+    if (!maeNiAtta) continue;
+    for (const r of ato) {
       const x = matome(r, kind);
-      return x.kekka !== 'mada' && x.kekka !== sasae && kaiNoMuki(x) !== sasae;
-    });
-    if (maeNiAtta && chijinda) out.push(m);
+      if (x.kekka !== 'mada' && x.kekka !== sasae && kaiNoMuki(x) !== sasae) out.push({ mode: m, kai: r.kai });
+    }
   }
   return out;
+}
+
+// 回の記録に「この回は どれでも を出さない」の印を付ける（kiroku.js が読みこむときに使う）
+export function doreNashiWoTsukeru(kaiList, renshu) {
+  const kai = new Set(ichininmaeNoKai(kaiList, renshu).map((x) => x.kai));
+  return kaiList.map((r) => (kai.has(r.kai) ? { ...r, doreNashi: true } : r));
 }
 
 // 育てるカードの文：練習で段4 まで来たら「育てたとき」、⑦ で差が出なくなったら「また見つけたとき」、それまでは「そだてちゅう」。

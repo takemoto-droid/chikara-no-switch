@@ -7,7 +7,7 @@ import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { keikakuNoKo, yobiKeikaku, kikanNoHi } from '../public/js/keikaku.js';
-import { danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
+import { doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
 import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
 
@@ -477,7 +477,7 @@ function hrWoSuru(junban, kotae, hoka = {}) {
     const id = yobiNext(r);
     if (!id) break;
     const st = stepsOf(r).find((x) => x.id === id);
-    const kazu = st.kind === 'D' ? undefined : st.kind === 'B' ? (st.dankai === 1 ? 1 : 2) : st.renshu ? 4 : (st.dankai === 1 ? 3 : 4);
+    const kazu = st.kind === 'D' ? undefined : st.kind === 'B' ? 2 : st.renshu ? 4 : (st.dankai === 1 ? 3 : 4);
     r.kekka[id] = st.kind === 'D' ? { kotae: '今は答えない' } : { seikai: kotae(st, kazu), kazu };
     dankaiWoSusumeru(r);
   }
@@ -826,6 +826,49 @@ await ok('H6：デモの子7（練習でカードが育った子）と8（やさ
   const hi = JSON.stringify(demo).match(/2026-\d\d-\d\d/g);
   assert.ok(hi.every((x) => x < '2026-11-08'), '日付は 2026-11-08 より前');
   assert.ok(demo.クラス.some((k) => /練習でカードが育った子/.test(k.呼び名)) && demo.クラス.some((k) => /やさしい段階で比べた子/.test(k.呼び名)));
+});
+
+await ok('8便 K2：段階1の棚 B は問い2つ（1つの出し方あたり4問）。答えは選択肢の中にある', () => {
+  const t = j('public/data/tana.json');
+  for (const id of ['B1Y', 'B2Y', 'B3Y', 'B4Y']) {
+    const q = t.B.問題[id];
+    assert.equal(q.問い.length, 2, id);
+    assert.ok(q.下書き, id);
+    q.問い.forEach((x) => assert.ok(x.選択肢[x.答え], id));
+    assert.match(q.問い[1].選択肢[q.問い[1].答え], new RegExp(`^${q.図.ひとつ}x＝\\d+$`), `${id}：2問目の答えは「ひとつ×x＝代金」`);
+  }
+  // 段階1で比べても、各回の問いの数は2
+  const r = hrWoSuru(makeJunban('B2問'), (st, kazu) => (st.renshu ? 1 : Math.ceil(kazu / 2)));
+  assert.equal(matome(r, 'B').dankai, 1);
+  assert.equal(matome(r, 'B').kazu, 2);
+});
+
+await ok('8便 K4：育てたカードが一人前になった回は「どれでも」を新しく出さない。前から持っている「どれでも」は消えない', () => {
+  const r = (y, k, n, hi) => ({ ...kaiA(y, k, n), hi, owari: true });
+  const mae = r([1, 1], [3, 3], 1, '2026-09-01'); // 聞くの候補
+  const ato = r([2, 2], [2, 2], 2, '2026-11-01'); // 練習の後、差なし
+  const renshu = [{ hi: '2026-10-01', hitotsu: [hh('yomu', 1, 2)] }];
+  assert.deepEqual(ichininmaeNoKai([mae, ato], renshu), [{ mode: 'yomu', kai: 2 }]);
+  const kai = doreNashiWoTsukeru([mae, ato], renshu);
+  assert.deepEqual(motteiruCards(kai).cards.map((c) => c.card), ['kiku'], '「どれでも」が出ない');
+  assert.deepEqual(motteiruCards([mae, ato]).cards.map((c) => c.card).sort(), ['dore', 'kiku'], '印が無ければ、いままでどおり');
+  // 練習していなければ、印は付かない
+  assert.ok(!doreNashiWoTsukeru([mae, ato], []).some((x) => x.doreNashi));
+  // 前から持っている「どれでも」は消えない
+  const dore0 = r([2, 2], [2, 2], 1, '2026-08-01');
+  const k2 = doreNashiWoTsukeru([dore0, { ...mae, kai: 2 }, { ...ato, kai: 3 }], [{ hi: '2026-10-01', hitotsu: [hh('yomu', 1, 2)] }]);
+  assert.ok(motteiruCards(k2).cards.some((c) => c.card === 'dore'));
+  // デモ7：一人前になった日に「どれでも」が無い
+  const d7 = demo.結果.デモ7;
+  const k7 = doreNashiWoTsukeru(d7.kai.map((x, i) => ({ ...x, kai: x.kai ?? i + 1 })), d7.renshu);
+  assert.ok(!motteiruCards(k7).cards.some((c) => c.card === 'dore'));
+});
+
+await ok('8便 K4：印はサーバーにも届き、伝え方の予備の文も「どれでも」にならない', async () => {
+  const d7 = demo.結果.デモ7;
+  const k7 = doreNashiWoTsukeru(d7.kai.map((x, i) => ({ ...x, kai: x.kai ?? i + 1 })), d7.renshu);
+  const [, t] = await handle('tsutae', 'POST', { kai: k7 }, {});
+  assert.equal(t.cardMei, 'きいてスイッチ');
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

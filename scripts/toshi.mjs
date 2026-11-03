@@ -248,7 +248,7 @@ try {
   tashika(/練習の記録（⑥ 育てる）/.test(tRenshu) && /育てているカード：/.test(tRenshu) && /「今日はやらない」を選んだ日：1日/.test(tRenshu) && /楽になったか/.test(tRenshu), '④(e)：先生の画面に、練習の記録（回数・段・楽になったか・やらなかった日）が出る');
 
   // 保存した結果を見る（デモの子：1回だけの3人と、3回分の3人）
-  const KITAI = { デモ1: /きいてスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずでスイッチ/, デモ4: /きいてスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/, デモ7: /どれでもスイッチ/, デモ8: /ずでスイッチ/ };
+  const KITAI = { デモ1: /きいてスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずでスイッチ/, デモ4: /きいてスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/, デモ7: /きいてスイッチ/, デモ8: /ずでスイッチ/ };
   for (const id of Object.keys(KITAI)) {
     await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
@@ -276,6 +276,7 @@ try {
     const tT = await mieru(`デモ_${id}_伝え方`);
     if (id === 'デモ1') tashika(/HR の冒頭で先生が話すこと/.test(tT) && /今は答えない/.test(tT), '⑤：HR の冒頭で先生が話すことの下書きが出る');
     if (id === 'デモ7') {
+      tashika(!/どれでもスイッチ/.test(c) && !/どれでもスイッチ/.test(t), 'デモ7：一人前になった日に「どれでも」を出さない（8便 K4）');
       tashika(/朝の練習で育てるスイッチ/.test(c) && /よんでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
       tashika(/練習の記録（⑥ 育てる）/.test(t) && /「今日はやらない」を選んだ日：1日/.test(t) && /前の回との違い/.test(t), 'デモ7：先生の画面に、練習の記録と前の回との違いが出る');
       await page.goto(`${BASE}#/sodateru/${encodeURIComponent(id)}`);
