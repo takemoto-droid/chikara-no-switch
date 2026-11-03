@@ -23,7 +23,7 @@ export async function gameScreen(el, id) {
   const frame = () => {
     const n = Object.keys(rec.kekka).length;
     el.innerHTML = `
-      <h1>ゲーム</h1>
+      <h1>ゲーム${rec.kai > 1 ? `（${rec.kai}回目）` : ''}</h1>
       <div class="progress" aria-hidden="true"><div style="width:${Math.round((n / ZENBU) * 100)}%"></div></div>
       <div id="game-naka"></div>
       <div class="btns"><button class="sub" id="tomeru">ここで止める（続きはあとで）</button></div>

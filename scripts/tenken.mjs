@@ -55,14 +55,29 @@ for (const saisho of ['yomu', 'kiku']) {
       ['D1', 'D2', 'D3', 'D4'].forEach((d, i) => { kekka[d] = { kotae: kotaeRei[i] }; });
       const rec = { junban, kekka };
       kumiawase++;
-      yobiTexts.push(...mojiretsu(yobiKasetsu(rec, tana, checklist.項目.slice(0, 3).map((x) => x.文))));
-      yobiTexts.push(...mojiretsu(yobiTsutae(rec, cards)));
+      yobiTexts.push(...mojiretsu(yobiKasetsu([rec], tana, checklist.項目.slice(0, 3).map((x) => x.文))));
+      yobiTexts.push(...mojiretsu(yobiTsutae([rec], cards)));
+      // 回をまたぐとき：同じ記録を、向きを入れかえて2回目・3回目にする
+      if (n % 25 === 0) {
+        const r2 = { ...rec, kai: 2 };
+        const r3 = { ...rec, kai: 3, kekka: Object.fromEntries(Object.entries(rec.kekka).map(([k, v]) => [k, v])) };
+        for (const kl of [[{ ...rec, kai: 1 }, r2], [{ ...rec, kai: 1 }, r2, r3]]) {
+          yobiTexts.push(...mojiretsu(yobiKasetsu(kl, tana, [])));
+          yobiTexts.push(...mojiretsu(yobiTsutae(kl, cards)));
+        }
+      }
       for (const st of makeSteps(junban)) yobiTexts.push(yobiRiyuu(rec, st.id));
     }
   }
 }
 // 途中の記録（まだ比べていない）
-yobiTexts.push(...mojiretsu(yobiKasetsu({ junban: { A: { saisho: 'yomu' }, B: { saisho: 'bun' }, C: { saisho: 'ikki' } }, kekka: {} }, tana, [])));
+yobiTexts.push(...mojiretsu(yobiKasetsu([{ junban: { A: { saisho: 'yomu' }, B: { saisho: 'bun' }, C: { saisho: 'ikki' } }, kekka: {} }], tana, [])));
+// デモの子（回をまたぐ子を含む）
+const demoKids = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo.json'), 'utf8')).結果;
+for (const k of Object.values(demoKids)) {
+  yobiTexts.push(...mojiretsu(yobiKasetsu(k.kai, tana, [])));
+  yobiTexts.push(...mojiretsu(yobiTsutae(k.kai, cards)));
+}
 kiroku(`予備の動きの文（結果の組み合わせ ${kumiawase} 通り）`, [...new Set(yobiTexts)]);
 
 // 3. Claude の出力
@@ -71,9 +86,11 @@ if (process.env.TENKEN_CLAUDE === '1' && process.env.ANTHROPIC_API_KEY) {
   const demo = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo.json'), 'utf8'));
   const out = [];
   const tries = [];
-  for (const rec of Object.values(demo.結果)) {
+  for (const kid of Object.values(demo.結果)) {
+    const rec = kid.kai[kid.kai.length - 1];
+    rec.id = kid.id;
     for (const name of ['kasetsu', 'tsutae']) {
-      const [, r] = await handle(name, 'POST', { record: rec, atehamaru: ['c04', 'c14'] }, process.env, 'tenken');
+      const [, r] = await handle(name, 'POST', { record: rec, kai: kid.kai, atehamaru: ['c04', 'c14'] }, process.env, 'tenken');
       tries.push(`${rec.id}/${name}：${r.dare}${r.tenken ? `（${r.tenken.kaisu}回目で通過）` : ''}`);
       out.push(...mojiretsu({ a: r.kasetsu, b: r.tsugi, c: r.konkyo, d: r.kondan, e: r.hogosha }));
     }

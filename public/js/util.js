@@ -28,7 +28,7 @@ export async function data(name) {
 
 // 記録のうち、サーバーに送る部分だけ（名前・番号は送らない）
 export function okuruKiroku(rec) {
-  return { junban: rec.junban, kekka: rec.kekka };
+  return { junban: rec.junban, kekka: rec.kekka, kai: rec.kai };
 }
 
 export function whoLabel(dare) {

@@ -42,6 +42,7 @@ async function mieru(name) {
   kiroku.画面++;
   kiroku.点検した文の数 += lines.length;
   for (const l of lines) for (const h of tenken(l)) kiroku.避ける言葉.push({ 画面: name, 文: l });
+  for (const l of lines) if (/はなすスイッチ|じっくりスイッチ|上がった|伸びた/.test(l)) kiroku.避ける言葉.push({ 画面: name, 文: l, わけ: '出さないカード・言葉' });
   const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
   if (over > 0) kiroku.はみ出し.push({ 画面: name, はみ出し: over });
   await page.screenshot({ path: path.join(OUT, `${String(kiroku.画面).padStart(2, '0')}_${name}.png`), fullPage: true });
@@ -165,8 +166,23 @@ try {
   await page.waitForSelector('#kotae .box');
   await mieru('学習につなぐ');
 
-  // 保存した結果を見る（デモの子2人）
-  const KITAI = { デモ1: /きくスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずスイッチ/ };
+  // 回をまたぐ：同じ子で、別の日の回をもう1回する → 読み直しても2回分が残る
+  await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);
+  await page.waitForSelector('#tsugi-kai');
+  await page.click('#tsugi-kai');
+  await page.waitForSelector('#hajimeru');
+  tashika(/2回目/.test(await page.locator('h1').innerText()), '別の日の回（2回目）を始められる');
+  const r3 = await susumu(99);
+  tashika(r3 === 'owari', '2回目のゲームも最後まで通せた');
+  await page.reload();
+  await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
+  await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
+  const tKai = await mieru('先生の画面_2回');
+  tashika(/終わったゲーム：2回/.test(tKai) && /回ごとの「出し方の差」/.test(tKai) && /2回目/.test(tKai), '読み直しても2回分が残り、回ごとの差の表が出る');
+  tashika(/ゲーム 2回で/.test(tKai), '仮説の「確かめた回数」に回の数が入る');
+
+  // 保存した結果を見る（デモの子：1回だけの3人と、3回分の3人）
+  const KITAI = { デモ1: /きくスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずスイッチ/, デモ4: /きくスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/ };
   for (const id of Object.keys(KITAI)) {
     await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
@@ -175,7 +191,13 @@ try {
     await page.goto(`${BASE}#/card/${encodeURIComponent(id)}`);
     await page.waitForSelector('.switch-card');
     const c = await mieru(`デモ_${id}_カード`);
-    tashika(KITAI[id].test(c) && /この日のゲームでは/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
+    if (id === 'デモ4') {
+      tashika(KITAI[id].test(c) && /これまでの3回のゲームのうち3回で、くり返し/.test(c), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
+      tashika(/くり返し出た候補「聞く」/.test(t), `${id}：先生の画面に「くり返し出た候補」が出る`);
+    } else {
+      tashika(KITAI[id].test(c) && /この日のゲームでは/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
+      tashika(!/くり返し出た候補「/.test(t), `${id}：くり返し出た候補にならない`);
+    }
     await page.goto(`${BASE}#/tsutae/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kondan', { timeout: 60000 });
     await mieru(`デモ_${id}_伝え方`);

@@ -172,6 +172,62 @@ export function erabuCard(record) {
   return 'tameshita';
 }
 
+// ---- 回をまたいで比べる（3便）
+// 比べるのは「その回の中の出し方の差」どうし。素点を回ごとに比べない（2回目は慣れて上がりやすいため）。
+// その回の向き：その回の2組の差が、どちらも同じ向き（0 でない）のとき、その出し方の向き。
+// くり返し出た候補：ある回で「その回の候補」（揺れより大きい差が同じ向きに2組）になり、
+//   別の日の回でも同じ向きの差が出ていて、どの回にも反対向きの「その回の候補」が無いとき。
+export const TANA_MEI = { A: '読む／聞く', B: '文で見る／図で見る', C: '一気に／区切って' };
+
+export function kaiNoMuki(m) {
+  if (m.sa.length < 2) return null;
+  if (m.sa[0] !== 0 && Math.sign(m.sa[0]) === Math.sign(m.sa[1])) return m.sa[0] > 0 ? m.kumi[1] : m.kumi[0];
+  return null;
+}
+
+export function matomeKai(kaiList, kind) {
+  const rows = kaiList.map((rec, i) => {
+    const m = matome(rec, kind);
+    return { kai: rec.kai ?? i + 1, hi: rec.hi ?? null, sa: m.sa, yure: m.yure, muki: kaiNoMuki(m), ookii: m.kekka !== 'nashi' && m.kekka !== 'mada', kekka: m.kekka, kazu: m.kazu };
+  });
+  const kumi = KUMI[kind];
+  let kurikaeshi = null;
+  let onaji = [];
+  for (const d of kumi) {
+    const kouhoKai = rows.filter((r) => r.ookii && r.muki === d);
+    const onajiKai = rows.filter((r) => r.muki === d);
+    const hantai = rows.filter((r) => r.ookii && r.muki && r.muki !== d);
+    if (kouhoKai.length >= 1 && onajiKai.length >= 2 && hantai.length === 0) {
+      kurikaeshi = d;
+      onaji = onajiKai.map((r) => r.kai);
+    }
+  }
+  return { kind, kumi, rows, kurikaeshi, onaji, kaisu: rows.filter((r) => r.sa.length === 2).length };
+}
+
+// 回をまたいだカード。くり返し出た候補があればそれを、無ければ最後の回のカード。
+export function erabuCardKai(kaiList) {
+  const owatta = kaiList.filter((r) => r.owari !== false);
+  if (!owatta.length) return { card: 'tameshita', kurikaeshi: null };
+  const kuri = ['A', 'B', 'C']
+    .map((k) => matomeKai(owatta, k))
+    .filter((x) => CARD_OF[x.kurikaeshi])
+    .sort((x, y) => y.onaji.length - x.onaji.length);
+  if (kuri.length) {
+    const x = kuri[0];
+    return { card: CARD_OF[x.kurikaeshi], kurikaeshi: { kind: x.kind, mode: x.kurikaeshi, onaji: x.onaji, zenkai: owatta.length } };
+  }
+  return { card: erabuCard(owatta[owatta.length - 1]), kurikaeshi: null };
+}
+
+// カードの文に、回の数を入れる（くり返しのときだけ）
+export function cardNoBun(card, kurikaeshi) {
+  if (!kurikaeshi || !card.くり返しのとき) return card;
+  const ireru = (t) => t.replaceAll('{全回}', String(kurikaeshi.zenkai)).replaceAll('{同じ回}', String(kurikaeshi.onaji.length));
+  const k = card.くり返しのとき;
+  return { ...card, ひとこと: ireru(k.ひとこと), これは何か: ireru(k.これは何か), 保護者向け: ireru(k.保護者向け) };
+}
+
 export function kotaeD(record, tana) {
   return ['D1', 'D2', 'D3', 'D4'].map((id) => ({ id, toi: tana.D.質問[id].問い, kotae: record.kekka?.[id]?.kotae ?? null }));
 }
@@ -193,13 +249,27 @@ function summary(m) {
   };
 }
 
-// Claude に送るまとめ（名前・仮の番号は入れない）
-export function claudeNiOkuru(record, tana, atehamaru) {
+function kaiSummary(x) {
   return {
-    読む聞く: summary(matome(record, 'A')),
-    図: summary(matome(record, 'B')),
-    一気に区切って: summary(matome(record, 'C')),
-    選んだ答え: kotaeD(record, tana).map((d) => ({ 問い: d.toi, 答え: d.kotae ?? '（答えていない）' })),
+    回ごと: x.rows.map((r) => ({ 回: r.kai, 差_2組: r.sa, 揺れ: r.yure, 向き: r.muki ? DASHIKATA[r.muki] : 'なし', 揺れより大きいか: r.ookii ? 'はい（その回の候補）' : 'いいえ' })),
+    くり返し出た候補: x.kurikaeshi ? `「${DASHIKATA[x.kurikaeshi]}」（${x.onaji.join('・')}回目で同じ向き）` : 'なし',
+  };
+}
+
+// Claude に送るまとめ（名前・仮の番号は入れない）。kaiList があれば、回をまたいだ結果も入れる
+export function claudeNiOkuru(record, tana, atehamaru, kaiList) {
+  const mata = kaiList && kaiList.length > 1
+    ? { 回をまたいだ結果: { ゲームの回数: kaiList.length, 決まり: '比べるのは各回の中の出し方の差どうし。素点は回ごとに比べない', 読む聞く: kaiSummary(matomeKai(kaiList, 'A')), 図: kaiSummary(matomeKai(kaiList, 'B')), 一気に区切って: kaiSummary(matomeKai(kaiList, 'C')) } }
+    : {};
+  return {
+    ...mata,
+    最後の回:
+{
+      読む聞く: summary(matome(record, 'A')),
+      図: summary(matome(record, 'B')),
+      一気に区切って: summary(matome(record, 'C')),
+      選んだ答え: kotaeD(record, tana).map((d) => ({ 問い: d.toi, 答え: d.kotae ?? '（答えていない）' })),
+    },
     チェック項目で当てはまったこと: atehamaru,
   };
 }

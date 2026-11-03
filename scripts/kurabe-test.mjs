@@ -5,7 +5,7 @@ import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { handle } from '../lib/api.mjs';
-import { matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, ZENBU, mieruKoumoku } from '../public/js/kurabe.js';
+import { matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, ZENBU, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
@@ -14,13 +14,13 @@ let n = 0;
 const ok = (name, fn) => Promise.resolve(fn()).then(() => { n++; console.log(`○ ${name}`); });
 
 await ok('デモ1は「聞く」の候補、デモ2は差なし、デモ3は「図」の候補', () => {
-  assert.equal(matomeA(demo.結果.デモ1).kekka, 'kiku');
-  assert.equal(erabuCard(demo.結果.デモ1), 'kiku');
-  for (const k of ['A', 'B', 'C']) assert.equal(matome(demo.結果.デモ2, k).kekka, 'nashi');
-  assert.equal(erabuCard(demo.結果.デモ2), 'dore');
-  assert.equal(matome(demo.結果.デモ3, 'B').kekka, 'zu');
-  assert.equal(erabuCard(demo.結果.デモ3), 'zu');
-  assert.equal(matomeA(demo.結果.デモ1).kakunin, 2);
+  assert.equal(matomeA(demo.結果.デモ1.kai[0]).kekka, 'kiku');
+  assert.equal(erabuCard(demo.結果.デモ1.kai[0]), 'kiku');
+  for (const k of ['A', 'B', 'C']) assert.equal(matome(demo.結果.デモ2.kai[0], k).kekka, 'nashi');
+  assert.equal(erabuCard(demo.結果.デモ2.kai[0]), 'dore');
+  assert.equal(matome(demo.結果.デモ3.kai[0], 'B').kekka, 'zu');
+  assert.equal(erabuCard(demo.結果.デモ3.kai[0]), 'zu');
+  assert.equal(matomeA(demo.結果.デモ1.kai[0]).kakunin, 2);
 });
 
 const JB = { B: { saisho: 'bun', irekae: false }, C: { saisho: 'ikki', irekae: false } };
@@ -147,7 +147,7 @@ await ok('試験的な呼び方で 400 なら、ふつうの呼び方で1回だ�
 await ok('ふつうの呼び方でもだめなら、予備の動き（サーバーの関数まで通して）', async () => {
   const c = nisemono([{ kasetsu: 'x', tsugi: 'y', konkyo: [] }], { beta400: true, futsuu400: true });
   niseNoClaude(c);
-  const [st, r] = await handle('kasetsu', 'POST', { record: demo.結果.デモ1, atehamaru: [] }, { ANTHROPIC_API_KEY: 'nise' }, 'test');
+  const [st, r] = await handle('kasetsu', 'POST', { record: demo.結果.デモ1.kai[0], atehamaru: [] }, { ANTHROPIC_API_KEY: 'nise' }, 'test');
   niseNoClaude(null);
   assert.equal(st, 200);
   assert.equal(r.dare, 'yobi');
@@ -166,10 +166,10 @@ await ok('試験的な呼び方で形が合わないときも、ふつうの呼�
 await ok('サーバーの関数：偽の Claude がよい文を返せば Claude の文を出す', async () => {
   const c = nisemono([{ kasetsu: '問題文を聞いて答えるとき、力が出ているかも。', tsugi: '次に試すなら、問題文を読み上げる。', konkyo: ['聞く 4問・4問'] }]);
   niseNoClaude(c);
-  const [, r] = await handle('kasetsu', 'POST', { record: demo.結果.デモ1, atehamaru: [] }, { ANTHROPIC_API_KEY: 'nise' }, 'test2');
+  const [, r] = await handle('kasetsu', 'POST', { record: demo.結果.デモ1.kai[0], atehamaru: [] }, { ANTHROPIC_API_KEY: 'nise' }, 'test2');
   niseNoClaude(null);
   assert.equal(r.dare, 'claude');
-  assert.deepEqual(r.kakunin, { A: 2, B: 2, C: 2 });
+  assert.deepEqual(r.kakunin, { 回: 1, A: 2, B: 2, C: 2 });
 });
 
 await ok('前もって作った音声が、読み上げる文をすべて持っている', () => {
@@ -193,6 +193,78 @@ await ok('チェック項目：候補は、先生が選んだものだけ画面�
   assert.equal(real.項目[17].文, '注意した直後は止まる（あとで個別に言うと直る）'); // 06 の5章の18
   assert.ok(real.先生が選ぶ候補.length > 0);
   assert.equal(mieruKoumoku(real).length, 18, '候補は画面に出ていない');
+});
+
+// ---- 3便：回をまたいで比べる
+const kai = (id) => demo.結果[id].kai;
+await ok('デモの子4〜6：くり返し出た候補は、①（デモ4）だけ', () => {
+  assert.equal(kai('デモ4').length, 3);
+  assert.equal(matomeKai(kai('デモ4'), 'A').kurikaeshi, 'kiku');
+  for (const id of ['デモ5', 'デモ6']) {
+    assert.equal(kai(id).length, 3);
+    for (const k of ['A', 'B', 'C']) assert.equal(matomeKai(kai(id), k).kurikaeshi, null, `${id} ${k}`);
+  }
+  // ③：1回目だけ「その回の候補」
+  assert.deepEqual(matomeKai(kai('デモ6'), 'A').rows.map((r) => r.ookii), [true, false, false]);
+  assert.deepEqual(erabuCardKai(kai('デモ4')), { card: 'kiku', kurikaeshi: { kind: 'A', mode: 'kiku', onaji: [1, 2, 3], zenkai: 3 } });
+  assert.equal(erabuCardKai(kai('デモ5')).card, 'dore');
+  // 1回だけの子は、くり返しにならない
+  for (const id of ['デモ1', 'デモ2', 'デモ3']) assert.equal(erabuCardKai(kai(id)).kurikaeshi, null);
+});
+
+const A1 = { A: { saisho: 'yomu', irekae: false }, B: { saisho: 'bun', irekae: false }, C: { saisho: 'ikki', irekae: false } };
+// 読む：A-1, A-4／聞く：A-2, A-3
+const kaiA = (yomu, kiku, n) => ({ kai: n, owari: true, junban: A1, kekka: { 'A-1': { seikai: yomu[0] }, 'A-2': { seikai: kiku[0] }, 'A-3': { seikai: kiku[1] }, 'A-4': { seikai: yomu[1] } } });
+await ok('くり返し出た候補は、その回の中の差どうしで決まり、素点を回ごとに比べない', () => {
+  // 2回目は全体に正解が少なくても、その回の中で聞くが多ければ、くり返しになる
+  assert.equal(matomeKai([kaiA([1, 1], [3, 3], 1), kaiA([0, 0], [1, 1], 2)], 'A').kurikaeshi, 'kiku');
+  // 2回目に素点が大きく増えても、その回の中に差が無ければ、くり返しにならない
+  assert.equal(matomeKai([kaiA([1, 1], [3, 3], 1), kaiA([4, 4], [4, 4], 2)], 'A').kurikaeshi, null);
+  // 回ごとに素点をずらしても（その回の全部の出し方に同じ数を足しても）、結果は変わらない
+  const base = [kaiA([1, 2], [3, 3], 1), kaiA([0, 1], [2, 2], 2), kaiA([2, 2], [2, 3], 3)];
+  const zurasu = base.map((r, i) => ({ ...r, kekka: Object.fromEntries(Object.entries(r.kekka).map(([k, v]) => [k, { seikai: v.seikai + i }])) }));
+  assert.deepEqual(matomeKai(base, 'A').rows.map((r) => [r.sa, r.muki, r.ookii]), matomeKai(zurasu, 'A').rows.map((r) => [r.sa, r.muki, r.ookii]));
+  assert.equal(matomeKai(base, 'A').kurikaeshi, matomeKai(zurasu, 'A').kurikaeshi);
+  // 反対向きの「その回の候補」があれば、くり返しにしない
+  assert.equal(matomeKai([kaiA([1, 1], [3, 3], 1), kaiA([1, 2], [2, 3], 2), kaiA([3, 3], [1, 1], 3)], 'A').kurikaeshi, null);
+  // 「その回の候補」が1回も無ければ、同じ向きが続いても、くり返しにしない
+  assert.equal(matomeKai([kaiA([1, 2], [2, 3], 1), kaiA([1, 2], [2, 3], 2)], 'A').kurikaeshi, null);
+});
+
+await ok('くり返しのカード：回の数を事実で書き、「伸びた」「上がった」が無い', () => {
+  const e = erabuCardKai(kai('デモ4'));
+  const c = cardNoBun(cards.カード[e.card], e.kurikaeshi);
+  assert.match(c.これは何か, /^これまでの3回のゲームのうち3回で、くり返し/);
+  for (const card of Object.values(cards.カード)) {
+    const t = JSON.stringify(card);
+    assert.ok(!/伸び|上がった/.test(t), card.名前);
+  }
+});
+
+await ok('はなす・じっくりのカードは、どの結果でも出ない。棚 E が無い', () => {
+  assert.ok(cards.カード.kuchi.出さない && cards.カード.jikan.出さない, 'データには残す');
+  const tana = j('public/data/tana.json');
+  assert.equal(tana.E, undefined);
+  const deru = new Set();
+  for (let x = 0; x < 625; x++) {
+    const s = [x % 5, Math.floor(x / 5) % 5, Math.floor(x / 25) % 5, Math.floor(x / 125) % 5];
+    const r1 = { ...rec(s), kai: 1, owari: true };
+    const r2 = { ...rec([s[1], s[0], s[3], s[2]], 'kiku'), kai: 2, owari: true };
+    deru.add(erabuCardKai([r1]).card);
+    deru.add(erabuCardKai([r1, r2]).card);
+  }
+  assert.ok(!deru.has('kuchi') && !deru.has('jikan'), [...deru].join(','));
+});
+
+await ok('サーバーの関数：回の並びを読み、くり返しを予備の文にも書く', async () => {
+  const [, r] = await handle('kasetsu', 'POST', { record: kai('デモ4')[2], kai: kai('デモ4'), atehamaru: [] }, {}, 'test3');
+  assert.equal(r.dare, 'yobi');
+  assert.match(r.kasetsu, /3回のゲームのうち3回/);
+  assert.equal(r.kakunin.回, 3);
+  assert.equal(r.kurikaeshi.mode, 'kiku');
+  const [, t] = await handle('tsutae', 'POST', { record: kai('デモ6')[2], kai: kai('デモ6') }, {}, 'test3');
+  assert.match(t.kondan, /3回のゲームでは/);
+  assert.ok(!/伸び|上がった/.test(JSON.stringify([r, t])));
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

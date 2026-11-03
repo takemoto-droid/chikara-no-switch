@@ -9,7 +9,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { ROOT } from '../lib/kotoba.mjs';
-import { matome, erabuCard, makeSteps } from '../public/js/kurabe.js';
+import { matome, matomeKai, erabuCard, makeSteps, KUMI } from '../public/js/kurabe.js';
 
 const tana = JSON.parse(readFileSync(path.join(ROOT, 'public/data/tana.json'), 'utf8'));
 const N = 10000;
@@ -43,7 +43,7 @@ function itemsOf(st) {
 }
 
 // 1人の合成の子に、ゲームを1回させる。kouka：出し方ごとの効き目（ロジット）
-function gameWoSuru(theta, kouka) {
+function gameWoSuru(theta, kouka, nare = 0) {
   const junban = {
     A: { saisho: rnd() < 0.5 ? 'yomu' : 'kiku', irekae: rnd() < 0.5 },
     B: { saisho: rnd() < 0.5 ? 'bun' : 'zu', irekae: rnd() < 0.5 },
@@ -53,7 +53,7 @@ function gameWoSuru(theta, kouka) {
   for (const st of makeSteps(junban)) {
     if (st.kind === 'D') continue;
     const items = itemsOf(st);
-    kekka[st.id] = { seikai: toku(theta, items, kouka[st.mode] || 0), kazu: items.length };
+    kekka[st.id] = { seikai: toku(theta + nare, items, kouka[st.mode] || 0), kazu: items.length };
   }
   return { junban, kekka };
 }
@@ -111,6 +111,47 @@ for (const d of [0.5, 1.0, 1.5]) {
 out.push('', '- 1行目は「空ぶり」（本当は差が無いのに候補になる割合。向きはどちらでも数えた）。棚1つでは1割未満だが、3つの棚のどれかでは2割ほどになる。カードと仮説を「この日の」結果として書くのは、このため。');
 out.push('- 2行目からは、本当に差がある合成の子で、候補になる割合。1回のゲームでは見のがしも多い。だから「1回では決めない」「別の日にもう一度」が要る。');
 out.push('- 効き目 1.0 は、正答率がおよそ6割の子なら8割近くまで上がるくらいの差（仮の値）。');
+// 3. 回をまたいで比べる（3便）
+// 同じ合成の子に、別の日のゲームを1〜3回させる。回を重ねるごとに、どの出し方も同じだけ慣れて正解しやすくなる（仮に 0.3 ずつ）。
+const NARE = 0.3;
+function kaiWoKasaneru(kaisu, kouka) {
+  const c = { saigo: { A: 0, B: 0, C: 0, dore: 0 }, dokoka: { A: 0, B: 0, C: 0, dore: 0 }, kuri: { A: 0, B: 0, C: 0, dore: 0 } };
+  const atari = (kind, mode) => (Object.keys(kouka).length ? mode === KUMI[kind][1] : Boolean(mode)); // 効き目があるときは、効く向きだけ数える
+  for (let i = 0; i < N; i++) {
+    const theta = THETA.heikin + THETA.bure * normal();
+    const kai = [];
+    for (let k = 0; k < kaisu; k++) kai.push({ ...gameWoSuru(theta, kouka, NARE * k), kai: k + 1, owari: true });
+    const aru = { saigo: false, dokoka: false, kuri: false };
+    for (const kind of ['A', 'B', 'C']) {
+      const x = matomeKai(kai, kind);
+      const last = x.rows[x.rows.length - 1];
+      if (last.ookii && atari(kind, last.muki)) { c.saigo[kind]++; aru.saigo = true; }
+      if (x.rows.some((r) => r.ookii && atari(kind, r.muki))) { c.dokoka[kind]++; aru.dokoka = true; }
+      if (x.kurikaeshi && atari(kind, x.kurikaeshi)) { c.kuri[kind]++; aru.kuri = true; }
+    }
+    for (const k of ['saigo', 'dokoka', 'kuri']) if (aru[k]) c[k].dore++;
+  }
+  return c;
+}
+out.push('', '## 3. 回をまたいで比べる（3便）', '');
+out.push(`同じ合成の子が、別の日にゲームを1〜3回したとき。回を重ねるごとに、どの出し方も同じだけ慣れて正解しやすくなるようにした（仮の値 ${NARE}）。`, '');
+out.push('- 「どれかの回でその回の候補」：1回ごとに見て、どれか1回でも「候補」になった割合。', '- 「くり返し出た候補」：ある回でその回の候補になり、別の日の回でも同じ向きの差が出て、反対向きの候補が無いとき（docs/作り方の決まり.md の 3章）。', '');
+const KAISU_HYOU = [];
+for (const [mei, kouka] of [['本当は差が無い（空ぶりの割合）', {}], ['聞く・図・区切ってが効く（効き目 1）', { kiku: 1, zu: 1, kugiri: 1 }]]) {
+  out.push(`### ${mei}`, '', '| 回の数 | 棚 | どれかの回でその回の候補 | くり返し出た候補 |', '|---|---|---|---|');
+  for (const kaisu of [1, 2, 3]) {
+    const c = kaiWoKasaneru(kaisu, kouka);
+    for (const kind of ['A', 'B', 'C', 'dore']) {
+      const tana = kind === 'dore' ? 'どれか1つの棚' : TANA[kind];
+      const kuri = kaisu === 1 ? '—（1回では出ない）' : wariai(c.kuri[kind] / N);
+      out.push(`| ${kaisu}回 | ${tana} | ${wariai(c.dokoka[kind] / N)} | ${kuri} |`);
+      if (kind === 'dore') KAISU_HYOU.push({ mei, kaisu, dokoka: wariai(c.dokoka[kind] / N), kuri: kuri });
+    }
+  }
+  out.push('');
+}
+out.push('- 空ぶりは、1回ごとに見ると回を重ねるほど増えるが、「くり返し出た候補」にすると少なく保てる。', '- 本当に差がある子は、回を重ねるほど「くり返し出た候補」として見つかりやすくなる。ただ、3回でも見のがしは多い。「候補が出ない」は「差が無い」ではない。');
+
 out.push('', '## 読み方の注意', '', '- これは合成データです。問題の本当の難しさは、まだ分かりません。大人や子どもで試して、難しさの仮の値を置きかえる必要があります。', '- 子どもで確かめた結果ではありません。効果を示すものでもありません。');
 
 const text = out.join('\n');

@@ -1,7 +1,7 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方・⑥学習につなぐ
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
-import { getRecord, isDemo, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo } from './kiroku.js';
-import { matome, erabuCard, kotaeD, DASHIKATA, mieruKoumoku } from './kurabe.js';
+import { getRecord, getKid, owattaKai, newKai, isDemo, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo } from './kiroku.js';
+import { matome, matomeKai, erabuCardKai, cardNoBun, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
@@ -31,7 +31,7 @@ async function top() {
     <h1>チカラのスイッチ</h1>
     <p>同じ問題を、出し方（読む・聞く・図で見る・一文ずつ区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
     <div class="entrance">
-      <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子2人（差が出た子・差が出なかった子）の結果を、先生の画面で見ます。</span></div></a>
+      <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子の結果を、先生の画面で見ます。1回だけの子（差が出た子・差が出なかった子）と、3回分の記録がある子がいます。</span></div></a>
       <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②ゲーム → ③カード → ④先生の画面 → ⑤伝え方 → ⑥学習につなぐ、を順に動かします。</span></div></a>
     </div>
     ${mada.length ? `<div class="box soft"><h3>途中で止めたゲーム</h3>${mada.map((k) => `<p><a href="#/game/${enc(k.id)}">${esc(k.id)} の続きから始める</a></p>`).join('')}</div>` : ''}
@@ -65,12 +65,15 @@ async function card(id) {
   michi(2);
   dare('子どもの画面');
   const rec = await getRecord(id);
-  if (!rec || !rec.owari) {
+  const kai = await owattaKai(id);
+  if (!rec || !kai.length) {
     app.innerHTML = `<h1>スイッチカード</h1><p>ゲームが終わると、カードが届きます。</p>${rec ? `<p><a class="btn" href="#/game/${enc(id)}">続きから始める</a></p>` : ''}`;
     return;
   }
   const cards = await data('cards');
-  const c = cards.カード[erabuCard(rec)];
+  const erabi = erabuCardKai(kai);
+  const c = cardNoBun(cards.カード[erabi.card], erabi.kurikaeshi);
+  const tsugiNoKai = !isDemo(id) && rec.owari;
   app.innerHTML = `
     <h1>あなたのスイッチカード</h1>
     ${cardHtml(c)}
@@ -79,7 +82,11 @@ async function card(id) {
     <div class="btns">
       <a class="btn" href="#/gakushu/${enc(id)}">このスイッチで数学の問題を解く（⑥）</a>
       <a class="btn sub" href="#/sensei/ko/${enc(id)}">ここからは先生が見ます（④先生の画面）</a>
-    </div>`;
+    </div>
+    ${rec.owari ? '' : `<div class="box soft"><p>${esc(rec.kai)}回目のゲームの途中です。</p><a class="btn sub" href="#/game/${enc(id)}">続きから始める</a></div>`}
+    ${tsugiNoKai ? `<div class="box soft"><p>別の日に、もう一度ゲームをすると、回をまたいで比べられます（いまは ${kai.length} 回）。</p><button class="sub" id="tsugi-kai">別の日の回を始める</button></div>` : ''}`;
+  const b = document.getElementById('tsugi-kai');
+  if (b) b.onclick = () => { if (newKai(id)) location.hash = `#/game/${enc(id)}`; };
 }
 
 function cardHtml(c) {
@@ -106,7 +113,7 @@ async function senseiHub() {
     <h2>保存した結果（架空の子）</h2>
     ${Object.keys(d.結果).map((id) => `<p><a href="#/sensei/ko/${enc(id)}">${esc(d.クラス.find((k) => k.id === id).呼び名)}</a></p>`).join('')}
     <h2>この端末で動かした子</h2>
-    ${local.length ? local.map((k) => `<p><a href="#/sensei/ko/${enc(k.id)}">${esc(k.id)}</a>${k.owari ? '' : '（ゲームの途中）'}</p>`).join('') : '<p class="muted">まだありません。</p>'}
+    ${local.length ? local.map((k) => `<p><a href="#/sensei/ko/${enc(k.id)}">${esc(k.id)}</a>（${k.kaisu}回${k.owari ? '' : '・ゲームの途中'}）</p>`).join('') : '<p class="muted">まだありません。</p>'}
     <h2>チェック項目</h2>
     <p><a href="#/check">クラスで「当てはまる子」を選ぶ</a></p>`;
 }
@@ -117,7 +124,6 @@ function seikaiCell(arr, kazu) {
 function byou(arr) {
   return arr.length ? arr.map((ms) => (ms == null ? '—' : `${Math.round(ms / 1000)}秒`)).join('・') : '—';
 }
-const TANA_MEI = { A: '読む／聞く', B: '文で見る／図で見る', C: '一気に／区切って' };
 function kekkaBun(m) {
   if (m.kekka === 'mada') return 'まだ2回そろっていないので、比べていない';
   if (m.kekka === 'nashi') return '揺れより大きい差は、同じ向きに2回は出なかった。どちらの出し方でも同じくらい力を出せた（差なし）';
@@ -137,28 +143,58 @@ function tanaHtml(m) {
 }
 function kakuninBun(k) {
   if (typeof k !== 'object' || k == null) return `${k}回`;
-  return `読む／聞く ${k.A}回・図 ${k.B}回・区切り ${k.C}回`;
+  return `${k.回 ? `ゲーム ${k.回}回で、` : ''}読む／聞く ${k.A}組・文で見る／図で見る ${k.B}組・一気に／区切って ${k.C}組`;
+}
+
+// (a') 回ごとの「出し方の差」の表（3便）
+function kaiHyouHtml(kai) {
+  const rows = [];
+  const matome3 = ['A', 'B', 'C'].map((k) => matomeKai(kai, k));
+  for (const x of matome3) {
+    const [m1, m2] = x.kumi;
+    for (const r of x.rows) {
+      rows.push(`<tr><td>${esc(r.kai)}回目<br><span class="muted small">${esc(r.hi || '')}</span></td><td>${esc(TANA_MEI[x.kind])}</td>
+        <td>${r.sa.length ? r.sa.map((n) => `${n > 0 ? '+' : ''}${n}`).join('・') : '—'}</td>
+        <td>${r.muki ? esc(DASHIKATA[r.muki]) : '向きなし'}</td>
+        <td>${r.ookii ? 'はい（その回の候補）' : r.yure == null ? '—' : `いいえ（揺れ ${r.yure}）`}</td></tr>`);
+    }
+  }
+  const kuri = matome3.map((x) => `<li>${esc(TANA_MEI[x.kind])}：${x.kurikaeshi ? `<strong>くり返し出た候補「${esc(DASHIKATA[x.kurikaeshi])}」</strong>（${x.onaji.join('・')}回目で同じ向き）` : kai.length < 2 ? 'まだ1回だけなので、回をまたいだ比べはしていない' : 'くり返し出た候補はない'}</li>`).join('');
+  return `
+    <h2>(a') 回ごとの「出し方の差」</h2>
+    <p class="muted small">差は、その回の中の「${esc(DASHIKATA.kiku)}−${esc(DASHIKATA.yomu)}」のように、2つ目の出し方から1つ目の出し方を引いた正解の差（1組目・2組目）。素点は回ごとに比べません（2回目は慣れて正解が増えやすいため）。「くり返し出た候補」は、ある回でその回の候補になり、別の日の回でも同じ向きの差が出て、反対向きの候補が無いときだけです。</p>
+    <div class="table-wrap"><table>
+      <tr><th>いつ</th><th>棚</th><th>差</th><th>向き</th><th>揺れより大きいか</th></tr>
+      ${rows.join('')}
+    </table></div>
+    <ul class="small">${kuri}</ul>`;
 }
 
 // ---- ④ 先生の画面（1人）
 async function senseiKo(id) {
   michi(3);
   dare('先生の画面');
-  const rec = await getRecord(id);
-  if (!rec) { app.innerHTML = '<h1>見つかりません</h1>'; return; }
+  const saishin = await getRecord(id);
+  if (!saishin) { app.innerHTML = '<h1>見つかりません</h1>'; return; }
+  const kai = await owattaKai(id);
+  const rec = kai.length ? kai[kai.length - 1] : saishin; // 比べるのは、終わった回のうちいちばん新しい回
   const tana = await data('tana');
   const checklist = await data('checklist');
   const cards = await data('cards');
   const ids = await atehamaruIds(id);
   const atehamaru = ids.map((i) => mieruKoumoku(checklist).find((x) => x.id === i)?.文).filter(Boolean);
   const koe = ['A-1', 'A-2', 'A-3', 'A-4'].map((s) => rec.kekka[s]?.koe).filter(Boolean)[0];
-  const card = cards.カード[erabuCard(rec)];
+  const erabi = erabuCardKai(kai);
+  const card = cardNoBun(cards.カード[erabi.card], erabi.kurikaeshi);
 
   app.innerHTML = `
     <h1>${esc(id)}${isDemo(id) ? '（架空の子）' : ''}</h1>
-    ${rec.owari ? '' : `<div class="box chui">ゲームの途中です。<a href="#/game/${enc(id)}">続きから始める</a></div>`}
+    ${saishin.owari ? '' : `<div class="box chui">${esc(saishin.kai)}回目のゲームの途中です。<a href="#/game/${enc(id)}">続きから始める</a></div>`}
+    <p class="muted small">終わったゲーム：${kai.length}回${kai.length ? `（${kai.map((r) => `${r.kai}回目 ${esc(r.hi || '日付なし')}`).join('・')}）` : ''}</p>
 
-    <h2>(a) 結果：本人の中で、出し方ごとに比べたもの</h2>
+    ${kai.length ? kaiHyouHtml(kai) : ''}
+
+    <h2>(a) ${kai.length > 1 ? `いちばん新しい回（${esc(rec.kai)}回目）の結果` : '結果'}：本人の中で、出し方ごとに比べたもの</h2>
     <p class="muted small">どの組も ABBA の順で2回ずつ比べました。「候補」は、同じ出し方を2回やったときの揺れより大きい差が、同じ向きに2回出たときだけです。読む／聞くの練習の1組は、比べる数に入れていません。</p>
     ${['A', 'B', 'C'].map((k) => tanaHtml(matome(rec, k))).join('')}
     <p class="muted small">読み上げの声：${esc(koe || '記録なし')}</p>
@@ -173,7 +209,7 @@ async function senseiKo(id) {
     <p class="muted small">点数にしません。基準もありません。<a href="#/check">チェック項目を選ぶ</a></p>
 
     <h2>(d) Claude の仮説</h2>
-    <div id="kasetsu" class="box" aria-live="polite">${rec.owari ? 'Claude が下書きを書いています…' : 'ゲームが終わると、仮説の下書きが出ます。'}</div>
+    <div id="kasetsu" class="box" aria-live="polite">${kai.length ? 'Claude が下書きを書いています…' : 'ゲームが終わると、仮説の下書きが出ます。'}</div>
 
     <details class="box"><summary>ゲームで Claude が次を選んだ理由の記録</summary>
       <ol class="small">${(rec.erabi || []).map((e) => `<li>${esc(e.step)}：${esc(e.riyuu)} <span class="muted">（${e.dare === 'claude' ? 'Claude' : '決まった順'}）</span></li>`).join('') || '<li>記録なし</li>'}</ol>
@@ -185,7 +221,7 @@ async function senseiKo(id) {
       <a class="btn sub" href="#/card/${enc(id)}">カードを見る</a>
     </div>`;
 
-  if (!rec.owari) return;
+  if (!kai.length) return;
   const box = document.getElementById('kasetsu');
   const draw = (k) => {
     box.innerHTML = `
@@ -199,13 +235,13 @@ async function senseiKo(id) {
       <div class="btns"><button class="sub" id="again">もう一度書いてもらう</button></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
   };
-  const key = JSON.stringify({ k: rec.kekka, ids });
+  const key = JSON.stringify({ k: kai.map((r) => r.kekka), ids });
   const yobidasu = async (force) => {
     const cached = !force && aiCache(id, 'kasetsu', key);
     if (cached) { draw(cached); return; }
     box.textContent = 'Claude が下書きを書いています…';
     try {
-      const k = await api('kasetsu', { record: okuruKiroku(rec), atehamaru: ids }, 60000);
+      const k = await api('kasetsu', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000);
       aiCache(id, 'kasetsu', key, k);
       draw(k);
     } catch {
@@ -246,12 +282,13 @@ async function check() {
 async function tsutae(id) {
   michi(4);
   dare('先生の画面');
-  const rec = await getRecord(id);
-  if (!rec || !rec.owari) { app.innerHTML = '<h1>伝え方</h1><p>ゲームが終わると、下書きが出ます。</p>'; return; }
+  const kai = await owattaKai(id);
+  if (!kai.length) { app.innerHTML = '<h1>伝え方</h1><p>ゲームが終わると、下書きが出ます。</p>'; return; }
+  const rec = kai[kai.length - 1];
   const ids = await atehamaruIds(id);
   app.innerHTML = `<h1>伝え方の下書き（${esc(id)}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>`;
   const box = document.getElementById('tsutae');
-  const key = JSON.stringify({ k: rec.kekka, ids });
+  const key = JSON.stringify({ k: kai.map((r) => r.kekka), ids });
   const draw = (t) => {
     box.innerHTML = `
       <p>${whoLabel(t.dare)}<span class="label sankou">${esc(t.sankou)}</span></p>
@@ -282,7 +319,7 @@ async function tsutae(id) {
     if (cached) { draw(cached); return; }
     box.textContent = 'Claude が下書きを書いています…';
     try {
-      const t = await api('tsutae', { record: okuruKiroku(rec), atehamaru: ids }, 60000);
+      const t = await api('tsutae', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000);
       aiCache(id, 'tsutae', key, t);
       draw(t);
     } catch {
@@ -298,10 +335,12 @@ async function gakushu(id) {
   michi(5);
   dare('子どもの画面');
   const rec = await getRecord(id);
+  const kai = rec ? await owattaKai(id) : [];
   const g = (await data('gakushu')).問題;
   const cards = await data('cards');
-  const cardId = rec?.owari ? erabuCard(rec) : 'tameshita';
-  const c = cards.カード[cardId];
+  const erabi = erabuCardKai(kai);
+  const cardId = erabi.card;
+  const c = cardNoBun(cards.カード[cardId], erabi.kurikaeshi);
   const yomiageOK = await junbiYomiage();
   const sw = { kiku: cardId === 'kiku', kugiri: cardId === 'kugiru', zu: cardId === 'zu' };
   const naze = {
