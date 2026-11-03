@@ -1,6 +1,6 @@
 // 比べ方・カード・Claude の書き直しの流れを確かめる（キーは使わない）
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import * as fsAll from 'node:fs';
 const require_fs = () => fsAll;
 import path from 'node:path';
@@ -869,6 +869,28 @@ await ok('8便 K4：印はサーバーにも届き、伝え方の予備の文も
   const k7 = doreNashiWoTsukeru(d7.kai.map((x, i) => ({ ...x, kai: x.kai ?? i + 1 })), d7.renshu);
   const [, t] = await handle('tsutae', 'POST', { kai: k7 }, {});
   assert.equal(t.cardMei, 'きいてスイッチ');
+});
+
+await ok('8便 K3：練習の文に、測る棚と同じ話題が無い（⑦ の比べに、練習の記憶が混ざらないように）', () => {
+  const pool = j('public/data/renshu.json');
+  const renshu = JSON.stringify([pool.A.文章.map((x) => [x.本文, x.問い]), pool.B.問題.map((x) => [x.文, x.図, x.問い]), pool.C.文章.map((x) => [x.前おき, x.連絡, x.問い])]);
+  // 測る棚（tana.json）の話題の言葉。練習の文には出さない
+  const WADAI = ['パン屋', '図書館', '図書', '交換会', '犬', '兄', '姉', '花だん', 'チューリップ', '水やり', '牧場', '牛', '自転車', '打ち水', '商店街', '壁画', '美術', 'サッカー',
+    'ノート', 'えんぴつ', 'シール', 'ジュース', '画用紙', '牛乳', 'おかし',
+    '遠足', '理科', '実験', '体育祭', 'リレー', '校外学習', '博物館', '保健室', '身長', '体重', 'そうじ', 'ほうき', '朝の会', '上ばき', '体操服', '図書委員'];
+  for (const w of WADAI) assert.ok(!renshu.includes(w), `練習の文に「${w}」がある`);
+  // 選択肢に同じものが2つ無い
+  for (const x of [...pool.B.問題, ...pool.C.文章]) for (const q of x.問い) assert.equal(new Set(q.選択肢).size, q.選択肢.length, `${x.id} の選択肢が重なっている`);
+});
+
+await ok('8便 K3：練習の文（読む／聞く）の音声がそろっている（全文・前半・問い）', () => {
+  const o = j('public/onsei/onsei.json').音声;
+  const files = new Set(readdirSync(path.join(ROOT, 'public/onsei')).filter((f) => f.endsWith('.mp3')));
+  for (const p of j('public/data/renshu.json').A.文章) {
+    for (const t of [p.本文.join(''), p.本文.slice(0, Math.ceil(p.本文.length / 2)).join(''), ...p.問い.map((q) => q.文)]) {
+      assert.ok(o[t] && files.has(o[t]), `${p.id}「${t.slice(0, 16)}…」の音声`);
+    }
+  }
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
