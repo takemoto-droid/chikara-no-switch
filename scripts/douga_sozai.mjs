@@ -52,13 +52,13 @@ try {
       mondai++;
       continue;
     }
-    for (const sel of ['#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
+    for (const sel of ['#tsuzukeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
     await page.waitForTimeout(40);
   }
   // 最後まで進めて、カードを受け取る
   for (let i = 0; i < 600; i++) {
     if (await vis('a[href^="#/card/"]')) break;
-    for (const sel of ['#hajimeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
+    for (const sel of ['#hajimeru', '#tsuzukeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
     await page.waitForTimeout(40);
   }
   await utsusu('ゲームのおわり', 'ゲームのおわり：「スイッチカードを見る」');

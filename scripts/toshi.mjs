@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import { mkdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { tenken } from '../lib/kotoba.mjs';
+import { tenken, seihon } from '../lib/kotoba.mjs';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -76,6 +76,7 @@ async function susumu(maxStep) {
       mondai++;
       continue;
     }
+    if (await vis('#tsuzukeru')) { await mieru('ゲーム_ひと休み'); kiroku.yasumi = (kiroku.yasumi || 0) + 1; await page.click('#tsuzukeru'); continue; }
     if (await vis('#next')) { await page.click('#next'); continue; }
     if (await vis('#play')) { await page.click('#play'); await page.waitForTimeout(80); continue; }
     if (await vis('.marubatsu button')) {
@@ -137,6 +138,7 @@ try {
   tashika(prog !== '0%', `続きから再開できる（進み具合 ${prog}）`);
   const r2 = await susumu(99);
   tashika(r2 === 'owari', 'ゲームを最後まで通せた');
+  tashika(kiroku.yasumi === 1, '長い HR の途中に、休みの画面が1回出る');
   tashika(kiroku.理由.every((r) => r.length > 10), `次を選んだ理由が毎回画面に出る（${kiroku.理由.length}回）`);
   await mieru('ゲーム_おわり');
 
@@ -246,7 +248,7 @@ try {
   tashika(/練習の記録（⑥ 育てる）/.test(tRenshu) && /育てているカード：/.test(tRenshu) && /「今日はやらない」を選んだ日：1日/.test(tRenshu) && /楽になったか/.test(tRenshu), '④(e)：先生の画面に、練習の記録（回数・段・楽になったか・やらなかった日）が出る');
 
   // 保存した結果を見る（デモの子：1回だけの3人と、3回分の3人）
-  const KITAI = { デモ1: /きいてスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずでスイッチ/, デモ4: /きいてスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/ };
+  const KITAI = { デモ1: /きいてスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずでスイッチ/, デモ4: /きいてスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/, デモ7: /どれでもスイッチ/, デモ8: /ずでスイッチ/ };
   for (const id of Object.keys(KITAI)) {
     await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
@@ -271,7 +273,17 @@ try {
     }
     await page.goto(`${BASE}#/tsutae/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kondan', { timeout: 60000 });
-    await mieru(`デモ_${id}_伝え方`);
+    const tT = await mieru(`デモ_${id}_伝え方`);
+    if (id === 'デモ1') tashika(/HR の冒頭で先生が話すこと/.test(tT) && /今は答えない/.test(tT), '⑤：HR の冒頭で先生が話すことの下書きが出る');
+    if (id === 'デモ7') {
+      tashika(/育てているスイッチ/.test(c) && /よんでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
+      tashika(/練習の記録（⑥ 育てる）/.test(t) && /「今日はやらない」を選んだ日：1日/.test(t) && /前の回との違い/.test(t), 'デモ7：先生の画面に、練習の記録と前の回との違いが出る');
+      await page.goto(`${BASE}#/sodateru/${encodeURIComponent(id)}`);
+      await page.waitForSelector('#riyuu');
+      const tS = await mieru('デモ7_育てる');
+      tashika(/読むだけ/.test(tS) && !(await vis('#hajimeru')), 'デモ7：⑥ 育てるは、段4（読むだけ）で、架空の子なので練習は始めない');
+    }
+    if (id === 'デモ8') tashika(/比べた問題：物が1つの場面/.test(t) && /比べた問題：短い文/.test(t), 'デモ8：先生の画面に、やさしい段階で比べたことが事実で出る（子どもの画面には出ない）');
   }
 
   // Should：引き継ぎの記録の書き出し（デモ4）
@@ -296,6 +308,22 @@ try {
   await page.waitForSelector('.switch-card');
   const tO = await mieru('カード_大人');
   tashika(/まわりにお願いしてよいこと/.test(tO) && !/先生にお願いしてよいこと/.test(tO), 'Should：大人のカードは「まわりにお願いしてよいこと」');
+  tashika(tO.includes(seihon()['相談先の案内（大人が試すとき・結果に関係なく同じ文）']) && !tO.includes('担任の先生'), '大人の画面の相談先は、大人用の決まった文');
+
+  // 学校の設定と期間の計画（先生の画面）。設定を変えると、保護者向けの案内の時間の文が変わる
+  await page.goto(`${BASE}#/sensei`);
+  await page.waitForSelector('#keikaku .label');
+  const tHub = await mieru('先生の画面_設定と計画');
+  tashika(/学校の設定/.test(tHub) && /期間の計画/.test(tHub) && /参考程度・決めるのは先生/.test(tHub) && /練習でカードが育った子/.test(tHub), '学校の設定と、期間の計画（予備は決まった計画）が先生の画面に出る');
+  await page.selectOption('select[data-k="朝の練習の頻度"]', '毎日');
+  await page.waitForTimeout(300);
+  await page.goto(`${BASE}#/annai/hogo`);
+  await page.waitForSelector('h2');
+  const tHogo2 = await mieru('保護者の案内_設定を変えたあと');
+  tashika(/毎日・1回10分/.test(tHogo2), '案内の時間の文が、学校の設定から出る');
+  await page.goto(`${BASE}#/annai/ko`);
+  await page.waitForSelector('h2');
+  tashika(!/\d+\s*分/.test(await mieru('子どもの案内_設定を変えたあと')), '子ども向けの案内には、時間を言い切る文が無い');
   await page.goto(`${BASE}#/check`);
   await page.waitForSelector('.chip');
   tashika((await page.locator('.chip[data-kid^="大人"]').count()) === 0, 'Should：大人の記録は、クラスのチェック項目に出ない');

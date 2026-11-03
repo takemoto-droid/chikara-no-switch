@@ -132,3 +132,6 @@ body[data-gamen="先生の画面"] main, body[data-gamen="先生の画面"] .mic
 
 /* 引き継ぎの記録の中身（Should） */
 .hikitsugi-pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 10px; max-height: 24em; overflow: auto; }
+.settei { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+.settei label { display: flex; flex-direction: column; gap: 4px; font-size: .95rem; }
+.settei select { font: inherit; padding: 8px; border-radius: 8px; border: 1px solid var(--muted); background: #fff; }

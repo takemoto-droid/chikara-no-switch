@@ -2,18 +2,21 @@
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
-import { matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
+import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
 import { tapeZu } from './zu.js';
 import { cardHtml } from './card_html.js';
+import { gakkoSettei, gakkoWoKaeru } from './gakko.js';
+import { keikakuNoKo, yobiKeikaku } from './keikaku.js';
 import { sodateruGamen, renshuKirokuHtml } from './sodateru_gamen.js';
 import { sodateCards, sodateCardNoBun, ichininmaeOf, jibunDeErabu, DAN_JOUGEN, SODATE_MEI } from './sodateru.js';
 
+export const SOUDAN_OTONA_UTSUSHI = '気になることや困っていることがあれば、かかりつけの医師や、お住まいの市区町村の相談窓口に相談できます。このゲームの結果があってもなくても、相談はできます。';
 export const SOUDAN_UTSUSHI = '気になることや困っていることがあれば、いつでも担任の先生や、学校の相談の窓口に話してください。このゲームの結果があってもなくても、相談はできます。';
 const app = document.getElementById('app');
 let should = {};
-let joutai = { ai: false, soudan: '' };
+let joutai = { ai: false, soudan: '', soudanOtona: '' };
 
 function michi(ima) {
   const nav = document.getElementById('michi');
@@ -23,8 +26,9 @@ function dare(t) {
   document.getElementById('dare').textContent = t || '';
   document.body.dataset.gamen = t || '';
 }
-function soudanHtml() {
-  return `<div class="box soudan"><h3>相談したいとき</h3><p>${esc(joutai.soudan)}</p></div>`;
+// 相談先：子ども・保護者には全員に同じ文。大人が自分で試す画面には、大人用の決まった文（どちらも結果に関係なく同じ）
+function soudanHtml(otona = false) {
+  return `<div class="box soudan"><h3>相談したいとき</h3><p>${esc(otona ? joutai.soudanOtona || SOUDAN_OTONA_UTSUSHI : joutai.soudan)}</p></div>`;
 }
 const enc = encodeURIComponent;
 
@@ -51,10 +55,12 @@ async function annai(who) {
   michi(0);
   const a = (await data('annai'))[who === 'ko' ? '子ども' : who === 'otona' ? '大人' : '保護者'];
   dare(who === 'ko' ? '子どもの画面' : who === 'otona' ? '大人が試す画面' : '保護者の画面');
+  const settei = await gakkoSettei();
+  const tani = (await data('gakko')).単位;
   app.innerHTML = `
     <h1>${esc(a.題)}</h1>
-    ${a.段.map((d) => `<h2>${esc(d.見出し)}</h2><p>${esc(d.文)}</p>`).join('')}
-    ${soudanHtml()}
+    ${a.段.map((d) => `<h2>${esc(d.見出し)}</h2><p>${esc(setteiWoIreru(d.文, settei, tani))}</p>`).join('')}
+    ${soudanHtml(who === 'otona')}
     <div class="btns">
       ${who === 'ko'
         ? '<a class="btn" href="#/hajimeru">ゲームをはじめる</a><a class="btn sub" href="#/annai/hogo">保護者向けの案内</a>'
@@ -105,7 +111,7 @@ async function card(id) {
     <p class="muted">カードは、出し方を比べた結果と、練習のしるしです。他の人とは比べていません。</p>
     <div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 育てる（朝の練習）へ</a></div>
     ${renshu.length ? `<h2>練習の記録</h2><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}` : ''}
-    ${soudanHtml()}
+    ${soudanHtml(isOtona(id))}
     <div class="btns">
       <a class="btn sub" href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果を見る（先生の画面と同じもの）' : 'ここからは先生が見ます（④先生の画面）'}</a>
     </div>
@@ -144,7 +150,56 @@ async function senseiHub() {
     <h2>この端末で動かした子</h2>
     ${local.length ? local.map((k) => `<p><a href="#/sensei/ko/${enc(k.id)}">${esc(k.id)}</a>（${k.kaisu}回${k.owari ? '' : '・ゲームの途中'}）</p>`).join('') : '<p class="muted">まだありません。</p>'}
     <h2>チェック項目</h2>
-    <p><a href="#/check">クラスで「当てはまる子」を選ぶ</a></p>`;
+    <p><a href="#/check">クラスで「当てはまる子」を選ぶ</a></p>
+    <h2 class="kugiri-midashi">学校の設定</h2>
+    <p class="muted small">学校ごとに変えられます。変えた値は、この端末の中にだけ残ります。</p>
+    <div id="settei"></div>
+    <h2 class="kugiri-midashi">期間の計画（次の「また見つける」まで）</h2>
+    <div id="keikaku" aria-live="polite">計画の下書きを書いています…</div>`;
+  await setteiWoKaku();
+  await keikakuWoKaku();
+}
+
+async function setteiWoKaku() {
+  const g = await data('gakko');
+  const ima = await gakkoSettei();
+  const box = document.getElementById('settei');
+  box.innerHTML = `<div class="settei">${Object.keys(g.選べるもの).filter((k) => g.選べるもの[k].length > 1).map((k) => `
+    <label>${esc(k)}<select data-k="${esc(k)}">${g.選べるもの[k].map((v) => `<option value="${esc(v)}" ${v === ima[k] ? 'selected' : ''}>${esc(v)}${esc(g.単位[k] || '')}</option>`).join('')}</select></label>`).join('')}</div>`;
+  box.querySelectorAll('select').forEach((sel) => {
+    sel.onchange = async () => {
+      const k = sel.dataset.k;
+      const v = typeof g.設定[k] === 'number' ? Number(sel.value) : sel.value;
+      await gakkoWoKaeru(k, v);
+      await keikakuWoKaku();
+    };
+  });
+}
+
+// 計画に使う子：架空の子と、この端末で動かした子（大人は入れない）。Claude には「子1」などの仮の番号だけを送る
+async function keikakuWoKaku() {
+  const box = document.getElementById('keikaku');
+  if (!box) return;
+  const settei = await gakkoSettei();
+  const list = (await classList()).filter((k) => !isOtona(k.id));
+  const kodomo = [];
+  const yobina = {};
+  for (const [i, k] of list.entries()) {
+    const kid = await getKid(k.id);
+    if (!kid) continue;
+    const label = `子${i + 1}`;
+    yobina[label] = k.呼び名;
+    kodomo.push(keikakuNoKo(label, kid.kai, kid.renshu));
+  }
+  let r;
+  try { r = await api('keikaku', { settei, kodomo }, 30000); } catch { r = null; }
+  if (!r || !Array.isArray(r.ko)) r = { ...yobiKeikaku(settei, kodomo), dare: 'yobi', sankou: '参考程度・決めるのは先生', wake: 'サーバーにつながらないので、決まった計画の予備の動きで出しています。' };
+  box.innerHTML = `
+    <p>${whoLabel(r.dare)}<span class="label sankou">${esc(r.sankou)}</span></p>
+    ${r.wake ? `<p class="muted small">${esc(r.wake)}</p>` : ''}
+    <p>${esc(r.zentai)}</p>
+    <ul>${r.ko.map((x) => `<li><strong>${esc(yobina[x.label] || x.label)}</strong>：${esc(x.bun)}</li>`).join('')}</ul>
+    <p class="muted small">Claude に送ったのは、仮の番号（子1・子2…）と、カード・練習の段・練習した日の数・学校の設定だけです。計画は下書きです。決めるのは先生です。</p>`;
 }
 
 function seikaiCell(arr, kazu) {
@@ -392,6 +447,9 @@ async function tsutae(id) {
       <h2>学年・教科の先生への一言</h2>
       <p class="muted small">同じ学年や、ほかの教科の先生に伝えるための短い文です。</p>
       <textarea id="hitokoto" aria-label="学年・教科の先生への一言">${esc(t.hitokoto || '')}</textarea>
+      <h2>HR の冒頭で先生が話すこと</h2>
+      <p class="muted small">ゲームの前に、クラス全体に口で話すための下書きです。この子の結果は入れていません。</p>
+      <textarea id="hr" aria-label="HR の冒頭で先生が話すこと">${esc(t.hr || '')}</textarea>
       <div class="btns"><button id="tenken">言葉を点検する</button><button class="sub" id="again">もう一度書いてもらう</button></div>
       <div id="tenken-kekka" aria-live="polite"></div>
       <p class="muted small">Claude の文は、言葉の正本で点検してから出しています。先生が書きかえたら「言葉を点検する」で、もう一度確かめられます。決めるのは先生です。</p>
@@ -399,7 +457,7 @@ async function tsutae(id) {
     box.querySelector('#again').onclick = () => yobidasu(true);
     box.querySelector('#tenken').onclick = async () => {
       const out = [];
-      for (const [name, el] of [['懇談の下書き', box.querySelector('#kondan')], ['保護者向け説明', box.querySelector('#hogosha')], ['先生への一言', box.querySelector('#hitokoto')]]) {
+      for (const [name, el] of [['懇談の下書き', box.querySelector('#kondan')], ['保護者向け説明', box.querySelector('#hogosha')], ['先生への一言', box.querySelector('#hitokoto')], ['HR の冒頭の話', box.querySelector('#hr')]]) {
         const r = await api('tenken', { text: el.value });
         if (r.hits.length === 0) { out.push(`<p>${name}：避ける言葉は見つかりませんでした。</p>`); continue; }
         const t2 = el.value.normalize('NFKC');
@@ -496,7 +554,7 @@ async function main() {
     joutai = await api('joutai', null, 8000);
   } catch {
     // サーバーにつながらないときの写し（言葉の正本と同じ文。scripts/tenken.mjs で同じかを確かめる）
-    joutai = { ai: false, soudan: SOUDAN_UTSUSHI };
+    joutai = { ai: false, soudan: SOUDAN_UTSUSHI, soudanOtona: SOUDAN_OTONA_UTSUSHI };
   }
   document.getElementById('ai-joutai').textContent = joutai.ai
     ? 'いまは Claude を使っています。使えないときは、決まった順の予備の動きに切りかわります。'

@@ -4,6 +4,7 @@ import { getRecord, saveRecord, isDemo } from './kiroku.js';
 import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA, zenbuOf, dankaiWoSusumeru } from './kurabe.js';
 import { junbiYomiage, yomu, tomeru, koeNoNamae } from './yomiage.js';
 import { tapeZu } from './zu.js';
+import { gakkoSettei } from './gakko.js';
 
 
 export async function gameScreen(el, id) {
@@ -46,9 +47,24 @@ export async function gameScreen(el, id) {
       <div class="btns"><a class="btn" href="#/card/${encodeURIComponent(rec.id)}">スイッチカードを見る</a></div>`;
   };
 
+  // 長い HR の途中の休み（7便）：半分まで進んだところで1回だけ。学校の設定の HR が45分以上のとき
+  const settei = await gakkoSettei();
+  const yasumiGamen = () => new Promise((res) => {
+    el.innerHTML = `<h1>ひと休み</h1><p>半分まで進みました。目を休めたり、のびをしたりしてから、続けましょう。</p>
+      <p class="muted">ここで止めて、続きを別の日にすることもできます。</p>
+      <div class="btns"><button id="tsuzukeru">続ける</button><button class="sub" id="tomeru2">ここで止める（続きはあとで）</button></div>`;
+    el.querySelector('#tsuzukeru').onclick = () => res(true);
+    el.querySelector('#tomeru2').onclick = () => { yameta = true; saveRecord(rec); location.hash = '#/'; res(false); };
+  });
+
   const tsugi = async () => {
     if (yameta) return;
     if (owatta(rec)) { owariGamen(); return; }
+    if (rec.shurui !== 'mijikai' && settei.HRの長さ >= 45 && !rec.yasunda && Object.keys(rec.kekka).length >= Math.floor(zenbuOf(rec) / 2)) {
+      rec.yasunda = true;
+      saveRecord(rec);
+      if (!(await yasumiGamen())) return;
+    }
     const naka = frame();
     naka.innerHTML = '<div class="riyuu" aria-live="polite">次の問題を選んでいます…</div>';
     let r;

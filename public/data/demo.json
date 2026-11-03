@@ -24,6 +24,14 @@
     {
       "id": "デモ6",
       "呼び名": "デモの子6（3回・1回だけ差）"
+    },
+    {
+      "id": "デモ7",
+      "呼び名": "デモの子7（2回・練習でカードが育った子）"
+    },
+    {
+      "id": "デモ8",
+      "呼び名": "デモの子8（やさしい段階で比べた子）"
     }
   ],
   "チェック項目": {
@@ -1394,6 +1402,799 @@
           },
           "erabi": [],
           "owari": true
+        }
+      ]
+    },
+    "デモ7": {
+      "id": "デモ7",
+      "架空": true,
+      "kai": [
+        {
+          "junban": {
+            "A": {
+              "saisho": "yomu",
+              "irekae": false
+            },
+            "B": {
+              "saisho": "bun",
+              "irekae": true
+            },
+            "C": {
+              "saisho": "ikki",
+              "irekae": false
+            }
+          },
+          "kekka": {
+            "A-r1": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 40000
+            },
+            "A-r2": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 43000
+            },
+            "D1": {
+              "kotae": "めんどくさい"
+            },
+            "B-1": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 39000
+            },
+            "C-1": {
+              "seikai": 2,
+              "kazu": 4,
+              "ms": 52000
+            },
+            "D2": {
+              "kotae": "どこを読んでいるか分からなくなる"
+            },
+            "D3": {
+              "kotae": "メモが間に合わない"
+            },
+            "B-2": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 36000
+            },
+            "C-2": {
+              "seikai": 2,
+              "kazu": 4,
+              "ms": 49000
+            },
+            "A-1": {
+              "seikai": 2,
+              "kazu": 4,
+              "ms": 52000
+            },
+            "D4": {
+              "kotae": "先生に聞く"
+            },
+            "A-2": {
+              "seikai": 4,
+              "kazu": 4,
+              "ms": 43000
+            },
+            "D5": {
+              "kotae": "図や絵で考えること"
+            },
+            "B-3": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 39000
+            },
+            "C-3": {
+              "seikai": 2,
+              "kazu": 4,
+              "ms": 52000
+            },
+            "D6": {
+              "kotae": "説明を聞くと分かりやすい"
+            },
+            "A-3": {
+              "seikai": 4,
+              "kazu": 4,
+              "ms": 43000
+            },
+            "D7": {
+              "kotae": "メモがあると分かる"
+            },
+            "B-4": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 39000
+            },
+            "C-4": {
+              "seikai": 2,
+              "kazu": 4,
+              "ms": 52000
+            },
+            "A-4": {
+              "seikai": 2,
+              "kazu": 4,
+              "ms": 40000
+            },
+            "D8": {
+              "kotae": "だれかと一緒にできたとき"
+            }
+          },
+          "erabi": [],
+          "owari": true,
+          "kai": 1,
+          "hi": "2026-09-10",
+          "dankai": {
+            "A": {
+              "dankai": 2,
+              "mita": true
+            },
+            "B": {
+              "dankai": 2,
+              "mita": true
+            },
+            "C": {
+              "dankai": 2,
+              "mita": true
+            },
+            "erabikata": "はじめの練習の正解 6／8"
+          }
+        },
+        {
+          "junban": {
+            "A": {
+              "saisho": "kiku",
+              "irekae": true
+            },
+            "B": {
+              "saisho": "zu",
+              "irekae": false
+            },
+            "C": {
+              "saisho": "kugiri",
+              "irekae": true
+            }
+          },
+          "kekka": {
+            "A-1": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 40000
+            },
+            "B-1": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 33000
+            },
+            "C-1": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 46000
+            },
+            "A-2": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 49000
+            },
+            "B-2": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 42000
+            },
+            "C-2": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 40000
+            },
+            "A-3": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 43000
+            },
+            "B-3": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 36000
+            },
+            "C-3": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 49000
+            },
+            "A-4": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 52000
+            },
+            "B-4": {
+              "seikai": 1,
+              "kazu": 2,
+              "ms": 30000
+            },
+            "C-4": {
+              "seikai": 3,
+              "kazu": 4,
+              "ms": 43000
+            }
+          },
+          "erabi": [],
+          "owari": true,
+          "kai": 2,
+          "hi": "2026-10-29",
+          "shurui": "mijikai",
+          "dankai": {
+            "erabikata": "前の回の段階から",
+            "A": {
+              "dankai": 2,
+              "mita": true
+            },
+            "B": {
+              "dankai": 2,
+              "mita": true
+            },
+            "C": {
+              "dankai": 2,
+              "mita": true
+            }
+          }
+        }
+      ],
+      "renshu": [
+        {
+          "no": 1,
+          "hi": "2026-09-15",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 1,
+              "mondai": "RA1",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 1,
+              "mondai": "RA2",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 1,
+              "mondai": "RA3",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 1,
+              "mondai": "RA4",
+              "seikai": 3,
+              "kazu": 4
+            }
+          ],
+          "dare": "yobi",
+          "raku": "同じくらい"
+        },
+        {
+          "no": 2,
+          "hi": "2026-09-17",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 1,
+              "mondai": "RA1",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA2",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA3",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA4",
+              "seikai": 3,
+              "kazu": 4
+            }
+          ],
+          "dare": "yobi",
+          "raku": "同じくらい"
+        },
+        {
+          "no": 3,
+          "hi": "2026-09-22",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA1",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA2",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA3",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA4",
+              "seikai": 2,
+              "kazu": 4
+            }
+          ],
+          "dare": "yobi",
+          "raku": "むずかしかった"
+        },
+        {
+          "no": 4,
+          "hi": "2026-09-24",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA1",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA2",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA3",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA4",
+              "seikai": 2,
+              "kazu": 4
+            }
+          ],
+          "dare": "yobi",
+          "raku": "同じくらい"
+        },
+        {
+          "no": 5,
+          "hi": "2026-09-29",
+          "hitotsu": [],
+          "dare": "yobi",
+          "yasumi": true
+        },
+        {
+          "no": 6,
+          "hi": "2026-10-01",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA1",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA2",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 2,
+              "mondai": "RA3",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA4",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            }
+          ],
+          "dare": "yobi",
+          "raku": "前より楽になった"
+        },
+        {
+          "no": 7,
+          "hi": "2026-10-06",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA1",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA2",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 3
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA3",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA4",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 2
+            }
+          ],
+          "dare": "yobi",
+          "raku": "同じくらい"
+        },
+        {
+          "no": 8,
+          "hi": "2026-10-08",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA1",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA2",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 2
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA3",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA4",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 3
+            }
+          ],
+          "dare": "yobi",
+          "raku": "前より楽になった"
+        },
+        {
+          "no": 9,
+          "hi": "2026-10-13",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA1",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 2
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA2",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA3",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA4",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            }
+          ],
+          "dare": "yobi",
+          "raku": "今は答えない"
+        },
+        {
+          "no": 10,
+          "hi": "2026-10-15",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA1",
+              "seikai": 2,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA2",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 1
+            },
+            {
+              "mode": "yomu",
+              "dan": 3,
+              "mondai": "RA3",
+              "seikai": 3,
+              "kazu": 4,
+              "oshita": 2
+            },
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA4",
+              "seikai": 2,
+              "kazu": 4
+            }
+          ],
+          "dare": "yobi",
+          "raku": "前より楽になった"
+        },
+        {
+          "no": 11,
+          "hi": "2026-10-20",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA1",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA2",
+              "seikai": 2,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA3",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA4",
+              "seikai": 3,
+              "kazu": 4
+            }
+          ],
+          "dare": "yobi",
+          "raku": "前より楽になった"
+        },
+        {
+          "no": 12,
+          "hi": "2026-10-22",
+          "hitotsu": [
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA1",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA2",
+              "seikai": 4,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA3",
+              "seikai": 3,
+              "kazu": 4
+            },
+            {
+              "mode": "yomu",
+              "dan": 4,
+              "mondai": "RA4",
+              "seikai": 4,
+              "kazu": 4
+            }
+          ],
+          "dare": "yobi",
+          "raku": "前より楽になった"
+        }
+      ]
+    },
+    "デモ8": {
+      "id": "デモ8",
+      "架空": true,
+      "kai": [
+        {
+          "junban": {
+            "A": {
+              "saisho": "kiku",
+              "irekae": true
+            },
+            "B": {
+              "saisho": "bun",
+              "irekae": false
+            },
+            "C": {
+              "saisho": "kugiri",
+              "irekae": false
+            }
+          },
+          "kekka": {
+            "A-r1": {
+              "seikai": 1,
+              "kazu": 4,
+              "ms": 40000
+            },
+            "A-r2": {
+              "seikai": 1,
+              "kazu": 4,
+              "ms": 43000
+            },
+            "D1": {
+              "kotae": "時間が足りない"
+            },
+            "B-1": {
+              "seikai": 0,
+              "kazu": 1,
+              "ms": 39000
+            },
+            "C-1": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 52000
+            },
+            "D2": {
+              "kotae": "すらすら読める"
+            },
+            "D3": {
+              "kotae": "途中で忘れてしまう"
+            },
+            "B-2": {
+              "seikai": 1,
+              "kazu": 1,
+              "ms": 36000
+            },
+            "C-2": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 49000
+            },
+            "A-1": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 52000
+            },
+            "D4": {
+              "kotae": "そのままにしている"
+            },
+            "A-2": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 43000
+            },
+            "D5": {
+              "kotae": "話を聞いて覚えること"
+            },
+            "B-3": {
+              "seikai": 1,
+              "kazu": 1,
+              "ms": 39000
+            },
+            "C-3": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 52000
+            },
+            "D6": {
+              "kotae": "読むと分かりやすい"
+            },
+            "A-3": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 43000
+            },
+            "D7": {
+              "kotae": "最後まで聞ける"
+            },
+            "B-4": {
+              "seikai": 0,
+              "kazu": 1,
+              "ms": 39000
+            },
+            "C-4": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 52000
+            },
+            "A-4": {
+              "seikai": 2,
+              "kazu": 3,
+              "ms": 40000
+            },
+            "D8": {
+              "kotae": "自分のペースでできたとき"
+            }
+          },
+          "erabi": [],
+          "owari": true,
+          "kai": 1,
+          "hi": "2026-10-20",
+          "dankai": {
+            "A": {
+              "dankai": 1,
+              "mita": true
+            },
+            "B": {
+              "dankai": 1,
+              "mita": true
+            },
+            "C": {
+              "dankai": 1,
+              "mita": true
+            },
+            "erabikata": "はじめの練習の正解 2／8"
+          }
         }
       ]
     }

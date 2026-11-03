@@ -472,3 +472,16 @@ export function maeTonoChigai(kaiList) {
     return { kind: k, mae: kekkaNoKotoba(a), ima: kekkaNoKotoba(b), kawatta: a.kekka !== b.kekka, dankai: [a.dankai, b.dankai] };
   });
 }
+
+// 案内の {…} に、学校の設定を入れる（7便）。子ども向けの文には {…} を置かない（時間を言い切らない）
+const SETTEI_NO_IIKATA = {
+  朝の練習の頻度: { 毎日: '毎日', 週2: '週2回', 週1: '週1回' },
+  また見つけるの間隔: { 月1: '1か月', '2か月': '2か月', 学期: '学期' },
+};
+export function setteiWoIreru(bun, settei, tani = {}) {
+  return String(bun).replace(/\{([^{}]+)\}/g, (m, k) => {
+    if (!(k in settei)) return m;
+    const v = settei[k];
+    return SETTEI_NO_IIKATA[k]?.[v] ?? `${v}${tani[k] || ''}`;
+  });
+}

@@ -6,9 +6,10 @@ const require_fs = () => fsAll;
 import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
+import { keikakuNoKo, yobiKeikaku, kikanNoHi } from '../public/js/keikaku.js';
 import { danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
-import { maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
+import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
@@ -755,6 +756,76 @@ await ok('H5：⑦ の記録もサーバーが受け取れる（短い版の印�
   const [st, out] = await handle('kasetsu', 'POST', { kai: [r], atehamaru: [] }, {});
   assert.equal(st, 200);
   assert.ok(out.kasetsu);
+});
+
+await ok('H6：学校の設定と、期間の計画（予備は決まった計画）。Claude に送るのは仮の番号だけ', async () => {
+  const g = j('public/data/gakko.json');
+  assert.deepEqual(g.選べるもの.朝の練習の長さ, [5, 10, 15]);
+  assert.deepEqual(g.選べるもの.朝の練習の頻度, ['毎日', '週2', '週1']);
+  assert.deepEqual(g.選べるもの.また見つけるの間隔, ['月1', '2か月', '学期']);
+  assert.equal(kikanNoHi({ 朝の練習の頻度: '週2', また見つけるの間隔: '2か月' }), 16);
+  assert.equal(kikanNoHi({ 朝の練習の頻度: '毎日', また見つけるの間隔: '月1' }), 20);
+  const d7 = demo.結果.デモ7;
+  const ko = [keikakuNoKo('子1', d7.kai, d7.renshu), keikakuNoKo('子2', demo.結果.デモ2.kai, []), keikakuNoKo('子3', [], [])];
+  assert.ok(!JSON.stringify(ko).includes('デモ'), '呼び名を入れない');
+  assert.deepEqual(ko[0].sodate.map((x) => [x.mode, x.dan]), [['yomu', 4]]);
+  const y = yobiKeikaku(g.設定, ko);
+  assert.equal(y.ko.length, 3);
+  assert.match(y.ko[0].bun, /自分で読む/);
+  assert.match(y.ko[1].bun, /本人が選んだ出し方/);
+  assert.match(y.ko[2].bun, /まだゲーム/);
+  assert.ok(!/苦手|上がる見込み/.test(JSON.stringify(y)));
+  const [st, r] = await handle('keikaku', 'POST', { settei: { ...g.設定, 朝の練習の頻度: '毎日', HRの長さ: 999 }, kodomo: [...ko, { label: 'デモ1' }] }, {});
+  assert.equal(st, 200);
+  assert.equal(r.dare, 'yobi');
+  assert.equal(r.ko.length, 3, '仮の番号でない子は受け取らない');
+  assert.match(r.zentai, /毎日/);
+  assert.equal(r.sankou, '参考程度・決めるのは先生');
+  const [st2] = await handle('keikaku', 'POST', { kodomo: [] }, {});
+  assert.equal(st2, 400);
+});
+
+await ok('H6：案内の時間の文は学校の設定から。子ども向けには時間を書かない', () => {
+  const a = j('public/data/annai.json');
+  const g = j('public/data/gakko.json');
+  const ko = a.子ども.段.map((d) => d.文).join('');
+  assert.ok(!/\{|\d+\s*分/.test(ko), '子ども向けに {…} や「〇分」が無い');
+  assert.ok(!/検査の代わり/.test(ko), '子ども向けに「検査の代わり」の文は入れない');
+  const hogo = a.保護者.段.map((d) => setteiWoIreru(d.文, { ...g.設定, 朝の練習の長さ: 15, 朝の練習の頻度: '週1', また見つけるの間隔: '学期' }, g.単位)).join('');
+  assert.match(hogo, /HR（45分）/);
+  assert.match(hogo, /週1回・1回15分/);
+  assert.match(hogo, /学期ごとに、10分ほど/);
+  assert.ok(!/\{/.test(hogo));
+});
+
+await ok('H6：大人の相談先は正本の大人用の文。子どもの文とは別', async () => {
+  const sei = seihon();
+  const otona = sei['相談先の案内（大人が試すとき・結果に関係なく同じ文）'];
+  assert.ok(otona && otona !== sei['相談先の案内（結果に関係なく全員に同じ文）']);
+  const [, jt] = await handle('joutai', 'GET', null, {});
+  assert.equal(jt.soudanOtona, otona);
+});
+
+await ok('H6：⑤ に HR の冒頭で話すことの下書き（全員に同じ・時間を言い切らない）', async () => {
+  const [, t1] = await handle('tsutae', 'POST', { kai: [demo.結果.デモ1.kai[0]] }, {});
+  const [, t2] = await handle('tsutae', 'POST', { kai: demo.結果.デモ5.kai }, {});
+  assert.ok(t1.hr && t1.hr === t2.hr, '結果に関係なく同じ');
+  assert.ok(!/\d+\s*分/.test(t1.hr));
+  assert.match(t1.hr, /今は答えない/);
+});
+
+await ok('H6：デモの子7（練習でカードが育った子）と8（やさしい段階で比べた子）。日付は 11/8 より前', () => {
+  const d7 = demo.結果.デモ7;
+  const sc = sodateCards(d7.renshu, ichininmaeOf(d7.kai, d7.renshu));
+  assert.deepEqual(sc.map((c) => [c.card, c.level, c.kara]), [['yomu', 4, 'renshu']]);
+  assert.ok(d7.renshu.some((r) => r.yasumi), '今日はやらない日もある');
+  assert.equal(d7.kai[1].shurui, 'mijikai');
+  const d8 = demo.結果.デモ8.kai[0];
+  assert.ok(['A', 'B', 'C'].every((k) => matome(d8, k).dankai === 1));
+  assert.equal(erabuCard(d8), 'zu');
+  const hi = JSON.stringify(demo).match(/2026-\d\d-\d\d/g);
+  assert.ok(hi.every((x) => x < '2026-11-08'), '日付は 2026-11-08 より前');
+  assert.ok(demo.クラス.some((k) => /練習でカードが育った子/.test(k.呼び名)) && demo.クラス.some((k) => /やさしい段階で比べた子/.test(k.呼び名)));
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
