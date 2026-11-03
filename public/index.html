@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>チカラのスイッチ</title>
+  <meta name="description" content="同じ問題を出し方だけ変えて解き、力が出た出し方をスイッチカードとして残すウェブアプリ">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <a href="#/" class="logo">チカラのスイッチ</a>
+    <span id="dare" class="dare"></span>
+  </header>
+  <nav id="michi" class="michi" aria-label="道すじ"></nav>
+  <main id="app" tabindex="-1"></main>
+  <footer class="ai">
+    <p>このアプリは AI（Anthropic の Claude）を使っています。名前は AI に送りません。</p>
+    <p id="ai-joutai"></p>
+    <p class="demo-chui">公開デモのデータは、すべて架空の子どものものです。</p>
+  </footer>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

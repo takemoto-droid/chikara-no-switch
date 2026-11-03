@@ -1,0 +1,113 @@
+:root {
+  --bg: #f7f5ef;
+  --surface: #ffffff;
+  --ink: #23262b;
+  --muted: #5d636b;
+  --line: #d9d5ca;
+  --accent: #2f6f8f;
+  --accent-ink: #ffffff;
+  --soft: #e9f1f4;
+  --warn: #8a5a00;
+  --ok: #2f7d4f;
+  --radius: 14px;
+  font-size: 17px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "BIZ UDPGothic", "BIZ UDゴシック", "UD デジタル 教科書体 N-R", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.75;
+  overflow-x: hidden;
+}
+main { max-width: 680px; margin: 0 auto; padding: 8px 16px 32px; outline: none; }
+h1 { font-size: 1.5rem; line-height: 1.4; margin: 16px 0 8px; }
+h2 { font-size: 1.2rem; line-height: 1.4; margin: 24px 0 8px; }
+h3 { font-size: 1.05rem; margin: 16px 0 4px; }
+p { margin: 8px 0; }
+a { color: var(--accent); }
+img, svg { max-width: 100%; height: auto; }
+
+.top { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.logo { font-weight: 700; text-decoration: none; color: var(--ink); font-size: 1.1rem; }
+.dare { font-size: .85rem; color: var(--muted); background: var(--soft); padding: 2px 10px; border-radius: 99px; }
+.dare:empty { display: none; }
+
+.michi { max-width: 680px; margin: 0 auto; padding: 8px 16px 0; display: flex; flex-wrap: wrap; gap: 4px; font-size: .8rem; }
+.michi span { padding: 2px 8px; border-radius: 99px; background: #ebe8df; color: var(--muted); }
+.michi span.ima { background: var(--accent); color: var(--accent-ink); }
+.michi:empty { display: none; }
+
+.card-box, .box { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; margin: 12px 0; }
+.box.soft { background: var(--soft); border-color: #c9dde5; }
+.box.chui { border-left: 6px solid var(--warn); }
+.box.soudan { border-left: 6px solid var(--accent); }
+
+button, .btn {
+  display: inline-block; font: inherit; font-weight: 700; border: 2px solid var(--accent); background: var(--accent); color: var(--accent-ink);
+  border-radius: 12px; padding: 12px 18px; min-height: 48px; cursor: pointer; text-decoration: none; text-align: center;
+}
+button.sub, .btn.sub { background: var(--surface); color: var(--accent); }
+button:disabled { opacity: .45; cursor: default; }
+button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #f0b400; outline-offset: 2px; }
+.btns { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.btns.tate { flex-direction: column; }
+.btns.tate > * { width: 100%; }
+.choice { width: 100%; background: var(--surface); color: var(--ink); border: 2px solid var(--line); text-align: left; font-weight: 400; }
+.choice:hover { border-color: var(--accent); }
+.marubatsu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.marubatsu button { font-size: 1.05rem; }
+
+.entrance { display: grid; gap: 12px; }
+.entrance a { display: block; text-decoration: none; color: var(--ink); }
+.entrance a .box { margin: 0; }
+.entrance strong { font-size: 1.1rem; color: var(--accent); }
+
+.honbun { font-size: 1.15rem; line-height: 2; background: #fffdf6; border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
+.honbun .gyou { display: block; }
+.toi { font-size: 1.15rem; background: var(--surface); border: 2px solid var(--line); border-radius: var(--radius); padding: 14px 16px; margin: 12px 0; }
+.kakushi { color: var(--muted); font-style: normal; }
+.riyuu { background: var(--soft); border-radius: var(--radius); padding: 14px 16px; margin: 12px 0; }
+.riyuu .who { font-size: .85rem; color: var(--muted); display: block; }
+.progress { height: 8px; background: #e3dfd3; border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
+.progress > div { height: 100%; background: var(--accent); }
+.muted { color: var(--muted); font-size: .9rem; }
+.small { font-size: .85rem; }
+
+.switch-card { border-radius: 20px; padding: 20px; color: #fff; margin: 16px 0; box-shadow: 0 6px 18px rgba(0,0,0,.12); }
+.switch-card .mei { font-size: 1.6rem; font-weight: 700; margin: 0; }
+.switch-card .hitokoto { font-size: 1.1rem; margin: 4px 0 0; }
+.switch-card .naka { background: rgba(255,255,255,.95); color: var(--ink); border-radius: 14px; padding: 12px 14px; margin-top: 14px; }
+.switch-card h3 { margin: 10px 0 2px; font-size: 1rem; }
+.switch-card ul { margin: 4px 0; padding-left: 1.2em; }
+
+table { border-collapse: collapse; width: 100%; font-size: .95rem; }
+th, td { border: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+th { background: #f0ede5; font-weight: 700; }
+.table-wrap { overflow-x: auto; }
+.label { display: inline-block; font-size: .8rem; font-weight: 700; padding: 1px 8px; border-radius: 6px; background: #ebe8df; margin-right: 6px; }
+.label.ai { background: #dfe9f7; color: #24466e; }
+.label.yobi { background: #f3e8d2; color: #6b4a00; }
+.label.sankou { background: #fbe3e3; color: #7a2525; }
+.kasetsu { font-size: 1.1rem; font-weight: 700; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 0; }
+.chip { min-height: 40px; padding: 6px 12px; font-weight: 400; font-size: .9rem; background: var(--surface); color: var(--ink); border: 2px solid var(--line); border-radius: 99px; }
+.chip[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+.check-item { border-bottom: 1px solid var(--line); padding: 10px 0; }
+
+textarea { width: 100%; font: inherit; line-height: 1.7; padding: 10px; border: 1px solid var(--line); border-radius: 10px; min-height: 9em; background: #fff; }
+mark { background: #ffe08a; }
+.toggle { display: flex; flex-wrap: wrap; gap: 8px; }
+.toggle button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.toggle button[aria-pressed="false"] { background: var(--surface); color: var(--accent); }
+
+footer.ai { max-width: 680px; margin: 0 auto; padding: 12px 16px 32px; font-size: .85rem; color: var(--muted); border-top: 1px solid var(--line); }
+footer.ai p { margin: 4px 0; }
+.draft { font-size: .8rem; color: var(--warn); }
+@media (max-width: 420px) {
+  :root { font-size: 16px; }
+  h1 { font-size: 1.3rem; }
+  .switch-card .mei { font-size: 1.35rem; }
+}
