@@ -234,7 +234,7 @@ try {
   await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('.switch-card');
   const tCard2 = await mieru('カード_育てている');
-  tashika(/育てているスイッチ/.test(tCard2) && /練習の記録/.test(tCard2) && /同じくらい/.test(tCard2), '⑥：カードの画面に、育てているスイッチと、本人の練習の記録が出る');
+  tashika(/朝の練習で育てるスイッチ/.test(tCard2) && /練習の記録/.test(tCard2) && /同じくらい/.test(tCard2), '⑥：カードの画面に、育てているスイッチと、本人の練習の記録が出る');
   tashika(!/\d+\s*枚/.test(tCard2), '⑥：カードの枚数が出ない');
   // 今日はやらない
   await page.goto(`${BASE}#/sodateru/${encodeURIComponent(kidId)}`);
@@ -276,7 +276,7 @@ try {
     const tT = await mieru(`デモ_${id}_伝え方`);
     if (id === 'デモ1') tashika(/HR の冒頭で先生が話すこと/.test(tT) && /今は答えない/.test(tT), '⑤：HR の冒頭で先生が話すことの下書きが出る');
     if (id === 'デモ7') {
-      tashika(/育てているスイッチ/.test(c) && /よんでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
+      tashika(/朝の練習で育てるスイッチ/.test(c) && /よんでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
       tashika(/練習の記録（⑥ 育てる）/.test(t) && /「今日はやらない」を選んだ日：1日/.test(t) && /前の回との違い/.test(t), 'デモ7：先生の画面に、練習の記録と前の回との違いが出る');
       await page.goto(`${BASE}#/sodateru/${encodeURIComponent(id)}`);
       await page.waitForSelector('#riyuu');

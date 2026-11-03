@@ -66,6 +66,27 @@ try {
   await page.waitForSelector('.switch-card');
   await utsusu('スイッチカードを受け取る', 'スイッチカードを受け取る（強みだけ・枚数は出さない）', '.switch-card');
 
+  // ⑥ 育てる：今日の練習と、選んだ理由（その場で動かした子）
+  const kidHash = await page.evaluate(() => location.hash);
+  const kid = decodeURIComponent((kidHash.match(/#\/card\/(.+)$/) || [])[1] || '');
+  if (kid) {
+    await page.goto(`${BASE}#/sodateru/${enc(kid)}`);
+    await page.waitForSelector('#riyuu, .choice');
+    if (await vis('.choice')) { await page.locator('.choice').first().click(); await page.waitForSelector('#riyuu'); }
+    await utsusu('育てる_今日の練習', '⑥ 育てる（朝の練習）：今日の出し方と、選んだ理由。「今日はやらない」も選べる', '#riyuu');
+  }
+
+  // 練習でカードが育った子（デモ7）：一人前になったカード・練習の記録・前の回との違い
+  await page.goto(`${BASE}#/card/${enc('デモ7')}`);
+  await page.waitForSelector('.switch-card');
+  await utsusu('デモ7_育てたカード', '朝の練習で、支えを減らしながら育てたカード（デモの子7・架空）', 'h2:has-text("朝の練習で育てるスイッチ")');
+  await page.goto(`${BASE}#/sensei/ko/${enc('デモ7')}`);
+  await page.waitForSelector('#kasetsu .kasetsu');
+  await utsusu('デモ7_先生の画面_練習の記録', '先生の画面：練習の記録（段・楽になったか・やらなかった日）', 'h2:has-text("練習の記録")');
+  await page.goto(`${BASE}#/sensei`);
+  await page.waitForSelector('#keikaku .label');
+  await utsusu('先生の画面_設定と計画', '先生の画面：学校の設定と、期間の計画（参考程度・決めるのは先生）', 'h2:has-text("期間の計画")');
+
   // 2. 3回分の記録がある子（デモ4）：カード・先生の画面の仮説・回ごとの表
   await page.goto(`${BASE}#/card/${enc('デモ4')}`);
   await page.waitForSelector('.switch-card');

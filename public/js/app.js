@@ -107,7 +107,7 @@ async function card(id) {
     <h1>あなたのスイッチカード</h1>
     ${hyouji(mae)}
     ${ushiro.length ? `<h2>持っているカード</h2><p class="muted small">これまでのゲームで、もらったカードです。</p>${ushiro.map(hyouji).join('')}` : ''}
-    ${sodate.length ? `<h2>育てているスイッチ</h2><p class="muted small">朝の練習で育てているカードです。</p>${sodate.map(sodateHyouji).join('')}` : ''}
+    ${sodate.length ? `<h2>朝の練習で育てるスイッチ</h2><p class="muted small">朝の練習で育てている（育てた）カードです。</p>${sodate.map(sodateHyouji).join('')}` : ''}
     <p class="muted">カードは、出し方を比べた結果と、練習のしるしです。他の人とは比べていません。</p>
     <div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 育てる（朝の練習）へ</a></div>
     ${renshu.length ? `<h2>練習の記録</h2><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}` : ''}
