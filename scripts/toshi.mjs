@@ -329,6 +329,66 @@ try {
   await page.waitForSelector('.chip');
   tashika((await page.locator('.chip[data-kid^="大人"]').count()) === 0, 'Should：大人の記録は、クラスのチェック項目に出ない');
 
+  // 10便 M2：Claude が書いた文を端末に覚える。開き直しでは呼ばない／押したら呼び直す／記録・設定が変わったら呼び直す／予備の文は覚えない
+  // 鍵は使わない。サーバーの予備の返事を、通し確認の中だけ「Claude が書いた」ことにして数える（外へは何も送らない）
+  {
+    const ctx2 = await browser.newContext({ viewport: { width: 375, height: 740 } });
+    const p2 = await ctx2.newPage();
+    p2.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
+    const kazu = { kasetsu: 0, tsutae: 0, keikaku: 0 };
+    let claudeNiSuru = true;
+    for (const name of Object.keys(kazu)) {
+      await p2.route(`**/api/${name}`, async (route) => {
+        kazu[name]++;
+        const res = await route.fetch();
+        const j = await res.json();
+        if (claudeNiSuru) { j.dare = 'claude'; delete j.wake; }
+        await route.fulfill({ json: j });
+      });
+    }
+    const hiraku = async (hash, sel) => { await p2.goto(`${BASE}${hash}`); await p2.waitForSelector(sel, { timeout: 60000 }); await p2.waitForTimeout(150); return p2.evaluate(() => document.body.innerText); };
+    const D1 = encodeURIComponent('デモ1');
+    let t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
+    tashika(kazu.kasetsu === 1 && /この文は端末に覚えています/.test(t) && /\d+月\d+日に書いた/.test(t), 'M2：Claude の文に、書いた日と「端末に覚えています」が出る');
+    await hiraku('#/sensei', '#keikaku .label');
+    t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
+    tashika(kazu.kasetsu === 1, `M2：先生の画面を開き直しても、Claude を呼ばない（仮説の呼び出し ${kazu.kasetsu}回）`);
+    await p2.click('#kasetsu #again');
+    await p2.waitForSelector('#kasetsu .kasetsu');
+    tashika(kazu.kasetsu === 2, 'M2：「もう一度書いてもらう」を押すと呼び直す');
+    // チェック項目が変わったら呼び直す
+    await p2.goto(`${BASE}#/check`);
+    await p2.waitForSelector('.chip');
+    await p2.locator('.chip[data-kid="デモ1"]').first().click();
+    await p2.waitForTimeout(150);
+    await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
+    tashika(kazu.kasetsu === 3, 'M2：チェック項目が変わったら、呼び直す');
+    // 伝え方
+    await hiraku(`#/tsutae/${D1}`, '#kondan');
+    await hiraku('#/anzen', 'h1');
+    await hiraku(`#/tsutae/${D1}`, '#kondan');
+    tashika(kazu.tsutae === 1, `M2：伝え方も、開き直しでは呼ばない（呼び出し ${kazu.tsutae}回）`);
+    // 計画：開き直しでは呼ばない／学校の設定が変わったら呼び直す／押したら呼び直す
+    const k0 = kazu.keikaku;
+    await hiraku('#/sensei', '#keikaku .label');
+    tashika(kazu.keikaku === k0, `M2：計画も、開き直しでは呼ばない（呼び出し ${kazu.keikaku}回）`);
+    await p2.selectOption('select[data-k="朝の練習の長さ"]', '15');
+    await p2.waitForTimeout(400);
+    tashika(kazu.keikaku === k0 + 1, 'M2：学校の設定が変わったら、計画を呼び直す');
+    await p2.click('#keikaku-again');
+    await p2.waitForTimeout(400);
+    tashika(kazu.keikaku === k0 + 2, 'M2：計画の「もう一度書いてもらう」で呼び直す');
+    // 予備の文は覚えない
+    claudeNiSuru = false;
+    const D2 = encodeURIComponent('デモ2');
+    const y0 = kazu.kasetsu;
+    t = await hiraku(`#/sensei/ko/${D2}`, '#kasetsu .kasetsu');
+    await hiraku('#/anzen', 'h1');
+    await hiraku(`#/sensei/ko/${D2}`, '#kasetsu .kasetsu');
+    tashika(kazu.kasetsu === y0 + 2 && !/この文は端末に覚えています/.test(t), 'M2：予備の文は覚えない（開くたびに、また Claude を試す）');
+    await ctx2.close();
+  }
+
   // PC の幅（1280px）でも、先生の画面・チェック項目・伝え方が崩れない
   page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));

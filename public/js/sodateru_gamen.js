@@ -1,7 +1,7 @@
 // ⑥ 育てる（朝の練習）の画面。得意な出し方を支えにして、もう一方の出し方を、支えを少しずつ減らしながら練習する。
 // 「今日はやらない」を選べる。記録は本人のもの（この端末の中だけ）。子どもの画面に、難しさの段階と「苦手」の言葉は出さない。
 import { esc, api, data } from './util.js';
-import { getKid, saveRenshu, isDemo, hiduke } from './kiroku.js';
+import { getKid, saveRenshu, isDemo, hiduke, claudeNoOboe, claudeWoOboeru, motoNoKey } from './kiroku.js';
 import { cardNoFukudai, levelNoNamae } from './kurabe.js';
 import {
   sodateKouho, jibunDeErabu, danWoDasu, renshuNoDankai, hitotsuNoKazu, yobiKyou, kyouNoRiyuu, agariNoRiyuu,
@@ -73,10 +73,14 @@ export async function sodateruGamen(el, id) {
 
   async function kyouNoGamen() {
     el.innerHTML = '<h1>⑥ 育てる（朝の練習）</h1><div class="riyuu" aria-live="polite">今日の練習を選んでいます…</div>';
-    let r = null;
-    try {
-      r = await api('sodate', { kouho, jokyou: kouho.map((m) => ({ mode: m, ...danWoDasu(renshu, m), hi: [...new Set(renshu.filter((x) => (x.hitotsu || []).some((h) => h.mode === m)).map((x) => x.hi))].length })) }, 15000);
-    } catch { r = null; }
+    // 10便 M2：Claude が選んだ理由は端末に覚える。練習の記録か候補が変わったときだけ呼び直す（予備の文は覚えない）
+    const key = motoNoKey({ renshu, hoka: kouho });
+    let r = claudeNoOboe(id, 'sodate', key);
+    if (!r) {
+      try {
+        r = claudeWoOboeru(id, 'sodate', key, await api('sodate', { kouho, jokyou: kouho.map((m) => ({ mode: m, ...danWoDasu(renshu, m), hi: [...new Set(renshu.filter((x) => (x.hitotsu || []).some((h) => h.mode === m)).map((x) => x.hi))].length })) }, 15000));
+      } catch { r = null; }
+    }
     if (!r || !kouho.includes(r.mode)) {
       const m = yobiKyou(kouho, renshu);
       r = { mode: m, riyuu: kyouNoRiyuu(m, renshu, kouho), dare: 'yobi', wake: 'サーバーにつながらないので、決まった順の予備の動きで選んでいます。' };

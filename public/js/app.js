@@ -1,6 +1,6 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方（②見つける＝game.js、⑥育てる＝sodateru.js）
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
-import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, aiCache, demo, hiduke } from './kiroku.js';
+import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
 import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei } from './game.js';
@@ -136,6 +136,14 @@ function renshuSenseiHtml(renshu, kai, cards) {
     <p class="muted small">段が進むのは、同じ段で「正解が多い（3分の2以上）」ひとつが2回続いたときだけです（下がりません）。練習の記録は本人のものです。練習の効果（学力への）は確かめていません。</p>`;
 }
 
+// Claude の文を端末に覚えていることの表示（10便 M4）。予備の文には出さない
+function oboeHtml(k) {
+  if (!k || k.dare !== 'claude') return '';
+  const hi = String(k.kaitaHi || '').split('-');
+  const hizuke = hi.length === 3 ? `${Number(hi[1])}月${Number(hi[2])}日に書いた` : '';
+  return `<p class="muted small oboe">Claude（AI）が書いた下書き${hizuke ? `・${hizuke}` : ''}。この文は端末に覚えています。「もう一度書いてもらう」で書き直します。</p>`;
+}
+
 // ---- ④ 先生の画面（子の一覧）
 async function senseiHub() {
   michi(3);
@@ -191,15 +199,29 @@ async function keikakuWoKaku() {
     yobina[label] = k.呼び名;
     kodomo.push(keikakuNoKo(label, kid.kai, kid.renshu));
   }
-  let r;
-  try { r = await api('keikaku', { settei, kodomo }, 30000); } catch { r = null; }
-  if (!r || !Array.isArray(r.ko)) r = { ...yobiKeikaku(settei, kodomo), dare: 'yobi', sankou: '参考程度・決めるのは先生', wake: 'サーバーにつながらないので、決まった計画の予備の動きで出しています。' };
-  box.innerHTML = `
+  // 10便 M2：計画も端末に覚える。元になるもの（学校の設定・クラスの子の記録）が変わったときだけ呼び直す
+  const key = motoNoKey({ settei, hoka: kodomo });
+  const kaku = (r) => {
+    box.innerHTML = `
     <p>${whoLabel(r.dare)}<span class="label sankou">${esc(r.sankou)}</span></p>
     ${r.wake ? `<p class="muted small">${esc(r.wake)}</p>` : ''}
     <p>${esc(r.zentai)}</p>
     <ul>${r.ko.map((x) => `<li><strong>${esc(yobina[x.label] || x.label)}</strong>：${esc(x.bun)}</li>`).join('')}</ul>
-    <p class="muted small">Claude に送ったのは、仮の番号（子1・子2…）と、カード・練習の段・練習した日の数・学校の設定だけです。計画は下書きです。決めるのは先生です。</p>`;
+    ${oboeHtml(r)}
+    <p class="muted small">Claude に送ったのは、仮の番号（子1・子2…）と、したこと（HR のゲーム・また見つけるの回数）・カード・練習の段・練習した日の数・学校の設定だけです。計画は下書きです。決めるのは先生です。</p>
+    <div class="btns"><button class="sub" id="keikaku-again">もう一度書いてもらう</button></div>`;
+    box.querySelector('#keikaku-again').onclick = () => yobidasu(true);
+  };
+  const yobidasu = async (force) => {
+    const cached = !force && claudeNoOboe('__クラス__', 'keikaku', key);
+    if (cached) { kaku(cached); return; }
+    box.textContent = '計画の下書きを書いています…';
+    let r;
+    try { r = await api('keikaku', { settei, kodomo }, 30000); } catch { r = null; }
+    if (!r || !Array.isArray(r.ko)) r = { ...yobiKeikaku(settei, kodomo), dare: 'yobi', sankou: '参考程度・決めるのは先生', wake: 'サーバーにつながらないので、決まった計画の予備の動きで出しています。' };
+    kaku(claudeWoOboeru('__クラス__', 'keikaku', key, r));
+  };
+  await yobidasu(false);
 }
 
 function seikaiCell(arr, kazu) {
@@ -378,17 +400,17 @@ async function senseiKo(id) {
       <h3>そう考えた理由（事実）</h3>
       <ul class="small">${k.konkyo.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
       <p class="muted small">${esc(k.sankou)}。${k.dare === 'claude' ? 'AI の下書き' : '決まった文の下書き'}なので、そのまま使わず、授業での様子と合わせて先生が判断してください。${k.wake ? esc(k.wake) : ''}</p>
+      ${oboeHtml(k)}
       <div class="btns"><button class="sub" id="again">もう一度書いてもらう</button></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
   };
-  const key = JSON.stringify({ k: kai.map((r) => r.kekka), ids });
+  const key = motoNoKey({ kai, renshu: kidRenshu, atehamaru: ids, settei: await gakkoSettei() });
   const yobidasu = async (force) => {
-    const cached = !force && aiCache(id, 'kasetsu', key);
+    const cached = !force && claudeNoOboe(id, 'kasetsu', key);
     if (cached) { draw(cached); return; }
     box.textContent = 'Claude が下書きを書いています…';
     try {
-      const k = await api('kasetsu', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000);
-      aiCache(id, 'kasetsu', key, k);
+      const k = claudeWoOboeru(id, 'kasetsu', key, await api('kasetsu', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000));
       draw(k);
     } catch {
       box.innerHTML = '<p>サーバーにつながりませんでした。</p><button class="sub" id="again">もう一度</button>';
@@ -434,10 +456,11 @@ async function tsutae(id) {
   const ids = await atehamaruIds(id);
   app.innerHTML = `<h1>伝え方の下書き（${esc(id)}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>`;
   const box = document.getElementById('tsutae');
-  const key = JSON.stringify({ k: kai.map((r) => r.kekka), ids });
+  const key = motoNoKey({ kai, renshu: (await getKid(id))?.renshu || [], atehamaru: ids, settei: await gakkoSettei() });
   const draw = (t) => {
     box.innerHTML = `
       <p>${whoLabel(t.dare)}<span class="label sankou">${esc(t.sankou)}</span></p>
+      ${oboeHtml(t)}
       ${t.wake ? `<p class="muted small">${esc(t.wake)}</p>` : ''}
       <h2>懇談で口で言う下書き</h2>
       <textarea id="kondan" aria-label="懇談で口で言う下書き">${esc(t.kondan)}</textarea>
@@ -467,12 +490,11 @@ async function tsutae(id) {
     };
   };
   const yobidasu = async (force) => {
-    const cached = !force && aiCache(id, 'tsutae', key);
+    const cached = !force && claudeNoOboe(id, 'tsutae', key);
     if (cached) { draw(cached); return; }
     box.textContent = 'Claude が下書きを書いています…';
     try {
-      const t = await api('tsutae', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000);
-      aiCache(id, 'tsutae', key, t);
+      const t = claudeWoOboeru(id, 'tsutae', key, await api('tsutae', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000));
       draw(t);
     } catch {
       box.innerHTML = '<p>サーバーにつながりませんでした。</p><button class="sub" id="again">もう一度</button>';

@@ -169,6 +169,30 @@ export async function atehamaruIds(kidId) {
   return Object.entries(m).filter(([, kids]) => kids.includes(kidId)).map(([id]) => id).sort();
 }
 
+// ---- Claude が書いた文を、端末に覚える（10便 M2）
+// 公開デモでは Claude を呼べる回数に上限があるので、同じ画面を開き直したときは呼ばずに、覚えた文を出す。
+// 呼び直すのは、「もう一度書いてもらう」を押したときか、元になるもの（ゲームの回・練習の記録・チェック項目・学校の設定）が変わったとき。
+// 予備の動きの文（dare が claude でないもの）は覚えない（鍵が入ったら本物に置き換わるように）。
+// motoKey：元になるものをまとめた文字列。これが変われば、覚えた文は使わない
+export function claudeNoOboe(kidId, kind, motoKey) {
+  const c = aiCache(kidId, kind, motoKey);
+  return c && c.dare === 'claude' ? c : null;
+}
+export function claudeWoOboeru(kidId, kind, motoKey, value) {
+  if (!value || value.dare !== 'claude') return value;
+  return aiCache(kidId, kind, motoKey, { ...value, kaitaHi: value.kaitaHi || hiduke() });
+}
+// 元になるもの：ゲームの回（結果・日・種類・一人前の印）・練習の記録・チェック項目・学校の設定
+export function motoNoKey({ kai = [], renshu = [], atehamaru = [], settei = null, hoka = null } = {}) {
+  return JSON.stringify({
+    k: kai.map((r) => [r.kai, r.hi, r.shurui || 'hr', r.doreNashi ? 1 : 0, r.kekka]),
+    r: renshu.map((x) => [x.no, x.hi, x.yasumi ? 1 : 0, (x.hitotsu || []).length, x.raku || '']),
+    c: atehamaru,
+    s: settei,
+    h: hoka,
+  });
+}
+
 export function aiCache(kidId, kind, key, value) {
   const st = load();
   st.ai[kidId] = st.ai[kidId] || {};

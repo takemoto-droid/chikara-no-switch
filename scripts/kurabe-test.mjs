@@ -6,6 +6,7 @@ const require_fs = () => fsAll;
 import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
+import { motoNoKey } from '../public/js/kiroku.js';
 import { keikakuNoKo, yobiKeikaku, kikanNoHi, shitaKoto } from '../public/js/keikaku.js';
 import { keikakuNoZairyou, keikakuNoMondai } from '../lib/api.mjs';
 import { doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
@@ -965,6 +966,23 @@ await ok('10便 M1：計画の文も、言葉の正本で点検され、避け�
   assert.equal(r.dare, 'claude');
   assert.equal(r.tenken.kaisu, 2);
   assert.ok(!r.zentai.includes(sakeru));
+});
+
+await ok('10便 M2：覚えた文を使ってよいかの目印は、ゲームの回・練習の記録・チェック項目・学校の設定のどれかが変わると変わる', () => {
+  const d7 = demo.結果.デモ7;
+  const moto = { kai: d7.kai, renshu: d7.renshu, atehamaru: ['c04'], settei: j('public/data/gakko.json').設定 };
+  const k0 = motoNoKey(moto);
+  assert.equal(motoNoKey({ ...moto }), k0, '何も変わらなければ同じ（開き直しでは呼ばない）');
+  assert.notEqual(motoNoKey({ ...moto, kai: [...d7.kai, { ...d7.kai[1], kai: 3, hi: '2026-11-04' }] }), k0, 'ゲームの回が増えた');
+  assert.notEqual(motoNoKey({ ...moto, renshu: [...d7.renshu, { no: 99, hi: '2026-11-04', hitotsu: [] }] }), k0, '練習の記録が増えた');
+  assert.notEqual(motoNoKey({ ...moto, renshu: d7.renshu.map((r, i) => (i === 0 ? { ...r, raku: '前より楽になった' } : r)) }), k0, '練習の記録の「楽になったか」が変わった');
+  assert.notEqual(motoNoKey({ ...moto, atehamaru: ['c04', 'c14'] }), k0, 'チェック項目が変わった');
+  assert.notEqual(motoNoKey({ ...moto, settei: { ...moto.settei, 朝の練習の長さ: 15 } }), k0, '学校の設定が変わった');
+  assert.notEqual(motoNoKey({ ...moto, kai: d7.kai.map((r, i) => (i === 1 ? { ...r, doreNashi: true } : r)) }), k0, '一人前の印が付いた');
+  // 覚える関数：予備の文（dare が claude でない）は覚えないことを、コードで確かめる
+  const kiroku = readFileSync(path.join(ROOT, 'public/js/kiroku.js'), 'utf8');
+  assert.match(kiroku, /if \(!value \|\| value\.dare !== 'claude'\) return value;/);
+  assert.match(kiroku, /return c && c\.dare === 'claude' \? c : null;/);
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
