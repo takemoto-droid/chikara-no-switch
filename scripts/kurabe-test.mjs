@@ -9,7 +9,7 @@ import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { motoNoKey } from '../public/js/kiroku.js';
 import { keikakuNoKo, yobiKeikaku, kikanNoHi, shitaKoto } from '../public/js/keikaku.js';
 import { keikakuNoZairyou, keikakuNoMondai } from '../lib/api.mjs';
-import { doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
+import { sawaruTaishou, sawaruNoMasu, sawaruNoKekka, doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
 import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
 
@@ -1067,6 +1067,25 @@ await ok('12便 P3：棚 B は生活の場面の文／図問題（段階1・2 �
     const ni = Object.values(B).find((x) => x.段階 === 2 && x.図.type === k);
     assert.ok(kazu(ichi.図) < kazu(ni.図), `${k}：段階1のほうが要素が少ない`);
   }
+});
+
+await ok('12便 P4（Should）：図を触るは、文・図の練習の段1〜2の、座席・棚の場面だけ。置いた結果と直した回数を数える。段の決まりは変えない', () => {
+  const pool = j('public/data/renshu.json');
+  const rb = (id) => pool.B.問題.find((x) => x.id === id);
+  assert.ok(sawaruTaishou('bun', 1, rb('RB1').図));
+  assert.ok(sawaruTaishou('zu', 2, rb('RB3').図));
+  assert.ok(!sawaruTaishou('bun', 3, rb('RB1').図), '段3からは無い');
+  assert.ok(!sawaruTaishou('yomu', 1, rb('RB1').図), '文・図の練習だけ');
+  assert.ok(!sawaruTaishou('bun', 1, rb('RB2').図), '枠がそろわない場面（公園の案内図）は無い');
+  const m = sawaruNoMasu(rb('RB1').図);
+  assert.equal(m.masu.filter((x) => x.kotae != null).length, 5);
+  const seikai = Object.fromEntries(m.masu.filter((x) => x.kotae != null).map((x) => [`${x.i}-${x.j}`, x.kotae]));
+  assert.deepEqual(sawaruNoKekka(rb('RB1').図, seikai, 2), { kazu: 5, atta: 5, naoshi: 2 });
+  assert.equal(sawaruNoKekka(rb('RB1').図, { ...seikai, '0-0': 'かな', '0-1': 'ゆう' }, 0).atta, 3);
+  // 図を触った記録があっても、段の決まりは変わらない（正解の数だけで決まる）
+  const r = [{ hi: '2026-11-04', hitotsu: [1, 1].map((d) => ({ mode: 'bun', dan: d, seikai: 2, kazu: 2, mondai: 'RB1', sawaru: { kazu: 5, atta: 1, naoshi: 9 } })) }];
+  assert.equal(danWoDasu(r, 'bun').dan, 2);
+  assert.equal(j('public/data/should.json').zuWoSawaru.使う, true, 'should.json で外せる');
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

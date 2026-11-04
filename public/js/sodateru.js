@@ -177,3 +177,24 @@ export function sodateCards(renshu, ichininmae = []) {
     return { card: m, sodate: true, level: kara ? DAN_JOUGEN : dan, ichininmae: Boolean(kara), kara };
   });
 }
+
+// ---- 12便 P4（Should）：⑥ の「図を触る」。文・図の練習の段1〜2で、問いの前に、名前や物をタップで図の枠に置く。
+// 枠がそろう場面（座席・棚）だけ。正解の数には入れず、段が進む決まりも変えない。直した回数は、先生の画面に事実としてだけ出す
+export function sawaruNoMasu(z) {
+  const rows = z?.type === 'seki' ? z.retsu : z?.type === 'tana' ? z.tana : null;
+  if (!rows) return null;
+  const masu = [];
+  rows.forEach((r, i) => r.forEach((n, j) => masu.push({ i, j, kotae: n })));
+  return { rows: rows.length, cols: Math.max(...rows.map((r) => r.length)), masu };
+}
+export function sawaruTaishou(mode, dan, z) {
+  return (mode === 'bun' || mode === 'zu') && dan <= 2 && Boolean(sawaruNoMasu(z));
+}
+// 置いた結果：okareta は「i-j」→ 名前。atta は正しく置けた数
+export function sawaruNoKekka(z, okareta, naoshi) {
+  const m = sawaruNoMasu(z);
+  const ireru = m.masu.filter((x) => x.kotae != null);
+  const atta = ireru.filter((x) => okareta[`${x.i}-${x.j}`] === x.kotae).length;
+  return { kazu: ireru.length, atta, naoshi };
+}
+

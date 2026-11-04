@@ -6,6 +6,7 @@ import { cardNoFukudai, levelNoNamae } from './kurabe.js';
 import {
   sodateKouho, jibunDeErabu, danWoDasu, renshuNoDankai, hitotsuNoKazu, yobiKyou, kyouNoRiyuu, agariNoRiyuu,
   erabuMondai, sodateCards, sodateCardNoBun, SODATE_MODES, SODATE_MEI, DAN_NO_DASHIKATA, DAN_JOUGEN, TANA_OF,
+  sawaruTaishou, sawaruNoMasu, sawaruNoKekka,
 } from './sodateru.js';
 import { gakkoSettei } from './gakko.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
@@ -28,7 +29,9 @@ export function renshuKirokuHtml(renshu, { sensei = false } = {}) {
     const seikai = hs.reduce((s, h) => s + h.seikai, 0);
     const kazu = hs.reduce((s, h) => s + h.kazu, 0);
     const oshita = hs.filter((h) => h.dan === 3 && (mode === 'yomu' || mode === 'kiku')).map((h) => h.oshita ?? 0);
-    return `<tr><td>${esc(r.hi)}</td><td>${esc(SODATE_MEI[mode])}${r.jibun && sensei ? '（本人が選んだ）' : ''}</td><td>${dans.map((d) => esc(DAN_NO_DASHIKATA[mode][d - 1])).join(' → ')}</td><td>${hs.length}つ・正解 ${seikai}／${kazu}${sensei && oshita.length ? `・押した回数 ${oshita.join('・')}` : ''}</td>${sensei ? `<td>${esc(r.raku || '（まだ）')}</td>` : `<td>${esc(r.raku || '')}</td>`}</tr>`;
+    const sawaru = hs.filter((h) => h.sawaru);
+    const sawaruBun = sensei && sawaru.length ? `・図を触る ${sawaru.length}回（直した回数 ${sawaru.map((h) => h.sawaru.naoshi).join('・')}）` : '';
+    return `<tr><td>${esc(r.hi)}</td><td>${esc(SODATE_MEI[mode])}${r.jibun && sensei ? '（本人が選んだ）' : ''}</td><td>${dans.map((d) => esc(DAN_NO_DASHIKATA[mode][d - 1])).join(' → ')}</td><td>${hs.length}つ・正解 ${seikai}／${kazu}${sensei && oshita.length ? `・押した回数 ${oshita.join('・')}` : ''}${sawaruBun}</td>${sensei ? `<td>${esc(r.raku || '（まだ）')}</td>` : `<td>${esc(r.raku || '')}</td>`}</tr>`;
   }).join('');
   // 12便 P2：子どもの画面では「段」と言わず「やり方」（段階と区別がつかないため）。先生の画面は「段」のまま
   return `<div class="table-wrap"><table><thead><tr><th>日</th><th>出し方</th><th>${sensei ? '段' : 'やり方'}</th><th>ひとつの数・正解</th><th>楽になったか</th></tr></thead><tbody>${gyou}</tbody></table></div>`;
@@ -46,6 +49,8 @@ export async function sodateruGamen(el, id) {
   const cards = await data('cards');
   const pool = await data('renshu');
   const settei = await gakkoSettei();
+  let should = {};
+  try { should = await data('should'); } catch { should = {}; }
   const yomiageOK = await junbiYomiage();
   const demoNoKo = isDemo(id);
 
@@ -123,9 +128,15 @@ export async function sodateruGamen(el, id) {
         <div id="naka"></div>
         <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru">止める</button></div>`;
       const tomeruP = new Promise((res) => { el.querySelector('#tomeru').onclick = () => { yameta = true; tomeru(); res(null); }; });
+      // 12便 P4（Should）：文・図の練習の段1〜2で、問いの前に「置いてみよう」（図を触る）。正解の数には入れない
+      let sawaru;
+      if (should.zuWoSawaru?.使う && sawaruTaishou(mode, dan, p.図)) {
+        sawaru = await Promise.race([sawaruGamen(p, el.querySelector('#naka')), tomeruP]);
+        if (!sawaru) break;
+      }
       const k = await Promise.race([hitotsu(mode, dan, p, el.querySelector('#naka'), yomiageOK), tomeruP]);
       if (!k) break;
-      entry.hitotsu.push({ mode, dan, mondai: p.id, ...k });
+      entry.hitotsu.push({ mode, dan, mondai: p.id, ...k, ...(sawaru ? { sawaru } : {}) });
       saveRenshu(id, entry);
       const ato = danWoDasu([...kiroku, entry], mode);
       if (ato.dan > dan) {
@@ -287,3 +298,62 @@ function renraku(dan, p, box) {
     yomaseru(0);
   });
 }
+
+// ---- 12便 P4（Should）：図を触る。文を読んで、名前や物の札を、図の枠にタップで置く（ドラッグは使わない）。
+// 札を選んで → 枠を押すと置く。置いた枠を押すと札がもどる。「もどす」で、最後に置いたものをもどす。直した回数を数える
+function sawaruGamen(p, box) {
+  return new Promise((resolve) => {
+    const m = sawaruNoMasu(p.図);
+    const fuda = m.masu.filter((x) => x.kotae != null).map((x) => x.kotae).sort((a, b) => a.localeCompare(b, 'ja'));
+    const okareta = {};
+    const rireki = [];
+    let erabi = null;
+    let naoshi = 0;
+    const masu = (i, j) => m.masu.find((x) => x.i === i && x.j === j);
+    const kaku = () => {
+      const oita = Object.values(okareta);
+      const nokori = fuda.filter((f) => !oita.includes(f));
+      const mae = p.図.type === 'seki' ? `<div class="sawaru-mae" style="grid-column: 1 / span ${m.cols}">${esc(p.図.mae || '黒板')}（前）</div>` : '';
+      const cells = [];
+      for (let i = 0; i < m.rows; i++) {
+        for (let j = 0; j < m.cols; j++) {
+          const x = masu(i, j);
+          if (!x) cells.push('<div></div>');
+          else if (x.kotae == null) cells.push('<div class="sawaru-aki" data-kazoenai>空き</div>');
+          else cells.push(`<button class="sawaru-masu${okareta[`${i}-${j}`] ? ' oita' : ''}" data-k="${i}-${j}" aria-label="${i + 1}列目・左から${j + 1}つめ" data-kazoenai>${esc(okareta[`${i}-${j}`] || '')}</button>`);
+        }
+      }
+      box.innerHTML = `
+        <p class="tsugi-ichibun">置いてみよう</p>
+        <p class="bamen-dai">${esc(p.題 || '')}</p>
+        <div class="honbun">${esc(p.文)}</div>
+        <div class="sawaru-zu" style="grid-template-columns: repeat(${m.cols}, 1fr)">${mae}${cells.join('')}</div>
+        <div class="sawaru-fuda">${nokori.map((f) => `<button class="fuda${erabi === f ? ' erabi' : ''}" data-f="${esc(f)}" aria-pressed="${erabi === f}" data-kazoenai>${esc(f)}</button>`).join('')}</div>
+        <div class="btns"><button class="sub" id="modosu" ${rireki.length ? '' : 'disabled'}>もどす</button><button id="dekita" ${nokori.length ? 'disabled' : ''}>できた</button></div>`;
+      box.querySelectorAll('.fuda').forEach((b) => { b.onclick = () => { erabi = erabi === b.dataset.f ? null : b.dataset.f; kaku(); }; });
+      box.querySelectorAll('.sawaru-masu').forEach((b) => {
+        b.onclick = () => {
+          const k = b.dataset.k;
+          if (erabi) {
+            if (okareta[k]) naoshi++; // 置いてあった札がもどる（置き直し）
+            okareta[k] = erabi;
+            rireki.push(k);
+            erabi = null;
+          } else if (okareta[k]) {
+            delete okareta[k]; // 置いた札をもどす
+            naoshi++;
+          }
+          kaku();
+        };
+      });
+      box.querySelector('#modosu').onclick = () => {
+        const k = rireki.pop();
+        if (k && okareta[k]) { delete okareta[k]; naoshi++; }
+        kaku();
+      };
+      box.querySelector('#dekita').onclick = () => resolve(sawaruNoKekka(p.図, okareta, naoshi));
+    };
+    kaku();
+  });
+}
+

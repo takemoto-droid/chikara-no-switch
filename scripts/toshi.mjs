@@ -443,6 +443,61 @@ try {
     await ctx2.close();
   }
 
+  // 12便 P4（Should）：⑥ の「図を触る」。架空のデモの子2（どれでも）の記録を、この端末で動かした子として入れ、「文だけで場面をつかむ」を選ぶ
+  {
+    const ctx3 = await browser.newContext({ viewport: { width: 375, height: 740 } });
+    const p3 = await ctx3.newPage();
+    p3.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
+    const d2 = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo.json'), 'utf8')).結果.デモ2;
+    const ID = 'その場90';
+    await p3.goto(`${BASE}#/`);
+    await p3.evaluate(([id, kai]) => {
+      localStorage.setItem('chikara-no-switch.v3', JSON.stringify({ kids: { [id]: { id, kai: kai.map((r, i) => ({ ...r, id, kai: i + 1, owari: true })) } }, check: null, ai: {}, seq: 90 }));
+    }, [ID, d2.kai]);
+    await p3.goto(`${BASE}#/sodateru/${encodeURIComponent(ID)}`);
+    await p3.waitForSelector('.choice');
+    await p3.locator('.choice', { hasText: '文だけで場面をつかむ' }).click();
+    await p3.waitForSelector('#hajimeru');
+    await p3.click('#hajimeru');
+    await p3.waitForSelector('.sawaru-zu');
+    const pool = JSON.parse(readFileSync(path.join(ROOT, 'public/data/renshu.json'), 'utf8'));
+    const dai = (await p3.locator('.bamen-dai').innerText()).trim();
+    const item = pool.B.問題.find((x) => x.題 === dai && x.段階 === 2) || pool.B.問題.find((x) => x.題 === dai);
+    const rows = item.図.type === 'seki' ? item.図.retsu : item.図.tana;
+    const kotae = [];
+    rows.forEach((r, i) => r.forEach((n, j) => { if (n != null) kotae.push([`${i}-${j}`, n]); }));
+    // 1つ目は、わざと別の枠に置いてから「もどす」（直した回数 1）
+    const [k0, n0] = kotae[0];
+    const [k1] = kotae[1];
+    await p3.click(`.fuda[data-f="${n0}"]`);
+    await p3.click(`.sawaru-masu[data-k="${k1}"]`);
+    await p3.click('#modosu');
+    for (const [k, n] of kotae) { await p3.click(`.fuda[data-f="${n}"]`); await p3.click(`.sawaru-masu[data-k="${k}"]`); }
+    const tSawaru = await p3.evaluate(() => document.body.innerText);
+    await p3.screenshot({ path: path.join(OUT, 'P4_図を触る.png'), fullPage: true });
+    const over3 = await p3.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    if (over3 > 0) kiroku.はみ出し.push({ 画面: 'P4_図を触る', はみ出し: over3 });
+    tashika((await p3.isEnabled('#dekita')) && /置いてみよう/.test(tSawaru) && !/(?<!階)段(?!目)/.test(tSawaru), `P4：札をタップで図に置ける・「もどす」がある・全部置くと「できた」を押せる（${dai}）`);
+    await p3.click('#dekita');
+    await p3.waitForSelector('.choice');
+    // 1つ目のひとつの問いに答える（次のひとつが出たら止める）
+    for (let i = 0; i < 10; i++) {
+      if (await p3.locator('.sawaru-zu, #tsugi').first().isVisible().catch(() => false)) break;
+      if (await p3.locator('.choice').first().isVisible().catch(() => false)) { await p3.locator('.choice').first().click(); await p3.waitForTimeout(150); continue; }
+      await p3.waitForTimeout(150);
+    }
+    if (await p3.locator('#tsugi').isVisible().catch(() => false)) await p3.click('#tsugi');
+    await p3.click('#tomeru');
+    await p3.waitForSelector('.choice');
+    await p3.locator('.choice', { hasText: '同じくらい' }).click();
+    await p3.waitForSelector('.switch-card');
+    await p3.goto(`${BASE}#/sensei/ko/${encodeURIComponent(ID)}`);
+    await p3.waitForSelector('#kasetsu');
+    const tS = await p3.evaluate(() => document.body.innerText);
+    tashika(/図を触る 1回（直した回数 1）/.test(tS), 'P4：先生の画面の練習の記録に、図を触った回数と直した回数が事実で出る');
+    await ctx3.close();
+  }
+
   // PC の幅（1280px）でも、先生の画面・チェック項目・伝え方が崩れない
   page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));

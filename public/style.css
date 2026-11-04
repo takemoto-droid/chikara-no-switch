@@ -167,3 +167,13 @@ footer details.ai-ko summary { cursor: pointer; color: var(--accent); }
 .bamen-dai { font-weight: 700; margin: 8px 0 4px; }
 .zu-waku-bamen { padding: 8px; }
 .bamen-zu { width: 100%; max-width: 420px; display: block; margin: 0 auto; }
+/* 12便 P4：図を触る */
+.sawaru-zu { display: grid; gap: 6px; margin: 12px 0; }
+.sawaru-mae { background: #3d5a4c; color: #fff; text-align: center; border-radius: 6px; font-size: .9rem; padding: 2px 0; }
+.sawaru-masu { min-height: 52px; background: #ffffff; color: var(--ink); border: 2px dashed var(--accent); font-weight: 700; padding: 4px; }
+.sawaru-masu.oita { background: #e2eef3; border-style: solid; }
+.sawaru-aki { min-height: 52px; display: flex; align-items: center; justify-content: center; border: 2px dashed #9aa0a6; border-radius: 12px; color: var(--muted); font-size: .9rem; }
+.sawaru-fuda { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+.fuda { background: #f6ead6; color: var(--ink); border-color: #8a5a2b; min-height: 44px; padding: 6px 14px; }
+.fuda.erabi { background: #8a5a2b; color: #fff; }
+
