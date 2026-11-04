@@ -43,22 +43,19 @@ const vis = async (sel) => { const l = page.locator(sel).first(); return (await 
 try {
   // 1. ゲームで Claude が次を選んだ理由（練習のあと、読む／聞くの本番に入るところ）
   await page.goto(`${BASE}#/hajimeru`);
-  await page.waitForSelector('#hajimeru');
+  await page.waitForSelector('#riyuu');
+  // 12便：「はじめる」は無く、問題の上の一文（#riyuu[data-step]）が変わったら次の問題
   let mondai = 0;
-  for (let i = 0; i < 200; i++) {
-    if (await vis('#hajimeru')) {
-      if (mondai === 2) { await utsusu('ゲーム_次を選んだ理由', 'ゲームで、次の問題を選んだ理由が画面に出る（キーが無いあいだは「決まった順」の文）', '#riyuu'); break; }
-      await page.click('#hajimeru');
-      mondai++;
-      continue;
+  let mae = null;
+  let utsushita = false;
+  for (let i = 0; i < 800; i++) {
+    if (await vis('a[href^="#/card/"]')) break;
+    if (!utsushita && (await vis('#riyuu[data-step]'))) {
+      const step = await page.locator('#riyuu[data-step]').first().getAttribute('data-step');
+      if (step !== mae) { mae = step; mondai++; }
+      if (mondai === 3) { await utsusu('ゲーム_つぎの一文', 'ゲームの問題の上に「つぎは 〇〇」の一文が出る（理由の全文は先生の画面に残る）', '#riyuu'); utsushita = true; }
     }
     for (const sel of ['#tsuzukeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
-    await page.waitForTimeout(40);
-  }
-  // 最後まで進めて、カードを受け取る
-  for (let i = 0; i < 600; i++) {
-    if (await vis('a[href^="#/card/"]')) break;
-    for (const sel of ['#hajimeru', '#tsuzukeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
     await page.waitForTimeout(40);
   }
   await utsusu('ゲームのおわり', 'ゲームのおわり：「スイッチカードを見る」');

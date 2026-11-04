@@ -88,12 +88,12 @@ export async function sodateruGamen(el, id) {
     const mode = r.mode;
     const { dan } = danWoDasu(renshu, mode);
     const n = hitotsuNoKazu(settei.朝の練習の長さ);
-    const who = r.dare === 'claude' ? 'Claude（AI）が今日の練習を選んだ理由' : r.dare === 'kimari' ? '決まった順' : '決まった順（予備の動き）';
+    // 12便 P1：子どもの画面には「予備の動き」「決まった順」を出さない。AI が選んだときだけ、そのことを出す
+    const who = r.dare === 'claude' ? 'AI（Claude）が えらんだ理由' : '';
     el.innerHTML = `
       <h1>⑥ 育てる（朝の練習）</h1>
       <p>得意な出し方を支えにして、新しいスイッチを育てる練習です。1つ2〜3分の練習を、${n}つします。</p>
-      <div class="riyuu" id="riyuu"><span class="who">${esc(who)}</span>${esc(r.riyuu)}</div>
-      ${r.wake ? `<p class="muted small">${esc(r.wake)}</p>` : ''}
+      <div class="riyuu" id="riyuu">${who ? `<span class="who">${esc(who)}</span>` : ''}${esc(r.riyuu)}</div>
       <div class="box soft"><p><strong>今日の練習：${esc(SODATE_MEI[mode])}</strong></p><p>いまの段：${esc(DAN_NO_DASHIKATA[mode][dan - 1])}</p></div>
       ${demoNoKo ? '<p class="muted">架空の子の記録なので、ここでは練習を始めません。</p>' : ''}
       <div class="btns">

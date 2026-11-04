@@ -47,6 +47,8 @@ async function mieru(name) {
   const dareNoGamen = await page.evaluate(() => document.getElementById('dare')?.textContent || '');
   if (/子どもの画面|大人が試す画面/.test(dareNoGamen)) {
     for (const l of lines) if (/段階|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面|苦手/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に段階か「苦手」がある「${l.slice(0, 40)}」`);
+    // 12便 P1：子どもの画面に「API キー」「予備の動き」が無い
+    for (const l of lines) if (/API ?キー|予備の動き/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に「API キー」か「予備の動き」がある「${l.slice(0, 40)}」`);
   }
   // 英語のままのエラーや空欄（undefined・null・NaN など）が画面に出ていない
   for (const l of lines) if (/\b(undefined|null|NaN|Error|TypeError|Failed to fetch)\b|\[object Object\]/.test(l)) kiroku.まちがい.push(`${name}：英語のまま・空欄の文「${l.slice(0, 40)}」`);
@@ -61,22 +63,24 @@ async function vis(sel) {
   return (await l.count()) > 0 && (await l.isVisible()) && (await l.isEnabled().catch(() => true));
 }
 
-// ゲームを n 回の操作だけ進める（カードへのリンクが出たら止まる）
+// ゲームを n 問だけ進める（カードへのリンクが出たら止まる）。12便：「はじめる」は無く、問題の上の一文（#riyuu[data-step]）が変わったら次の問題
 async function susumu(maxStep) {
   let tejun = 0;
   let mondai = 0;
-  while (tejun++ < 400) {
+  let mae = null;
+  while (tejun++ < 600) {
     if (await vis('a[href^="#/card/"]')) return 'owari';
-    if (await vis('#hajimeru')) {
-      if (mondai >= maxStep) return 'tochuu';
-      const r = await page.locator('#riyuu').innerText();
-      kiroku.理由.push(r);
-      if (mondai === 2) await mieru('ゲーム_理由');
-      await page.click('#hajimeru');
-      mondai++;
-      continue;
-    }
     if (await vis('#tsuzukeru')) { await mieru('ゲーム_ひと休み'); kiroku.yasumi = (kiroku.yasumi || 0) + 1; await page.click('#tsuzukeru'); continue; }
+    if (await vis('#riyuu[data-step]')) {
+      const step = await page.locator('#riyuu[data-step]').first().getAttribute('data-step');
+      if (step !== mae) {
+        if (mondai >= maxStep) return 'tochuu';
+        mae = step;
+        kiroku.理由.push(await page.locator('#riyuu').innerText());
+        if (mondai === 2) await mieru('ゲーム_理由');
+        mondai++;
+      }
+    }
     if (await vis('#next')) { await page.click('#next'); continue; }
     if (await vis('#play')) { await page.click('#play'); await page.waitForTimeout(80); continue; }
     if (await vis('.marubatsu button')) {
@@ -102,7 +106,7 @@ try {
   tashika(/AI（Anthropic の Claude）を使っています/.test(t0), 'AI を使っていることが画面に出る');
 
   // 子どもの安全とプライバシー（画面のいちばん下から開ける）
-  await page.click('footer a[href="#/anzen"]');
+  await page.click('footer .ai-zen a[href="#/anzen"]');
   await page.waitForSelector('h1:has-text("子どもの安全とプライバシー")');
   const tAnzen = await mieru('子どもの安全とプライバシー');
   tashika(/2026-11-03/.test(tAnzen) && /support\.claude\.com/.test(tAnzen), '子どもの安全とプライバシーのページが画面から開ける');
@@ -121,25 +125,25 @@ try {
 
   // ② ゲーム（途中で止めて、再開する）
   await page.goto(`${BASE}#/annai/ko`);
-  await page.click('text=ゲームをはじめる');
-  await page.waitForSelector('#hajimeru');
+  await page.click('a[href="#/hajimeru"]');
+  await page.waitForSelector('#riyuu');
   const r1 = await susumu(5);
   tashika(r1 === 'tochuu', 'ゲームを5問まで進めた');
   await page.click('#tomeru');
-  await page.waitForSelector('text=ここで止めました');
+  await page.waitForSelector('text=止めました');
   await mieru('ゲーム_止めた');
   await page.goto(`${BASE}#/`);
   await page.reload();
   await page.waitForSelector('text=途中で止めたゲーム');
   await mieru('はじめ_続きあり');
   await page.click('text=の続きから始める');
-  await page.waitForSelector('#hajimeru');
+  await page.waitForSelector('#riyuu');
   const prog = await page.evaluate(() => document.querySelector('.progress > div').style.width);
   tashika(prog !== '0%', `続きから再開できる（進み具合 ${prog}）`);
   const r2 = await susumu(99);
   tashika(r2 === 'owari', 'ゲームを最後まで通せた');
   tashika(kiroku.yasumi === 1, '長い HR の途中に、休みの画面が1回出る');
-  tashika(kiroku.理由.every((r) => r.length > 10), `次を選んだ理由が毎回画面に出る（${kiroku.理由.length}回）`);
+  tashika(kiroku.理由.every((r) => /^つぎは /.test(r) && r.length <= 20), `問題の上に「つぎは 〇〇」の一文（20字以内）が毎回出る（${kiroku.理由.length}回）`);
   await mieru('ゲーム_おわり');
 
   // ③ カード
@@ -183,14 +187,15 @@ try {
   await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('#tsugi-kai');
   await page.click('#tsugi-kai');
-  await page.waitForSelector('#hajimeru');
-  const h1Mata = await page.locator('h1').innerText();
-  tashika(/2回目/.test(h1Mata) && /また見つける/.test(h1Mata) && /短い版/.test(h1Mata), '⑦：カードの画面から、また見つける（短いゲーム・2回目）を始められる');
+  await page.waitForSelector('#riyuu');
+  const navMata = await page.locator('#michi').innerText();
+  const zenMata = await page.locator('.progress-kazu').innerText();
+  tashika(/いま：⑦/.test(navMata) && /／12$/.test(zenMata), `⑦：カードの画面から、また見つける（短いゲーム・12問）を始められる（ナビ「${navMata}」・${zenMata}）`);
   await mieru('また見つける_はじめ');
   const r3 = await susumu(99);
   tashika(r3 === 'owari', '⑦：また見つけるの短いゲームも最後まで通せた');
   const tMataOwari = await mieru('また見つける_おわり');
-  tashika(/なくなりません/.test(tMataOwari), '⑦：おわりの画面で、もらったカードはなくならないと伝える');
+  tashika(/なくならない/.test(tMataOwari), '⑦：おわりの画面で、もらったカードはなくならないと伝える');
   await page.click('a[href^="#/card/"]');
   await page.waitForSelector('.switch-card');
   const tMataCard = await mieru('また見つける_カード');
@@ -302,7 +307,7 @@ try {
   await page.waitForSelector('text=大人の方へ');
   await mieru('案内_大人');
   await page.click('text=試してみる');
-  await page.waitForSelector('#hajimeru');
+  await page.waitForSelector('#riyuu');
   const rO = await susumu(99);
   tashika(rO === 'owari', 'Should：大人もゲームを最後まで通せる');
   await page.click('a[href^="#/card/"]');

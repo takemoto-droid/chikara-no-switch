@@ -13,16 +13,25 @@
 <body>
   <header class="top">
     <a href="#/" class="logo">チカラのスイッチ</a>
-    <span id="dare" class="dare"></span>
+    <span class="ue-migi"><span id="dare" class="dare"></span><button id="yomu-ue" class="yomu-ue" type="button" aria-label="この画面を読み上げる">▶ 読む</button></span>
   </header>
   <nav id="michi" class="michi" aria-label="道すじ"></nav>
   <main id="app" tabindex="-1"></main>
   <footer class="ai">
+    <!-- 12便 P1：子どもの画面では1行だけ。くわしいことは「くわしく」で開く（AI を使っていることは、いつも出す） -->
+    <p class="ai-ko">AI（Claude）が問題を選びます。名前は送りません。</p>
+    <details class="ai-ko"><summary>くわしく</summary>
+      <p>このアプリは AI（Anthropic の Claude）を使っています。</p>
+      <p><a href="#/anzen">子どもの安全とプライバシー</a></p>
+      <p>読み上げの声：Open JTalk・“Mei” © Nagoya Institute of Technology（<a href="https://creativecommons.org/licenses/by/3.0/deed.ja" rel="license">CC BY 3.0</a>）</p>
+    </details>
+    <div class="ai-zen">
     <p>このアプリは AI（Anthropic の Claude）を使っています。名前は AI に送りません。</p>
     <p id="ai-joutai"></p>
     <p><a href="#/anzen">子どもの安全とプライバシー</a></p>
     <p class="demo-chui">公開デモのデータは、すべて架空の子どものものです。</p>
     <p class="small">読み上げの音声：Open JTalk で作成。声 “Mei” © 2009-2013 Nagoya Institute of Technology（<a href="https://creativecommons.org/licenses/by/3.0/deed.ja" rel="license">CC BY 3.0</a>）。</p>
+    </div>
   </footer>
   <script type="module" src="js/app.js"></script>
 </body>

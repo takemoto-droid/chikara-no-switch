@@ -18,13 +18,38 @@ const app = document.getElementById('app');
 let should = {};
 let joutai = { ai: false, soudan: '', soudanOtona: '' };
 
-function michi(ima) {
+// 道すじ（ナビ）。12便 P1：子どもの画面では「いま：②」の1語だけ（④⑤ は出さない）。先生・保護者の画面は7つを並べる
+let michiNoIma = null;
+function michiWoKaku() {
   const nav = document.getElementById('michi');
-  nav.innerHTML = ima == null ? '' : MICHI.map((m, i) => `<span class="${i === ima ? 'ima' : ''}">${esc(m)}</span>`).join('');
+  const ima = michiNoIma;
+  if (ima == null) { nav.innerHTML = ''; return; }
+  if (kodomoNoGamen()) {
+    nav.innerHTML = [3, 4].includes(ima) ? '' : `<span class="ima ichigo">いま：${esc(MICHI[ima].split(' ')[0])}</span>`;
+    return;
+  }
+  nav.innerHTML = MICHI.map((m, i) => `<span class="${i === ima ? 'ima' : ''}">${esc(m)}</span>`).join('');
+}
+function michi(ima) {
+  michiNoIma = ima;
+  michiWoKaku();
+}
+function kodomoNoGamen() {
+  return /子どもの画面|大人が試す画面/.test(document.body.dataset.gamen || '');
 }
 function dare(t) {
   document.getElementById('dare').textContent = t || '';
   document.body.dataset.gamen = t || '';
+  michiWoKaku();
+}
+
+// 12便 P1：右上の読み上げ ▶。比べる対象ではない文（つぎの一文・質問・案内・カード・練習）を読む。
+// 測っている問題のあいだ（body[data-hakaru]）は、本文や問いを読まず、「つぎは 〇〇」の一文だけを読む（比べがこわれないように）
+function yomuMojiretsu() {
+  if (document.body.dataset.hakaru === '1') return document.getElementById('riyuu')?.textContent || '';
+  const el = [...app.querySelectorAll('h1, h2, h3, p, li, .toi, .honbun, .choice, .mei, .fukudai, .hitokoto')]
+    .filter((x) => x.offsetParent !== null && !x.closest('details:not([open])') && !x.closest('.muted'));
+  return el.map((x) => x.textContent.trim()).filter(Boolean).join('。');
 }
 // 相談先：子ども・保護者には全員に同じ文。大人が自分で試す画面には、大人用の決まった文（どちらも結果に関係なく同じ）
 function soudanHtml(otona = false) {
@@ -581,13 +606,14 @@ async function anzen() {
 // ---- 画面の切りかえ
 async function route() {
   tomeru();
+  delete document.body.dataset.hakaru;
   const parts = location.hash.replace(/^#\/?/, '').split('/').map((x) => decodeURIComponent(x));
   const [a, b, c2] = parts;
   try {
     if (!a) await top();
     else if (a === 'annai') await annai(b);
     else if (a === 'hajimeru') await hajimeru(b);
-    else if (a === 'game') { michi(1); dare(isOtona(b) ? '大人が試す画面' : '子どもの画面'); await gameScreen(app, b); }
+    else if (a === 'game') { michi((await getRecord(b))?.shurui === 'mijikai' ? 6 : 1); dare(isOtona(b) ? '大人が試す画面' : '子どもの画面'); await gameScreen(app, b); }
     else if (a === 'card') await card(b);
     else if (a === 'sodateru') { michi(5); dare(isOtona(b) ? '大人が試す画面' : '子どもの画面'); await sodateruGamen(app, b); }
     else if (a === 'sensei' && b === 'ko') await senseiKo(c2);
@@ -616,6 +642,7 @@ async function main() {
     : 'いまは Claude を使わず、決まった順の予備の動きで出しています。';
   try { should = await data('should'); } catch { should = {}; }
   setSettei({ ai: Boolean(joutai.ai), renshu: Boolean(should.renshu?.使う) });
+  document.getElementById('yomu-ue').onclick = async () => { tomeru(); await junbiYomiage(); yomu(yomuMojiretsu()); };
   window.addEventListener('hashchange', route);
   route();
 }
