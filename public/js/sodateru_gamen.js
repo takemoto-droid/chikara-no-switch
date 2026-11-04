@@ -20,9 +20,9 @@ const KOTAENAI = '今は答えない';
 export function renshuKirokuHtml(renshu, { sensei = false } = {}) {
   if (!renshu.length) return '<p class="muted">まだ練習していません。</p>';
   const gyou = renshu.map((r) => {
-    if (r.yasumi) return `<tr><td>${esc(r.hi)}</td><td colspan="${sensei ? 5 : 4}">今日はやらない、を選んだ</td></tr>`;
+    if (r.yasumi) return `<tr><td>${esc(r.hi)}</td><td colspan="4">今日はやらない、を選んだ</td></tr>`;
     const hs = r.hitotsu || [];
-    if (!hs.length) return `<tr><td>${esc(r.hi)}</td><td colspan="${sensei ? 5 : 4}">始めたところで止めた</td></tr>`;
+    if (!hs.length) return `<tr><td>${esc(r.hi)}</td><td colspan="4">始めたところで止めた</td></tr>`;
     const mode = hs[0].mode;
     const dans = [...new Set(hs.map((h) => h.dan))];
     const seikai = hs.reduce((s, h) => s + h.seikai, 0);
@@ -30,7 +30,8 @@ export function renshuKirokuHtml(renshu, { sensei = false } = {}) {
     const oshita = hs.filter((h) => h.dan === 3 && (mode === 'yomu' || mode === 'kiku')).map((h) => h.oshita ?? 0);
     return `<tr><td>${esc(r.hi)}</td><td>${esc(SODATE_MEI[mode])}${r.jibun && sensei ? '（本人が選んだ）' : ''}</td><td>${dans.map((d) => esc(DAN_NO_DASHIKATA[mode][d - 1])).join(' → ')}</td><td>${hs.length}つ・正解 ${seikai}／${kazu}${sensei && oshita.length ? `・押した回数 ${oshita.join('・')}` : ''}</td>${sensei ? `<td>${esc(r.raku || '（まだ）')}</td>` : `<td>${esc(r.raku || '')}</td>`}</tr>`;
   }).join('');
-  return `<div class="table-wrap"><table><thead><tr><th>日</th><th>出し方</th><th>段</th><th>ひとつの数・正解</th><th>楽になったか</th></tr></thead><tbody>${gyou}</tbody></table></div>`;
+  // 12便 P2：子どもの画面では「段」と言わず「やり方」（段階と区別がつかないため）。先生の画面は「段」のまま
+  return `<div class="table-wrap"><table><thead><tr><th>日</th><th>出し方</th><th>${sensei ? '段' : 'やり方'}</th><th>ひとつの数・正解</th><th>楽になったか</th></tr></thead><tbody>${gyou}</tbody></table></div>`;
 }
 
 export async function sodateruGamen(el, id) {
@@ -38,7 +39,7 @@ export async function sodateruGamen(el, id) {
   if (!kid) { el.innerHTML = '<h1>見つかりません</h1><p><a href="#/">はじめの画面へ</a></p>'; return; }
   const kai = kid.kai.filter((r) => r.owari);
   if (!kai.length) {
-    el.innerHTML = `<h1>⑥ 育てる（朝の練習）</h1><p>先に ② のゲームを最後までしてから始めます。</p><div class="btns"><a class="btn" href="#/game/${enc(id)}">ゲームへ</a></div>`;
+    el.innerHTML = `<h1>朝の練習</h1><p>先に ② のゲームを してね。</p><div class="btns"><a class="btn" href="#/game/${enc(id)}">ゲームへ</a></div>`;
     return;
   }
   const renshu = kid.renshu;
@@ -62,17 +63,17 @@ export async function sodateruGamen(el, id) {
 
   function erabaseru() {
     el.innerHTML = `
-      <h1>⑥ 育てる（朝の練習）</h1>
-      <p>どの出し方を育ててみますか。好きなものを1つ選んでね。あとで変えることもできます。</p>
+      <h1>朝の練習</h1>
+      <p>どれを 育てる？（あとで 変えられる）</p>
       <div class="btns tate">${SODATE_MODES.map((m) => `<button class="choice" data-m="${m}">${esc(SODATE_MEI[m])}</button>`).join('')}</div>
-      <div class="btns"><a class="btn sub" href="#/card/${enc(id)}">カードにもどる</a></div>`;
+      <p class="small"><a href="#/card/${enc(id)}">カードにもどる</a></p>`;
     el.querySelectorAll('.choice').forEach((b) => {
       b.onclick = async () => { jibun = b.dataset.m; kouho = [jibun]; await kyouNoGamen(); };
     });
   }
 
   async function kyouNoGamen() {
-    el.innerHTML = '<h1>⑥ 育てる（朝の練習）</h1><div class="riyuu" aria-live="polite">今日の練習を選んでいます…</div>';
+    el.innerHTML = '<h1>朝の練習</h1><p class="muted" aria-live="polite">えらんでいます…</p>';
     // 10便 M2：Claude が選んだ理由は端末に覚える。練習の記録か候補が変わったときだけ呼び直す（予備の文は覚えない）
     const key = motoNoKey({ renshu, hoka: kouho });
     let r = claudeNoOboe(id, 'sodate', key);
@@ -83,28 +84,28 @@ export async function sodateruGamen(el, id) {
     }
     if (!r || !kouho.includes(r.mode)) {
       const m = yobiKyou(kouho, renshu);
-      r = { mode: m, riyuu: kyouNoRiyuu(m, renshu, kouho), dare: 'yobi', wake: 'サーバーにつながらないので、決まった順の予備の動きで選んでいます。' };
+      r = { mode: m, riyuu: kyouNoRiyuu(m, renshu), dare: 'yobi' };
     }
     const mode = r.mode;
     const { dan } = danWoDasu(renshu, mode);
     const n = hitotsuNoKazu(settei.朝の練習の長さ);
     // 12便 P1：子どもの画面には「予備の動き」「決まった順」を出さない。AI が選んだときだけ、そのことを出す
     const who = r.dare === 'claude' ? 'AI（Claude）が えらんだ理由' : '';
+    // 12便 P2：「いまの段」→「きょうの やり方」（段階と区別がつかないため、子どもの画面では「段」と言わない）
     el.innerHTML = `
-      <h1>⑥ 育てる（朝の練習）</h1>
-      <p>得意な出し方を支えにして、新しいスイッチを育てる練習です。1つ2〜3分の練習を、${n}つします。</p>
+      <h1>朝の練習</h1>
+      <div class="box soft"><p><strong>きょうの練習：${esc(SODATE_MEI[mode])}</strong></p><p>きょうの やり方：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan - 1])}</span></p><p class="muted small">1つ 2〜3分。${n}つ します。</p></div>
       <div class="riyuu" id="riyuu">${who ? `<span class="who">${esc(who)}</span>` : ''}${esc(r.riyuu)}</div>
-      <div class="box soft"><p><strong>今日の練習：${esc(SODATE_MEI[mode])}</strong></p><p>いまの段：${esc(DAN_NO_DASHIKATA[mode][dan - 1])}</p></div>
-      ${demoNoKo ? '<p class="muted">架空の子の記録なので、ここでは練習を始めません。</p>' : ''}
+      ${demoNoKo ? '<p class="muted">架空の子なので 始めません。</p>' : ''}
       <div class="btns">
         ${demoNoKo ? '' : '<button id="hajimeru">はじめる</button><button class="sub" id="yasumu">今日はやらない</button>'}
-        <a class="btn sub" href="#/card/${enc(id)}">カードにもどる</a>
-      </div>`;
+      </div>
+      <p class="small"><a href="#/card/${enc(id)}">カードにもどる</a></p>`;
     if (demoNoKo) return;
     const entry = { no: Date.now(), hi: hiduke(), jibun: jibun || undefined, hitotsu: [], riyuu: r.riyuu, dare: r.dare };
     el.querySelector('#yasumu').onclick = () => {
       saveRenshu(id, { ...entry, yasumi: true });
-      el.innerHTML = `<h1>今日はお休み</h1><p>わかりました。今日は練習しません。また別の日にどうぞ。</p><div class="btns"><a class="btn" href="#/card/${enc(id)}">カードを見る</a></div>`;
+      el.innerHTML = `<h1>きょうは お休み</h1><p>また べつの日に。</p><div class="btns"><a class="btn" href="#/card/${enc(id)}">カードを見る</a></div>`;
     };
     el.querySelector('#hajimeru').onclick = () => renshuSuru(mode, n, entry);
   }
@@ -117,10 +118,10 @@ export async function sodateruGamen(el, id) {
       const { dan } = danWoDasu([...kiroku, entry], mode);
       const p = erabuMondai(pool, mode, dankai, [...kiroku, entry]);
       el.innerHTML = `
-        <h1>⑥ 育てる（朝の練習）</h1>
-        <p class="muted">${i + 1}つ目／${n}　${esc(SODATE_MEI[mode])}・${esc(DAN_NO_DASHIKATA[mode][dan - 1])}</p>
+        <div class="progress-wrap"><div class="progress" aria-hidden="true"><div style="width:${Math.round((i / n) * 100)}%"></div></div><span class="progress-kazu">${i + 1}／${n}</span></div>
+        <p class="tsugi-ichibun">${esc(SODATE_MEI[mode])}：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan - 1])}</span></p>
         <div id="naka"></div>
-        <div class="btns"><button class="sub" id="tomeru">ここで止める</button></div>`;
+        <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru">止める</button></div>`;
       const tomeruP = new Promise((res) => { el.querySelector('#tomeru').onclick = () => { yameta = true; tomeru(); res(null); }; });
       const k = await Promise.race([hitotsu(mode, dan, p, el.querySelector('#naka'), yomiageOK), tomeruP]);
       if (!k) break;
@@ -128,28 +129,30 @@ export async function sodateruGamen(el, id) {
       saveRenshu(id, entry);
       const ato = danWoDasu([...kiroku, entry], mode);
       if (ato.dan > dan) {
+        // 12便 P2：「段が進んだ理由」→「つぎの やり方に なった理由」
         el.innerHTML = `
-          <h1>⑥ 育てる（朝の練習）</h1>
-          <div class="riyuu"><span class="who">段が進んだ理由（練習の中の事実だけで決めます）</span>${esc(agariNoRiyuu(mode, dan))}</div>
-          ${ato.dan >= DAN_JOUGEN ? '<p><strong>カードのレベルが、いちばん上まで進みました。</strong></p>' : ''}
-          <div class="btns"><button id="tsugi">次へ</button></div>`;
+          <h1>つぎの やり方に なった理由</h1>
+          <div class="riyuu">${esc(agariNoRiyuu())}</div>
+          <p>つぎの やり方：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan])}</span></p>
+          ${ato.dan >= DAN_JOUGEN ? '<p><strong>カードが 一人前に なったよ！</strong></p>' : ''}
+          <div class="btns"><button id="tsugi">つぎへ</button></div>`;
         await new Promise((res) => { el.querySelector('#tsugi').onclick = res; });
       }
     }
     // 楽になったか（選んで答える。自由入力は無い）
     el.innerHTML = `
-      <h1>${yameta ? 'ここで止めました' : 'おつかれさまでした'}</h1>
-      <p>今日の練習は、前より楽になりましたか。</p>
+      <h1>${yameta ? '止めました' : 'おつかれさま！'}</h1>
+      <p>前より 楽に なった？</p>
       <div class="btns tate">${[...RAKU, KOTAENAI].map((c) => `<button class="choice" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>`;
     const raku = await new Promise((res) => el.querySelectorAll('.choice').forEach((b) => { b.onclick = () => res(b.dataset.c); }));
     entry.raku = raku;
     saveRenshu(id, entry);
     const sc = sodateCards([...kiroku, entry]).find((c) => c.card === mode);
     el.innerHTML = `
-      <h1>育てているスイッチ</h1>
-      ${sc ? cardHtml(sodateCardNoBun(cards, sc), { fukudai: cardNoFukudai(cards, sc), level: sc.level, levelMei: levelNoNamae(cards, sc), jougen: DAN_JOUGEN }) : ''}
-      <p class="muted">練習の記録は、あなたのものです。他の人とは比べていません。</p>
-      <div class="btns"><a class="btn" href="#/card/${enc(id)}">カードと練習の記録を見る</a></div>`;
+      <h1>育てているカード</h1>
+      ${sc ? cardHtml(sodateCardNoBun(cards, sc), { fukudai: cardNoFukudai(cards, sc), level: sc.level, levelMei: levelNoNamae(cards, sc), jougen: DAN_JOUGEN, sodate: true }) : ''}
+      <p class="muted">記録は あなたのもの。</p>
+      <div class="btns"><a class="btn" href="#/card/${enc(id)}">カードを見る</a></div>`;
   }
 }
 
@@ -171,16 +174,16 @@ function bunsho(mode, dan, p, box, yomiageOK) {
     let oshita = 0;
     let html;
     if (!kiku) {
-      const setsumei = ['文章を読み上げます。文を目で追いながら聞いてね。', `はじめの${Math.ceil(n / 2)}文だけ読み上げます。そのあとは、自分で読んでね。`, '自分で読んでね。聞きたいときだけ「聞く」を押してください。', '自分で読んでね。'][dan - 1];
+      const setsumei = ['読み上げを 聞きながら 読もう。', 'はじめだけ 読み上げるよ。', '聞きたいときだけ ▶。', '自分で 読もう。'][dan - 1];
       html = `<p>${esc(setsumei)}</p><div class="honbun">${esc(zenbun)}</div>
-        <div class="btns">${dan === 3 && !nashi ? '<button class="sub" id="kiku">▶ 聞く</button>' : ''}${dan <= 2 && !nashi ? '<button class="sub" id="mou">▶ もう一度聞く</button>' : ''}<button id="next">読めた</button></div>`;
+        <div class="btns">${dan === 3 && !nashi ? '<button class="sub" id="kiku">▶ 聞く</button>' : ''}${dan <= 2 && !nashi ? '<button class="sub" id="mou">▶ もう一度</button>' : ''}<button id="next">つぎへ</button></div>`;
     } else {
       const ushiro = Math.floor(n / 2);
-      const mieru = dan === 1 ? esc(zenbun) : dan === 2 ? `<span class="muted">（はじめのほうは、聞いてね）</span>${esc(p.本文.slice(ushiro).join(''))}` : '';
-      const setsumei = ['文章を読み上げます。文も見ながら聞いてね。', '文章を読み上げます。うしろのほうだけ、文も見えます。', '文章を読み上げます。文を見たいときだけ「文を見る」を押してください。', '文章を読み上げます。よく聞いてね。'][dan - 1];
+      const mieru = dan === 1 ? esc(zenbun) : dan === 2 ? `<span class="muted">（はじめは 聞いてね）</span>${esc(p.本文.slice(ushiro).join(''))}` : '';
+      const setsumei = ['文を 見ながら 聞こう。', 'うしろだけ 文が 見えるよ。', '見たいときだけ「文を 見る」。', 'よく 聞こう。'][dan - 1];
       html = `<p>${esc(setsumei)}</p>${mieru ? `<div class="honbun">${mieru}</div>` : ''}<div id="mieru-box"></div>
-        <div class="btns"><button class="sub" id="mou">▶ もう一度聞く</button>${dan === 3 ? '<button class="sub" id="miru">文を見る</button>' : ''}<button id="next">聞けた</button></div>`;
-      if (nashi) html = `<p>（この端末では読み上げが使えないので、文字で出します）</p><div class="honbun">${esc(zenbun)}</div><div class="btns"><button id="next">読めた</button></div>`;
+        <div class="btns"><button class="sub" id="mou">▶ もう一度</button>${dan === 3 ? '<button class="sub" id="miru">文を 見る</button>' : ''}<button id="next">つぎへ</button></div>`;
+      if (nashi) html = `<p class="muted small">（文字で出します）</p><div class="honbun">${esc(zenbun)}</div><div class="btns"><button id="next">つぎへ</button></div>`;
     }
     box.innerHTML = html;
     if (!nashi) {
@@ -204,10 +207,10 @@ function bunsho(mode, dan, p, box, yomiageOK) {
       const q = p.問い[i];
       const kakusu = kiku && !nashi && dan === 4;
       box.innerHTML = `
-        <p class="muted">問い ${i + 1}／${p.問い.length}　本文と合っていますか？</p>
-        <div class="toi">${kakusu ? '<span class="kakushi">（この文は読み上げで聞きます）</span>' : esc(q.文)}</div>
+        <p class="toi-mae">${i + 1}／${p.問い.length}　合ってる？</p>
+        <div class="toi">${kakusu ? '<span class="kakushi">（聞いてね）</span>' : esc(q.文)}</div>
         ${kiku && !nashi ? '<div class="btns"><button class="sub" id="again">▶ この文をもう一度聞く</button></div>' : ''}
-        <div class="marubatsu"><button data-k="1">合っている</button><button data-k="0">合っていない</button></div>`;
+        <div class="marubatsu"><button data-k="1" class="maru"><span aria-hidden="true">○</span> 合う</button><button data-k="0" class="batsu"><span aria-hidden="true">×</span> ちがう</button></div>`;
       if ((kiku && !nashi) || (!kiku && dan === 1 && !nashi)) yomu(q.文);
       on('#again', () => yomu(q.文));
       box.querySelectorAll('.marubatsu button').forEach((b) => { b.onclick = () => { tomeru(); kotae.push(b.dataset.k === '1'); toi(); }; });
@@ -223,7 +226,7 @@ function bamen(mode, dan, p, box) {
     const ue = () => {
       if (mode === 'bun') {
         const zu = dan === 1 ? tapeZu(p.図) : dan === 2 ? tapeZu(p.図, { wakuDake: true }) : '';
-        return `<div class="honbun">${esc(p.文)}</div>${zu ? `<div class="box">${zu}</div>` : ''}${dan === 3 ? '<div class="box zu-waku" aria-label="図をかく枠"><p class="muted small">ここに図をかくつもりで考えてみよう（ノートや紙にかいてもよい）</p></div>' : ''}`;
+        return `<div class="honbun">${esc(p.文)}</div>${zu ? `<div class="box">${zu}</div>` : ''}${dan === 3 ? '<div class="box zu-waku" aria-label="図をかく枠"><p class="muted small">ここに 図を かくつもりで（紙に かいても いい）</p></div>' : ''}`;
       }
       const shita = dan === 1 ? `<div class="honbun">${esc(p.文)}</div>` : dan === 2 ? `<div class="honbun">${esc(p.要点)}</div>` : '';
       return `<div class="box">${tapeZu(p.図)}</div>${shita}`;
@@ -235,7 +238,7 @@ function bamen(mode, dan, p, box) {
         return;
       }
       const t = p.問い[i];
-      box.innerHTML = `${ue()}<p class="muted">問い ${i + 1}／${p.問い.length}</p><div class="toi">${esc(t.文)}</div>
+      box.innerHTML = `${ue()}<p class="toi-mae">${i + 1}／${p.問い.length}</p><div class="toi">${esc(t.文)}</div>
         <div class="btns tate">${t.選択肢.map((c, k) => `<button class="choice" data-i="${k}">${esc(c)}</button>`).join('')}</div>`;
       box.querySelectorAll('.choice').forEach((b) => { b.onclick = () => { kotae.push(Number(b.dataset.i)); toi(); }; });
     };
@@ -264,7 +267,7 @@ function renraku(dan, p, box) {
     };
     const yomaseru = (a) => {
       const b = Math.min(n, a + haba);
-      box.innerHTML = `<p class="muted">${haba >= n ? '連絡を全部読んで、読めたら「読めた」を押してください。' : `連絡の ${a + 1}〜${b}文目／${n}：読めたら「読めた」を押してください。`}</p>${misete(a, b)}<div class="btns"><button id="next">読めた</button></div>`;
+      box.innerHTML = `${haba >= n ? '' : `<p class="toi-mae">${a + 1}〜${b}／${n}</p>`}${misete(a, b)}<div class="btns"><button id="next">つぎへ</button></div>`;
       box.querySelector('#next').onclick = () => toi(a, b);
     };
     const toi = (a, b) => {
@@ -275,8 +278,8 @@ function renraku(dan, p, box) {
       }
       if (i >= b) { yomaseru(b); return; }
       const q = p.問い[i];
-      box.innerHTML = `<p class="muted">問い ${i + 1}／${p.問い.length}　連絡の中身について</p><div class="toi">${esc(q.文)}</div>
-        <div class="btns"><button class="sub" id="mikaesu" ${mikaeshi >= 1 ? 'disabled' : ''}>連絡をもう一度見る（1回だけ）</button></div><div id="mikaeshi-box"></div>
+      box.innerHTML = `<p class="toi-mae">${i + 1}／${p.問い.length}</p><div class="toi">${esc(q.文)}</div>
+        <div class="btns"><button class="sub" id="mikaesu" ${mikaeshi >= 1 ? 'disabled' : ''}>もう一度 見る（あと1回）</button></div><div id="mikaeshi-box"></div>
         <div class="btns tate">${q.選択肢.map((c, k) => `<button class="choice" data-i="${k}">${esc(c)}</button>`).join('')}</div>`;
       box.querySelector('#mikaesu').onclick = (e) => { mikaeshi++; e.target.disabled = true; box.querySelector('#mikaeshi-box').innerHTML = misete(a, b); };
       box.querySelectorAll('.choice').forEach((bt) => { bt.onclick = () => { kotae.push(Number(bt.dataset.i)); toi(a, b); }; });

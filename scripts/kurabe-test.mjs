@@ -545,7 +545,7 @@ await ok('H3：カードのレベルは下がらない。上限は3。副題と�
   assert.deepEqual(motteiruCards([r1, r2, r3]).agatta, ['kiku'], '同じカードのレベルが進んだことは分かる');
   assert.equal(cards.カード.kiku.名前, 'きいてスイッチ');
   assert.equal(cardNoFukudai(cards, kiku([r1])), '読むと聞くを比べて');
-  assert.equal(cardNoFukudai(cards, { card: 'dore' }), '3つの比べで差なし');
+  assert.equal(cardNoFukudai(cards, { card: 'dore' }), 'どれでも力が出た');
   assert.equal(cardNoFukudai(cards, { card: 'zu', kind: 'B' }), '文と図を比べて');
   assert.equal(cardNoFukudai(cards, { card: 'kugiru' }), '一気にと区切ってを比べて');
   // ためしたカードにはレベルを付けない
@@ -692,10 +692,10 @@ await ok('H4：今日の練習の選び方（予備は練習した日が少な�
   assert.equal(st, 200);
   assert.equal(r.mode, 'bun');
   assert.equal(r.dare, 'yobi');
-  assert.match(r.riyuu, /2日目/);
+  assert.match(r.riyuu, /2日目の 練習/);
   const [, r1] = await handle('sodate', 'POST', { kouho: ['kiku'], jokyou: [{ mode: 'kiku', dan: 2, hi: 1, tsuzuki: 1 }] }, {});
   assert.equal(r1.dare, 'kimari');
-  assert.match(r1.riyuu, /同じ段でもう一度/);
+  assert.match(r1.riyuu, /前回は 正解が多かった。もう一回/);
   const [st2, r2] = await handle('sodate', 'POST', { kouho: ['nanika'] }, {});
   assert.equal(st2, 400);
   assert.match(r2.error, /育てる出し方/);
@@ -790,7 +790,7 @@ await ok('H6：学校の設定と、期間の計画（予備は決まった計�
 await ok('H6：案内の時間の文は学校の設定から。子ども向けには時間を書かない', () => {
   const a = j('public/data/annai.json');
   const g = j('public/data/gakko.json');
-  const ko = a.子ども.段.map((d) => d.文).join('');
+  const ko = [...a.子ども.段, ...(a.子ども.画面 || [])].map((d) => d.文).join('');
   assert.ok(!/\{|\d+\s*分/.test(ko), '子ども向けに {…} や「〇分」が無い');
   assert.ok(!/検査の代わり/.test(ko), '子ども向けに「検査の代わり」の文は入れない');
   const hogo = a.保護者.段.map((d) => setteiWoIreru(d.文, { ...g.設定, 朝の練習の長さ: 15, 朝の練習の頻度: '週1', また見つけるの間隔: '学期' }, g.単位)).join('');

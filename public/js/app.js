@@ -13,10 +13,11 @@ import { sodateruGamen, renshuKirokuHtml } from './sodateru_gamen.js';
 import { sodateCards, sodateCardNoBun, ichininmaeOf, jibunDeErabu, DAN_JOUGEN, SODATE_MEI } from './sodateru.js';
 
 export const SOUDAN_OTONA_UTSUSHI = '気になることや困っていることがあれば、かかりつけの医師や、お住まいの市区町村の相談窓口に相談できます。このゲームの結果があってもなくても、相談はできます。';
+export const SOUDAN_KO_UTSUSHI = 'こまったら、担任か 相談の窓口に 言ってね。結果と 関係なく。';
 export const SOUDAN_UTSUSHI = '気になることや困っていることがあれば、いつでも担任の先生や、学校の相談の窓口に話してください。このゲームの結果があってもなくても、相談はできます。';
 const app = document.getElementById('app');
 let should = {};
-let joutai = { ai: false, soudan: '', soudanOtona: '' };
+let joutai = { ai: false, soudan: '', soudanKo: '', soudanOtona: '' };
 
 // 道すじ（ナビ）。12便 P1：子どもの画面では「いま：②」の1語だけ（④⑤ は出さない）。先生・保護者の画面は7つを並べる
 let michiNoIma = null;
@@ -52,7 +53,9 @@ function yomuMojiretsu() {
   return el.map((x) => x.textContent.trim()).filter(Boolean).join('。');
 }
 // 相談先：子ども・保護者には全員に同じ文。大人が自分で試す画面には、大人用の決まった文（どちらも結果に関係なく同じ）
-function soudanHtml(otona = false) {
+// 12便：子どもの画面は短い文（kind 'ko'）。これも結果に関係なく、全員に同じ文
+function soudanHtml(otona = false, kind = '') {
+  if (kind === 'ko') return `<div class="box soudan"><p>${esc(joutai.soudanKo || SOUDAN_KO_UTSUSHI)}</p></div>`;
   return `<div class="box soudan"><h3>相談したいとき</h3><p>${esc(otona ? joutai.soudanOtona || SOUDAN_OTONA_UTSUSHI : joutai.soudan)}</p></div>`;
 }
 const enc = encodeURIComponent;
@@ -80,6 +83,7 @@ async function annai(who) {
   michi(0);
   const a = (await data('annai'))[who === 'ko' ? '子ども' : who === 'otona' ? '大人' : '保護者'];
   dare(who === 'ko' ? '子どもの画面' : who === 'otona' ? '大人が試す画面' : '保護者の画面');
+  if (who === 'ko' && a.画面) { annaiKo(a.画面); return; }
   const settei = await gakkoSettei();
   const tani = (await data('gakko')).単位;
   app.innerHTML = `
@@ -87,12 +91,26 @@ async function annai(who) {
     ${a.段.map((d) => `<h2>${esc(d.見出し)}</h2><p>${esc(setteiWoIreru(d.文, settei, tani))}</p>`).join('')}
     ${soudanHtml(who === 'otona')}
     <div class="btns">
-      ${who === 'ko'
-        ? '<a class="btn" href="#/hajimeru">ゲームをはじめる</a><a class="btn sub" href="#/annai/hogo">保護者向けの案内</a>'
-        : who === 'otona'
-          ? '<a class="btn" href="#/hajimeru/otona">試してみる</a><a class="btn sub" href="#/">はじめの画面へ</a>'
-          : '<a class="btn" href="#/annai/ko">子ども向けの案内へ</a>'}
+      ${who === 'otona'
+        ? '<a class="btn" href="#/hajimeru/otona">試してみる</a><a class="btn sub" href="#/">はじめの画面へ</a>'
+        : '<a class="btn" href="#/annai/ko">子ども向けの案内へ</a>'}
     </div>`;
+}
+
+// 12便 P2：子ども向けの案内は、一画面一文（「つぎへ」で進む）。相談先は、どの画面にも同じ短い文
+// 相談先は、最後の1画面にする（どの子も「はじめる」の前に必ず通る。結果に関係なく、全員に同じ短い文）
+function annaiKo(gamen, i = 0) {
+  const zen = gamen.length + 1;
+  const saigo = i === gamen.length;
+  const g = saigo ? null : gamen[i];
+  app.innerHTML = `
+    <p class="annai-kazu">${i + 1}／${zen}</p>
+    ${saigo ? `<div class="annai-ichibun soudan-ko">${soudanHtml(false, 'ko')}</div>` : `<p class="annai-ichibun">${esc(g.文)}</p>`}
+    ${g?.e ? `<div class="annai-e">${g.e.map(([e, t]) => `<span><span class="e" aria-hidden="true">${e}</span>${esc(t)}</span>`).join('')}</div>` : ''}
+    <div class="btns">${saigo ? '<a class="btn" href="#/hajimeru">はじめる</a>' : '<button id="annai-tsugi">つぎへ</button>'}</div>
+    <p class="small"><a href="#/annai/hogo">保護者の方へ</a></p>`;
+  const b = document.getElementById('annai-tsugi');
+  if (b) b.onclick = () => { tomeru(); annaiKo(gamen, i + 1); window.scrollTo(0, 0); };
 }
 
 async function hajimeru(dare_) {
@@ -107,7 +125,7 @@ async function card(id) {
   const rec = await getRecord(id);
   const kai = await owattaKai(id);
   if (!rec || !kai.length) {
-    app.innerHTML = `<h1>スイッチカード</h1><p>ゲームが終わると、カードが届きます。</p>${rec ? `<p><a class="btn" href="#/game/${enc(id)}">続きから始める</a></p>` : ''}`;
+    app.innerHTML = `<h1>カード</h1><p>ゲームが終わると、カードが届くよ。</p>${rec ? `<p><a class="btn" href="#/game/${enc(id)}">つづきから</a></p>` : ''}`;
     return;
   }
   const cards = await data('cards');
@@ -127,21 +145,19 @@ async function card(id) {
   const kid = await getKid(id);
   const renshu = kid?.renshu || [];
   const sodate = sodateCards(renshu, ichininmaeOf(kai, renshu));
-  const sodateHyouji = (m) => cardHtml(sodateCardNoBun(cards, m), { fukudai: cardNoFukudai(cards, m), level: m.level, levelMei: levelNoNamae(cards, m), jougen: DAN_JOUGEN, otona: isOtona(id) });
+  const sodateHyouji = (m) => cardHtml(sodateCardNoBun(cards, m), { fukudai: cardNoFukudai(cards, m), level: m.level, levelMei: levelNoNamae(cards, m), jougen: DAN_JOUGEN, otona: isOtona(id), sodate: true });
+  // 12便 P2：子どもの画面の固定文を減らす。主ボタンは「⑥ 朝の練習へ」の1つだけ。練習の記録・相談先・⑦ の説明は折りたたむ
   app.innerHTML = `
-    <h1>あなたのスイッチカード</h1>
+    <h1>あなたのカード</h1>
     ${hyouji(mae)}
-    ${ushiro.length ? `<h2>持っているカード</h2><p class="muted small">これまでのゲームで、もらったカードです。</p>${ushiro.map(hyouji).join('')}` : ''}
-    ${sodate.length ? `<h2>朝の練習で育てるスイッチ</h2><p class="muted small">朝の練習で育てている（育てた）カードです。</p>${sodate.map(sodateHyouji).join('')}` : ''}
-    <p class="muted">カードは、出し方を比べた結果と、練習のしるしです。他の人とは比べていません。</p>
-    <div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 育てる（朝の練習）へ</a></div>
-    ${renshu.length ? `<h2>練習の記録</h2><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}` : ''}
-    ${soudanHtml(isOtona(id))}
-    <div class="btns">
-      <a class="btn sub" href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果を見る（先生の画面と同じもの）' : 'ここからは先生が見ます（④先生の画面）'}</a>
-    </div>
-    ${rec.owari ? '' : `<div class="box soft"><p>${esc(rec.kai)}回目のゲームの途中です。</p><a class="btn sub" href="#/game/${enc(id)}">続きから始める</a></div>`}
-    ${tsugiNoKai ? `<div class="box soft"><h2>⑦ また見つける</h2><p>別の日に、3つの比べだけの短いゲーム（10分ほど）をもう一度すると、前のゲームとあわせて比べられます。カードが増えたり、レベルが進んだりします。もらったカードは、なくなりません。</p><button id="tsugi-kai">⑦ また見つける（短いゲーム）を始める</button></div>` : ''}`;
+    ${ushiro.length ? `<h2>持っているカード</h2>${ushiro.map(hyouji).join('')}` : ''}
+    ${sodate.length ? `<h2>育てているカード</h2>${sodate.map(sodateHyouji).join('')}` : ''}
+    ${rec.owari ? '' : `<div class="box soft"><a class="btn sub" href="#/game/${enc(id)}">つづきから</a></div>`}
+    <div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 朝の練習へ</a></div>
+    ${tsugiNoKai ? `<details class="box soft" id="mata-waku"><summary>⑦ また見つける</summary><p>べつの日に、短いゲーム（10分ほど）を もう一度します。前のゲームと あわせて 比べます。もらったカードは、なくならないよ。</p><button class="sub" id="tsugi-kai">はじめる</button></details>` : ''}
+    ${renshu.length ? `<details class="box"><summary>練習の記録</summary><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}</details>` : ''}
+    <details class="box soudan"><summary>こまったとき</summary>${isOtona(id) ? soudanHtml(true) : soudanHtml(false, 'ko')}</details>
+    <p class="small"><a href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果（先生の画面と同じもの）' : '先生が見る画面へ'}</a></p>`;
   const b = document.getElementById('tsugi-kai');
   if (b) b.onclick = () => { if (newKai(id, 'mijikai')) location.hash = `#/game/${enc(id)}`; };
 }
@@ -635,7 +651,7 @@ async function main() {
     joutai = await api('joutai', null, 8000);
   } catch {
     // サーバーにつながらないときの写し（言葉の正本と同じ文。scripts/tenken.mjs で同じかを確かめる）
-    joutai = { ai: false, soudan: SOUDAN_UTSUSHI, soudanOtona: SOUDAN_OTONA_UTSUSHI };
+    joutai = { ai: false, soudan: SOUDAN_UTSUSHI, soudanKo: SOUDAN_KO_UTSUSHI, soudanOtona: SOUDAN_OTONA_UTSUSHI };
   }
   document.getElementById('ai-joutai').textContent = joutai.ai
     ? 'いまは Claude を使っています。使えないときは、決まった順の予備の動きに切りかわります。'

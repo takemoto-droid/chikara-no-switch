@@ -58,7 +58,7 @@ try {
     for (const sel of ['#tsuzukeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
     await page.waitForTimeout(40);
   }
-  await utsusu('ゲームのおわり', 'ゲームのおわり：「スイッチカードを見る」');
+  await utsusu('ゲームのおわり', 'ゲームのおわり：「カードを見る」');
   await page.click('a[href^="#/card/"]');
   await page.waitForSelector('.switch-card');
   await utsusu('スイッチカードを受け取る', 'スイッチカードを受け取る（強みだけ・枚数は出さない）', '.switch-card');
@@ -76,7 +76,7 @@ try {
   // 練習でカードが育った子（デモ7）：一人前になったカード・練習の記録・前の回との違い
   await page.goto(`${BASE}#/card/${enc('デモ7')}`);
   await page.waitForSelector('.switch-card');
-  await utsusu('デモ7_育てたカード', '朝の練習で、支えを減らしながら育てたカード（デモの子7・架空）', 'h2:has-text("朝の練習で育てるスイッチ")');
+  await utsusu('デモ7_育てたカード', '朝の練習で、支えを減らしながら育てたカード（デモの子7・架空）', 'h2:has-text("育てているカード")');
   await page.goto(`${BASE}#/sensei/ko/${enc('デモ7')}`);
   await page.waitForSelector('#kasetsu .kasetsu');
   await utsusu('デモ7_先生の画面_練習の記録', '先生の画面：練習の記録（段・楽になったか・やらなかった日）', 'h2:has-text("練習の記録")');

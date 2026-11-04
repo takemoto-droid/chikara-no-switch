@@ -5,7 +5,7 @@
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { mkdirSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { tenken, seihon } from '../lib/kotoba.mjs';
 
@@ -23,7 +23,7 @@ const srv = spawn(process.execPath, ['server.mjs'], { cwd: ROOT, env, stdio: ['i
 await new Promise((r) => srv.stdout.once('data', r));
 
 const BASE = `http://localhost:${PORT}/?shiken=1`;
-const kiroku = { 画面: 0, 点検した文の数: 0, 避ける言葉: [], はみ出し: [], 理由: [], まちがい: [] };
+const kiroku = { 字数: {}, 画面: 0, 点検した文の数: 0, 避ける言葉: [], はみ出し: [], 理由: [], まちがい: [] };
 const browser = await chromium.launch();
 let page = await browser.newPage({ viewport: { width: 375, height: 740 }, deviceScaleFactor: 1 });
 page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
@@ -47,6 +47,23 @@ async function mieru(name) {
   const dareNoGamen = await page.evaluate(() => document.getElementById('dare')?.textContent || '');
   if (/子どもの画面|大人が試す画面/.test(dareNoGamen)) {
     for (const l of lines) if (/段階|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面|苦手/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に段階か「苦手」がある「${l.slice(0, 40)}」`);
+    // 12便：練習の「段」も子どもの画面に出さない（「やり方」と言う）。「階段」「2段目」（棚）は段のことではないので除く
+    for (const l of lines) if (/(?<!階)段(?!目)/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に「段」がある「${l.slice(0, 40)}」`);
+  }
+  if (/子どもの画面/.test(dareNoGamen)) {
+    // 12便 P2 (11)：子どもの画面1枚の固定文の字数（問題文・選択肢・カードの中身・練習の記録の表・図は除く。空白は数えない）
+    const j = await page.evaluate(() => {
+      const app = document.getElementById('app');
+      const nozoku = '.switch-card, .honbun, .toi, .choice, table, svg, [data-kazoenai], #riyuu, .tsugi-ichibun, .riyuu';
+      const top = [...app.querySelectorAll(nozoku)].filter((e) => !e.parentElement.closest(nozoku));
+      const kazu = (t) => (t || '').replace(/\s/g, '').length;
+      const kotei = kazu(app.innerText) - top.reduce((a, e) => a + kazu(e.innerText), 0);
+      const ichibun = Math.max(0, ...[...app.querySelectorAll('#riyuu, .tsugi-ichibun, .riyuu')].map((e) => kazu(e.innerText)));
+      return { kotei, ichibun };
+    });
+    kiroku.字数[name] = j;
+    if (j.kotei > 60) kiroku.まちがい.push(`${name}：子どもの画面の固定文が ${j.kotei}字（上限60字）`);
+    if (j.ichibun > 20) kiroku.まちがい.push(`${name}：つなぎ・理由の文が ${j.ichibun}字（上限20字）`);
     // 12便 P1：子どもの画面に「API キー」「予備の動き」が無い
     for (const l of lines) if (/API ?キー|予備の動き/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に「API キー」か「予備の動き」がある「${l.slice(0, 40)}」`);
   }
@@ -57,6 +74,9 @@ async function mieru(name) {
   await page.screenshot({ path: path.join(OUT, `${String(kiroku.画面).padStart(2, '0')}_${name}.png`), fullPage: true });
   return text;
 }
+
+// 折りたたみ（details）の中も含めた、#app の中身全体の文字
+const zentai = () => page.evaluate(() => document.querySelector('#app').textContent);
 
 async function vis(sel) {
   const l = page.locator(sel).first();
@@ -81,10 +101,10 @@ async function susumu(maxStep) {
         mondai++;
       }
     }
-    if (await vis('#next')) { await page.click('#next'); continue; }
+    if (await vis('#next')) { if (!kiroku.honbunMita && (await vis('.honbun'))) { kiroku.honbunMita = true; await mieru('ゲーム_本文'); } await page.click('#next'); continue; }
     if (await vis('#play')) { await page.click('#play'); await page.waitForTimeout(80); continue; }
     if (await vis('.marubatsu button')) {
-      if (mondai === 3 && tejun % 7 === 0) await mieru('ゲーム_問い');
+      if (!kiroku.toiMita) { kiroku.toiMita = true; await mieru('ゲーム_問い'); }
       await page.locator('.marubatsu button').nth(tejun % 2).click();
       continue;
     }
@@ -115,16 +135,26 @@ try {
 
   // ① 案内
   await page.click('text=その場で動かす');
-  await page.waitForSelector('text=このゲームについて');
-  const tKo = await mieru('案内_子ども');
+  await page.waitForSelector('.annai-ichibun');
+  // 12便 P2：子ども向けの案内は一画面一文。「つぎへ」で進み、最後に「はじめる」。どの画面にも同じ短い相談先
+  const SOUDAN_KO = seihon()['相談先の案内（子どもの画面・短い文・結果に関係なく全員に同じ文）'];
+  let tKo = '';
+  let tSaigo = '';
+  for (let i = 0; i < 8; i++) {
+    tSaigo = await mieru(`案内_子ども_${i + 1}`);
+    tKo += tSaigo;
+    if (await vis('#annai-tsugi')) await page.click('#annai-tsugi');
+    else break;
+  }
+  tashika(tSaigo.includes(SOUDAN_KO) && (await vis('a[href="#/hajimeru"]')) && /名前は 送りません/.test(tKo) && /今は答えない/.test(tKo), '子ども向けの案内：一画面一文で進み、AI のこと・「今は答えない」があり、「はじめる」の画面に全員に同じ短い相談先がある');
   await page.goto(`${BASE}#/annai/hogo`);
   await page.waitForSelector('text=保護者のみなさまへ');
   const tHogo = await mieru('案内_保護者');
-  const soudan = 'このゲームの結果があってもなくても、相談はできます。';
-  tashika(tKo.includes(soudan) && tHogo.includes(soudan), '相談先の文が子ども・保護者の両方に同じ文で出る');
+  tashika(tHogo.includes(seihon()['相談先の案内（結果に関係なく全員に同じ文）']), '保護者の画面には、全員に同じ相談先の文が出る');
 
   // ② ゲーム（途中で止めて、再開する）
   await page.goto(`${BASE}#/annai/ko`);
+  for (let i = 0; i < 8 && (await vis('#annai-tsugi')); i++) await page.click('#annai-tsugi');
   await page.click('a[href="#/hajimeru"]');
   await page.waitForSelector('#riyuu');
   const r1 = await susumu(5);
@@ -152,10 +182,12 @@ try {
   const tCard = await mieru('カード');
   tashika((await page.locator('.switch-card').count()) === 1, 'カードが1枚出る');
   tashika(!/\d+\s*枚/.test(tCard), 'カードの枚数が出ない');
-  tashika(/これは何か/.test(tCard) && /自分でできる使い方/.test(tCard) && /先生にお願いしてよいこと/.test(tCard), 'カードの説明が3つある');
+  const tCardZen = await zentai();
+  tashika(/これは何か/.test(tCardZen) && /自分でできる使い方/.test(tCardZen) && /先生にお願いしてよいこと/.test(tCardZen) && /くわしく/.test(tCard), 'カードの説明が3つある（「くわしく」で開く）');
+  tashika(/べつの日は ちがうかも/.test(tCard), 'カードに「べつの日は ちがうかも。」が出る');
 
   // ④ 先生の画面
-  await page.click('text=ここからは先生が見ます');
+  await page.click('text=先生が見る画面へ');
   await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
   const tSensei = await mieru('先生の画面');
   tashika(/仮説/.test(tSensei) && /確かめた回数/.test(tSensei) && /参考程度・決めるのは先生/.test(tSensei), '仮説に「仮説」「確かめた回数」「参考程度・決めるのは先生」が付く');
@@ -185,7 +217,8 @@ try {
 
   // 回をまたぐ：同じ子で、別の日の回をもう1回する → 読み直しても2回分が残る
   await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);
-  await page.waitForSelector('#tsugi-kai');
+  await page.waitForSelector('#mata-waku');
+  await page.click('#mata-waku summary');
   await page.click('#tsugi-kai');
   await page.waitForSelector('#riyuu');
   const navMata = await page.locator('#michi').innerText();
@@ -215,13 +248,13 @@ try {
   await page.waitForSelector('#riyuu, .choice');
   if (await vis('.choice')) { await mieru('育てる_出し方を選ぶ'); await page.locator('.choice').first().click(); await page.waitForSelector('#riyuu'); }
   const tKyou = await mieru('育てる_今日の練習');
-  tashika(/今日の練習：/.test(tKyou) && /いまの段：/.test(tKyou) && (await page.locator('#riyuu').innerText()).length > 10, '⑥：今日の練習と、選んだ理由が画面に出る');
+  tashika(/きょうの練習：/.test(tKyou) && /きょうの やり方：/.test(tKyou) && (await page.locator('#riyuu').innerText()).length >= 5, '⑥：きょうの練習・きょうの やり方と、選んだ理由が画面に出る（「段」と言わない）');
   tashika(await vis('#yasumu'), '⑥：「今日はやらない」を選べる');
   await page.click('#hajimeru');
   let susunda = false;
   for (let i = 0; i < 300; i++) {
-    if (await vis('h1:has-text("おつかれさまでした")')) break;
-    if (await vis('#tsugi')) { const t = await mieru('育てる_段が進んだ理由'); susunda ||= /2回続けて正解が多かったので/.test(t); await page.click('#tsugi'); continue; }
+    if (await vis('h1:has-text("おつかれさま")')) break;
+    if (await vis('#tsugi')) { const t = await mieru('育てる_つぎのやり方の理由'); susunda ||= /つぎの やり方に なった理由/.test(t) && /2回つづけて 正解が多かったから/.test(t) && /つぎの やり方：/.test(t); await page.click('#tsugi'); continue; }
     if (await vis('#next')) { if (i === 1) await mieru('育てる_ひとつ'); await page.click('#next'); continue; }
     const toiBun = (await vis('.toi')) ? await page.locator('.toi').first().innerText() : '';
     const q = zenToi.find((x) => x.文 === toiBun.trim());
@@ -229,7 +262,7 @@ try {
     if (await vis('.choice')) { await page.locator('.choice').nth(q && Number.isInteger(q.答え) ? q.答え : 0).click(); continue; }
     await page.waitForTimeout(60);
   }
-  tashika(susunda, '⑥：同じ段で2回続けて正解が多いと、段が進み、その理由が画面に出る');
+  tashika(susunda, '⑥：同じやり方で2回続けて正解が多いと、つぎの やり方に進み、その理由が画面に出る');
   const tRaku = await mieru('育てる_楽になったか');
   tashika(/前より楽になった/.test(tRaku) && /今は答えない/.test(tRaku), '⑥：楽になったかを、選んで答える');
   await page.locator('.choice', { hasText: '同じくらい' }).click();
@@ -239,14 +272,14 @@ try {
   await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('.switch-card');
   const tCard2 = await mieru('カード_育てている');
-  tashika(/朝の練習で育てるスイッチ/.test(tCard2) && /練習の記録/.test(tCard2) && /同じくらい/.test(tCard2), '⑥：カードの画面に、育てているスイッチと、本人の練習の記録が出る');
+  tashika(/育てているカード/.test(tCard2) && /練習の記録/.test(tCard2) && /同じくらい/.test(await zentai()), '⑥：カードの画面に、育てているスイッチと、本人の練習の記録が出る');
   tashika(!/\d+\s*枚/.test(tCard2), '⑥：カードの枚数が出ない');
   // 今日はやらない
   await page.goto(`${BASE}#/sodateru/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('#yasumu');
   await page.click('#yasumu');
   const tYasumi = await mieru('育てる_今日はやらない');
-  tashika(/今日はお休み/.test(tYasumi), '⑥：「今日はやらない」を選ぶと、練習しないで終わる');
+  tashika(/きょうは お休み/.test(tYasumi), '⑥：「今日はやらない」を選ぶと、練習しないで終わる');
   await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
   const tRenshu = await mieru('先生の画面_練習の記録');
@@ -264,16 +297,16 @@ try {
     const c = await mieru(`デモ_${id}_カード`);
     tashika(!/\d+\s*枚/.test(c), `${id}：カードの枚数が出ない`);
     if (id === 'デモ6') {
-      tashika(/持っているカード/.test(c) && (await page.locator('.switch-card').count()) === 2 && /1回目のゲーム（2026-09-09）のあとで、もらったカード/.test(c), `${id}：1回目にもらったカードが手元に残っている`);
+      tashika(/持っているカード/.test(c) && (await page.locator('.switch-card').count()) === 2 && /1回目のゲーム（2026-09-09）のあとで、もらったカード/.test(await zentai()), `${id}：1回目にもらったカードが手元に残っている`);
     }
-    tashika(/— (読むと聞くを比べて|文と図を比べて|一気にと区切ってを比べて|3つの比べで差なし)/.test(c), `${id}：カードに、比べた2つの出し方の副題が付く`);
+    tashika(/— (読むと聞くを比べて|文と図を比べて|一気にと区切ってを比べて|どれでも力が出た)/.test(c), `${id}：カードに、比べた2つの出し方の副題が付く`);
     tashika(/レベル：(みつけた|たしかめた|しっかり)/.test(c) && /レベル：/.test(t) === false, `${id}：カードにレベルが付く（先生の画面はカードの名前とレベルの名前だけ）`);
     if (id === 'デモ4') {
       tashika(/レベル：しっかり/.test(c) && /きいてスイッチ（しっかり）/.test(t), `${id}：3日で同じ向きのカードは、いちばん上のレベル`);
-      tashika(KITAI[id].test(c) && /別々の日にした3日分のゲームのすべてで、くり返し/.test(c), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
+      tashika(KITAI[id].test(c) && /別々の日にした3日分のゲームのすべてで、くり返し/.test(await zentai()), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
       tashika(/くり返し出た候補「聞く」/.test(t), `${id}：先生の画面に「くり返し出た候補」が出る`);
     } else {
-      tashika(KITAI[id].test(c) && /この日のゲームでは/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
+      tashika(KITAI[id].test(c) && /この日のゲームでは/.test(await zentai()) && /きょう、/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
       tashika(!/くり返し出た候補「/.test(t), `${id}：くり返し出た候補にならない`);
     }
     await page.goto(`${BASE}#/tsutae/${encodeURIComponent(id)}`);
@@ -282,7 +315,7 @@ try {
     if (id === 'デモ1') tashika(/HR の冒頭で先生が話すこと/.test(tT) && /今は答えない/.test(tT), '⑤：HR の冒頭で先生が話すことの下書きが出る');
     if (id === 'デモ7') {
       tashika(!/どれでもスイッチ/.test(c) && !/どれでもスイッチ/.test(t), 'デモ7：一人前になった日に「どれでも」を出さない（8便 K4）');
-      tashika(/朝の練習で育てるスイッチ/.test(c) && /よんでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
+      tashika(/育てているカード/.test(c) && /よんでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
       tashika(/練習の記録（⑥ 育てる）/.test(t) && /「今日はやらない」を選んだ日：1日/.test(t) && /前の回との違い/.test(t), 'デモ7：先生の画面に、練習の記録と前の回との違いが出る');
       await page.goto(`${BASE}#/sodateru/${encodeURIComponent(id)}`);
       await page.waitForSelector('#riyuu');
@@ -313,8 +346,9 @@ try {
   await page.click('a[href^="#/card/"]');
   await page.waitForSelector('.switch-card');
   const tO = await mieru('カード_大人');
-  tashika(/まわりにお願いしてよいこと/.test(tO) && !/先生にお願いしてよいこと/.test(tO), 'Should：大人のカードは「まわりにお願いしてよいこと」');
-  tashika(tO.includes(seihon()['相談先の案内（大人が試すとき・結果に関係なく同じ文）']) && !tO.includes('担任の先生'), '大人の画面の相談先は、大人用の決まった文');
+  const tOZen = await zentai();
+  tashika(/まわりにお願いしてよいこと/.test(tOZen) && !/先生にお願いしてよいこと/.test(tOZen), 'Should：大人のカードは「まわりにお願いしてよいこと」');
+  tashika(tOZen.includes(seihon()['相談先の案内（大人が試すとき・結果に関係なく同じ文）']) && !tOZen.includes('担任'), '大人の画面の相談先は、大人用の決まった文');
 
   // 学校の設定と期間の計画（先生の画面）。設定を変えると、保護者向けの案内の時間の文が変わる
   await page.goto(`${BASE}#/sensei`);
@@ -328,7 +362,7 @@ try {
   const tHogo2 = await mieru('保護者の案内_設定を変えたあと');
   tashika(/毎日・1回10分/.test(tHogo2), '案内の時間の文が、学校の設定から出る');
   await page.goto(`${BASE}#/annai/ko`);
-  await page.waitForSelector('h2');
+  await page.waitForSelector('.annai-ichibun');
   tashika(!/\d+\s*分/.test(await mieru('子どもの案内_設定を変えたあと')), '子ども向けの案内には、時間を言い切る文が無い');
   await page.goto(`${BASE}#/check`);
   await page.waitForSelector('.chip');
@@ -427,6 +461,18 @@ try {
 } finally {
   await browser.close();
   srv.kill();
+}
+
+// 12便 P2 (11)：子どもの画面の固定文の字数（画面の種類ごとに、いちばん多かった画面）
+{
+  const shurui = {};
+  for (const [name, j] of Object.entries(kiroku.字数)) {
+    const k = name.replace(/_\d+$/, '').replace(/^デモ_デモ\d_/, 'デモ_').replace(/^PC_/, '');
+    if (!shurui[k] || shurui[k].kotei < j.kotei) shurui[k] = j;
+  }
+  writeFileSync(path.join(OUT, '字数.json'), `${JSON.stringify(shurui, null, 1)}\n`);
+  console.log('\n=== 子どもの画面の固定文の字数（画面の種類ごとの最大・上限 60字／つなぎ・理由 20字） ===');
+  for (const [k, j] of Object.entries(shurui)) console.log(`${k}：${j.kotei}字${j.ichibun ? `（つなぎ・理由 ${j.ichibun}字）` : ''}`);
 }
 
 console.log('\n=== 通し確認のまとめ ===');

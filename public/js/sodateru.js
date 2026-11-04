@@ -20,7 +20,7 @@ export const DAN_NO_DASHIKATA = {
   kiku: ['読みながら聞く（文も見える）', '後半だけ文が見える', '見たいときだけ「文を見る」を押す', '聞くだけ'],
   bun: ['文と図', '文と、数字の無い図の枠', '文だけ（図をかく枠つき）', '文だけ'],
   zu: ['図と文', '図と、文の大事なところだけ', '図と「言葉で言うと？」', '図だけ'],
-  ikki: ['一文ずつ', '二文ずつ', '全部の文（番号つき・一文ずつ改行）', '全部の文（段落のまま）'],
+  ikki: ['一文ずつ', '二文ずつ', '全部の文（番号つき・一文ずつ改行）', '全部の文（ひとまとまり）'],
 };
 
 // 「正解が多い」：そのひとつの問いの 3分の2 以上が正解
@@ -95,22 +95,21 @@ export function yobiKyou(kouho, renshu) {
   return c[0];
 }
 
-export function kyouNoRiyuu(mode, renshu, kouho) {
+// 今日の練習の理由（子どもの画面に出す・12便 P2 で20字ほどに短くした。「段」と言わない）
+export function kyouNoRiyuuWoKaku(hi, tsuzuki, dan) {
+  if (hi === 0) return 'はじめての 練習。';
+  if (tsuzuki === 1 && dan < DAN_JOUGEN) return '前回は 正解が多かった。もう一回。';
+  return `${hi + 1}日目の 練習。`;
+}
+export function kyouNoRiyuu(mode, renshu) {
   const { dan, tsuzuki } = danWoDasu(renshu, mode);
-  const hi = renshuNoHi(renshu, mode).length;
-  const sasae = SASAE_OF[mode];
-  const sasaeMei = { kiku: '聞く', yomu: '読む', zu: '図', bun: '文', kugiri: '区切って読む' }[sasae];
-  const a = hi === 0
-    ? `「${SODATE_MEI[mode]}」を、${sasaeMei}を支えにして始めます。`
-    : `「${SODATE_MEI[mode]}」の練習の${hi + 1}日目です。`;
-  const b = tsuzuki === 1 && dan < DAN_JOUGEN ? 'この前は正解が多かったので、同じ段でもう一度たしかめます。' : `いまの段「${DAN_NO_DASHIKATA[mode][dan - 1]}」で続けます。`;
-  const c = kouho.length > 1 ? `（育てている出し方のうち、練習した日がいちばん少ないものを選びました）` : '';
-  return `${a}${b}${c}`;
+  return kyouNoRiyuuWoKaku(renshuNoHi(renshu, mode).length, tsuzuki, dan);
 }
 
 // 段が進んだときの理由（決まった文。Claude ではなく、練習の中の事実だけ）
-export function agariNoRiyuu(mode, kara) {
-  return `${DAN_NO_DASHIKATA[mode][kara - 1]}の段で、2回続けて正解が多かったので、次は「${DAN_NO_DASHIKATA[mode][kara]}」の段にします。`;
+// 12便 P2：子どもの画面に出すので短く（やり方の名前は、画面の側で別に出す）
+export function agariNoRiyuu() {
+  return '2回つづけて 正解が多かったから。';
 }
 
 // 練習で使う文章・場面を選ぶ：その段階の中で、使った回数がいちばん少ないもの（同じなら並びの順）。前と同じものは避ける

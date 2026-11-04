@@ -406,7 +406,7 @@ export function cardNoBun(card, kurikaeshi) {
     .replaceAll('{全日}', String(zen))
     .replaceAll('{同じ日}', String(onaji));
   const k = card.くり返しのとき;
-  return { ...card, ひとこと: ireru(k.ひとこと), これは何か: ireru(k.これは何か), 保護者向け: ireru(k.保護者向け) };
+  return { ...card, ひとこと: ireru(k.ひとこと), これは何か: ireru(k.これは何か), 保護者向け: ireru(k.保護者向け), きょう: k.きょう || card.きょう };
 }
 
 export function kotaeD(record, tana) {

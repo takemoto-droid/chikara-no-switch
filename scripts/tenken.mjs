@@ -6,7 +6,7 @@
 // 使い方：npm run tenken
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { ROOT, tenken, seihon, soudanSaki, soudanSakiOtona, mojiretsu } from '../lib/kotoba.mjs';
+import { ROOT, tenken, seihon, soudanSaki, soudanSakiKo, soudanSakiOtona, mojiretsu } from '../lib/kotoba.mjs';
 import { yobiKasetsu, yobiTsutae } from '../lib/yobi.mjs';
 import { yobiRiyuu, makeSteps, namaeWoAwaseru } from '../public/js/kurabe.js';
 
@@ -157,7 +157,8 @@ kiroku('README.md（先生の文を含む）', readFileSync(path.join(ROOT, 'REA
 const app = readFileSync(path.join(ROOT, 'public/js/app.js'), 'utf8');
 const utsushi = app.match(/SOUDAN_UTSUSHI = '([^']+)'/)?.[1];
 const utsushiOtona = app.match(/SOUDAN_OTONA_UTSUSHI = '([^']+)'/)?.[1];
-const soudanOK = utsushi === soudanSaki() && utsushiOtona === soudanSakiOtona();
+const utsushiKo = app.match(/SOUDAN_KO_UTSUSHI = '([^']+)'/)?.[1];
+const soudanOK = utsushi === soudanSaki() && utsushiOtona === soudanSakiOtona() && utsushiKo === soudanSakiKo();
 
 console.log('=== 言葉の点検（言葉の正本 版', seihon()['版'], '） ===');
 let ng = 0;
@@ -168,7 +169,7 @@ for (const [name, k] of Object.entries(kekka)) {
   k.hits.forEach((h) => console.log(`    ${h.場所}「…${h.文}…」`));
   if (!name.startsWith('README')) ng += k.避ける言葉;
 }
-console.log(`- 相談先の文（子ども・保護者用と、大人用）の写しが正本と同じ：${soudanOK ? 'はい' : 'いいえ'}`);
+console.log(`- 相談先の文（保護者用・子どもの短い文・大人用）の写しが正本と同じ：${soudanOK ? 'はい' : 'いいえ'}`);
 if (ng > 0 || !soudanOK) {
   console.log('\n画面・サーバー側・予備の動き・Claude の出力に避ける言葉がありました。書き直してください。');
   process.exit(1);
