@@ -88,6 +88,12 @@ for (const k of Object.values(demoKids)) {
 }
 kiroku(`予備の動きの文（結果の組み合わせ ${kumiawase} 通り）`, [...new Set(yobiTexts)]);
 
+// 2b. 保存した Claude の本物の文（11便・デモの子8人と計画。public/data/demo_claude.json）
+{
+  const hozon = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文;
+  kiroku('保存した Claude の文（デモの子8人・計画）', mojiretsu(hozon));
+}
+
 // 3. Claude の出力（9便で広げた：仮説・伝え方（懇談・保護者向け・一言・HR の冒頭）・次を選ぶ理由・今日の練習・計画）
 // 架空のデモの子だけを使う。呼ぶ回数を少なくするため、子ごとに1回ずつ。書き直しを含めた呼び出しの回数を数える
 if (process.env.TENKEN_CLAUDE === '1' && process.env.ANTHROPIC_API_KEY) {

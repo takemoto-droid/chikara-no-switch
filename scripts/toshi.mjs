@@ -347,45 +347,60 @@ try {
       });
     }
     const hiraku = async (hash, sel) => { await p2.goto(`${BASE}${hash}`); await p2.waitForSelector(sel, { timeout: 60000 }); await p2.waitForTimeout(150); return p2.evaluate(() => document.body.innerText); };
+    const HOZON = /2026-11-04 に書いた下書き（保存したもの）/;
+    const hozon = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文;
+    // 11便 N2・N5：デモの子8人は、開いただけでは呼ばない（保存した本物の文と、その印が出る）
+    let zenbu = true;
+    for (const id of ['デモ1', 'デモ2', 'デモ3', 'デモ4', 'デモ5', 'デモ6', 'デモ7', 'デモ8']) {
+      const e = encodeURIComponent(id);
+      const a = await hiraku(`#/sensei/ko/${e}`, '#kasetsu .kasetsu');
+      const b = await hiraku(`#/tsutae/${e}`, '#kondan');
+      const kondan = await p2.inputValue('#kondan');
+      if (!(HOZON.test(a) && a.includes(hozon[id].kasetsu.kasetsu) && HOZON.test(b) && kondan === hozon[id].tsutae.kondan)) { zenbu = false; kiroku.まちがい.push(`${id}：保存した文が出ていない`); }
+    }
+    tashika(zenbu && kazu.kasetsu === 0 && kazu.tsutae === 0, `N5：デモの子8人の先生の画面と伝え方は、保存した本物の文と「保存したもの」の印が出て、開いただけでは呼ばない（仮説 ${kazu.kasetsu}回・伝え方 ${kazu.tsutae}回）`);
+    let t = await hiraku('#/sensei', '#keikaku .label');
+    tashika(kazu.keikaku === 0 && HOZON.test(t) && t.includes(hozon.__クラス__.keikaku.zentai), `N5：一覧の計画も、デモの子8人だけなら保存した文が出て、呼ばない（${kazu.keikaku}回）`);
+    // 押したときだけ呼び、呼んだ文は端末に覚える（保存した文は書きかえない）
     const D1 = encodeURIComponent('デモ1');
-    let t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
-    tashika(kazu.kasetsu === 1 && /この文は端末に覚えています/.test(t) && /\d+月\d+日に書いた/.test(t), 'M2：Claude の文に、書いた日と「端末に覚えています」が出る');
-    await hiraku('#/sensei', '#keikaku .label');
-    t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
-    tashika(kazu.kasetsu === 1, `M2：先生の画面を開き直しても、Claude を呼ばない（仮説の呼び出し ${kazu.kasetsu}回）`);
+    await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
     await p2.click('#kasetsu #again');
     await p2.waitForSelector('#kasetsu .kasetsu');
-    tashika(kazu.kasetsu === 2, 'M2：「もう一度書いてもらう」を押すと呼び直す');
-    // チェック項目が変わったら呼び直す
+    t = await p2.evaluate(() => document.body.innerText);
+    tashika(kazu.kasetsu === 1 && /この文は端末に覚えています/.test(t) && /\d+月\d+日に書いた/.test(t), 'N5・M2：「もう一度書いてもらう」を押すと呼び、書いた日と「端末に覚えています」が出る');
+    await hiraku('#/anzen', 'h1');
+    t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
+    tashika(kazu.kasetsu === 1 && /この文は端末に覚えています/.test(t), `M2：開き直すと、端末に覚えた文が出て、呼ばない（仮説 ${kazu.kasetsu}回）`);
+    tashika(JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文.デモ1.kasetsu.kasetsu === hozon.デモ1.kasetsu.kasetsu, 'N2：保存した文のファイルは書きかわらない');
+    // チェック項目が変わったら、保存した文は使わず、呼び直す
     await p2.goto(`${BASE}#/check`);
     await p2.waitForSelector('.chip');
     await p2.locator('.chip[data-kid="デモ1"]').first().click();
     await p2.waitForTimeout(150);
     await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
-    tashika(kazu.kasetsu === 3, 'M2：チェック項目が変わったら、呼び直す');
-    // 伝え方
-    await hiraku(`#/tsutae/${D1}`, '#kondan');
-    await hiraku('#/anzen', 'h1');
-    await hiraku(`#/tsutae/${D1}`, '#kondan');
-    tashika(kazu.tsutae === 1, `M2：伝え方も、開き直しでは呼ばない（呼び出し ${kazu.tsutae}回）`);
-    // 計画：開き直しでは呼ばない／学校の設定が変わったら呼び直す／押したら呼び直す
-    const k0 = kazu.keikaku;
+    tashika(kazu.kasetsu === 2, 'M2：チェック項目が変わったら、呼び直す');
+    // 計画：学校の設定が変わったら呼び直す／押したら呼び直す
     await hiraku('#/sensei', '#keikaku .label');
-    tashika(kazu.keikaku === k0, `M2：計画も、開き直しでは呼ばない（呼び出し ${kazu.keikaku}回）`);
+    tashika(kazu.keikaku === 0, '計画：まだ呼んでいない');
     await p2.selectOption('select[data-k="朝の練習の長さ"]', '15');
     await p2.waitForTimeout(400);
-    tashika(kazu.keikaku === k0 + 1, 'M2：学校の設定が変わったら、計画を呼び直す');
+    tashika(kazu.keikaku === 1, 'M2・N2：学校の設定が変わったら、保存した計画は使わず、呼び直す');
     await p2.click('#keikaku-again');
     await p2.waitForTimeout(400);
-    tashika(kazu.keikaku === k0 + 2, 'M2：計画の「もう一度書いてもらう」で呼び直す');
+    tashika(kazu.keikaku === 2, 'M2：計画の「もう一度書いてもらう」で呼び直す');
     // 予備の文は覚えない
     claudeNiSuru = false;
-    const D2 = encodeURIComponent('デモ2');
     const y0 = kazu.kasetsu;
-    t = await hiraku(`#/sensei/ko/${D2}`, '#kasetsu .kasetsu');
-    await hiraku('#/anzen', 'h1');
+    t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu'); // 学校の設定を変えたので、覚えた文の目印も変わる
+    tashika(kazu.kasetsu === y0 + 1 && !/この文は端末に覚えています/.test(t), 'M2：学校の設定が変わったら、仮説も呼び直す（いまは予備の文が返り、覚えない）');
+    const D2 = encodeURIComponent('デモ2');
     await hiraku(`#/sensei/ko/${D2}`, '#kasetsu .kasetsu');
-    tashika(kazu.kasetsu === y0 + 2 && !/この文は端末に覚えています/.test(t), 'M2：予備の文は覚えない（開くたびに、また Claude を試す）');
+    await p2.click('#kasetsu #again'); // 予備の文が返る
+    await p2.waitForTimeout(300);
+    const y1 = kazu.kasetsu;
+    await hiraku('#/anzen', 'h1');
+    t = await hiraku(`#/sensei/ko/${D2}`, '#kasetsu .kasetsu');
+    tashika(kazu.kasetsu === y1 && HOZON.test(t) && !/この文は端末に覚えています/.test(t), 'M2・N2：予備の文は覚えない（開き直すと、また保存した本物の文が出る）');
     await ctx2.close();
   }
 

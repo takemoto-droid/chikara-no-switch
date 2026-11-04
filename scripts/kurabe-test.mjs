@@ -4,7 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import * as fsAll from 'node:fs';
 const require_fs = () => fsAll;
 import path from 'node:path';
-import { ROOT, seihon } from '../lib/kotoba.mjs';
+import { ROOT, seihon, tenkenAll } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { motoNoKey } from '../public/js/kiroku.js';
 import { keikakuNoKo, yobiKeikaku, kikanNoHi, shitaKoto } from '../public/js/keikaku.js';
@@ -983,6 +983,32 @@ await ok('10便 M2：覚えた文を使ってよいかの目印は、ゲーム�
   const kiroku = readFileSync(path.join(ROOT, 'public/js/kiroku.js'), 'utf8');
   assert.match(kiroku, /if \(!value \|\| value\.dare !== 'claude'\) return value;/);
   assert.match(kiroku, /return c && c\.dare === 'claude' \? c : null;/);
+});
+
+await ok('11便 N3：保存した Claude の本物の文（デモの子8人・計画）は、避ける言葉0・R12 がそろい・手を入れた印が無い', () => {
+  const h = j('public/data/demo_claude.json');
+  const ids = Object.keys(demo.結果);
+  assert.deepEqual(Object.keys(h.文).filter((k) => k !== '__クラス__').sort(), [...ids].sort(), 'デモの子8人ぶん');
+  assert.equal(tenkenAll(h.文).length, 0, '言葉の正本で 0 件');
+  for (const id of ids) {
+    const { kasetsu: k, tsutae: t } = h.文[id];
+    assert.equal(k.dare, 'claude', id);
+    assert.equal(t.dare, 'claude', id);
+    assert.match(k.kasetsu, /かも/, `${id}：仮説の形`);
+    assert.match(k.tsugi, /^次に試すなら/, `${id}：次に試すなら`);
+    assert.ok(k.kakunin && Number.isInteger(k.kakunin.回), `${id}：確かめた回数`);
+    assert.equal(k.sankou, '参考程度・決めるのは先生', `${id}：参考程度・決めるのは先生`);
+    assert.equal(t.sankou, '参考程度・決めるのは先生', id);
+    assert.equal(k.kaitaHi, '2026-11-04');
+    for (const f of ['kondan', 'hogosha', 'hitokoto', 'hr', 'cardMei']) assert.ok(t[f], `${id}：伝え方の ${f}`);
+    // 確かめた回数は、記録の回の数と同じ
+    assert.equal(k.kakunin.回, demo.結果[id].kai.length, `${id}：確かめた回数が記録と合う`);
+  }
+  const kk = h.文.__クラス__.keikaku;
+  assert.deepEqual(kk.ko.map((x) => x.label), ['子1', '子2', '子3', '子4', '子5', '子6', '子7', '子8'], '計画は子1〜子8');
+  assert.equal(kk.sankou, '参考程度・決めるのは先生');
+  assert.match(h.印, /2026-11-04 に書いた下書き（保存したもの）/);
+  assert.deepEqual(keikakuNoMondai(kk, kodomoNoKeikaku()), [], '保存した計画は、10便の取り違えの点検にも通る');
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

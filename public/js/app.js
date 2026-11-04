@@ -136,8 +136,27 @@ function renshuSenseiHtml(renshu, kai, cards) {
     <p class="muted small">段が進むのは、同じ段で「正解が多い（3分の2以上）」ひとつが2回続いたときだけです（下がりません）。練習の記録は本人のものです。練習の効果（学力への）は確かめていません。</p>`;
 }
 
-// Claude の文を端末に覚えていることの表示（10便 M4）。予備の文には出さない
+// 11便 N2：デモの子の、保存した Claude の本物の文（public/data/demo_claude.json）。
+// 端末に覚えた文が無く、元になるもの（チェック項目・学校の設定）がはじめのままのときだけ使い、Claude を呼ばない
+async function hozonNoBun(id, kind) {
+  if (!isDemo(id) && id !== '__クラス__') return null;
+  let h;
+  try { h = await data('demo_claude'); } catch { return null; }
+  const v = h?.文?.[id]?.[kind];
+  return v ? { ...v, hozon: h.印 } : null;
+}
+async function hajimeNoChecks(id) {
+  const m = structuredClone((await demo()).チェック項目);
+  return Object.entries(m).filter(([, kids]) => kids.includes(id)).map(([k]) => k).sort();
+}
+async function hajimeNoSettei(settei) {
+  const g = (await data('gakko')).設定;
+  return Object.keys(g).every((k) => g[k] === settei[k]);
+}
+
+// Claude の文を端末に覚えていることの表示（10便 M4）。予備の文には出さない。保存した文（11便）には、保存の印を出す
 function oboeHtml(k) {
+  if (k?.hozon) return `<p class="muted small oboe">${esc(k.hozon)}。架空の子の文として保存してあるので、開いても Claude を呼びません。「もう一度書いてもらう」で書き直します（書き直した文は端末に覚えます）。</p>`;
   if (!k || k.dare !== 'claude') return '';
   const hi = String(k.kaitaHi || '').split('-');
   const hizuke = hi.length === 3 ? `${Number(hi[1])}月${Number(hi[2])}日に書いた` : '';
@@ -215,6 +234,11 @@ async function keikakuWoKaku() {
   const yobidasu = async (force) => {
     const cached = !force && claudeNoOboe('__クラス__', 'keikaku', key);
     if (cached) { kaku(cached); return; }
+    // 11便：クラスがデモの子8人だけで、学校の設定がはじめのままなら、保存した本物の計画を出す（呼ばない）
+    if (!force && list.length && list.every((k) => isDemo(k.id)) && (await hajimeNoSettei(settei))) {
+      const h = await hozonNoBun('__クラス__', 'keikaku');
+      if (h && h.ko.length === kodomo.length) { kaku(h); return; }
+    }
     box.textContent = '計画の下書きを書いています…';
     let r;
     try { r = await api('keikaku', { settei, kodomo }, 30000); } catch { r = null; }
@@ -408,6 +432,11 @@ async function senseiKo(id) {
   const yobidasu = async (force) => {
     const cached = !force && claudeNoOboe(id, 'kasetsu', key);
     if (cached) { draw(cached); return; }
+    // 11便：デモの子は、チェック項目がはじめのままなら、保存した本物の文を出す（呼ばない）
+    if (!force && isDemo(id) && JSON.stringify(ids) === JSON.stringify(await hajimeNoChecks(id))) {
+      const h = await hozonNoBun(id, 'kasetsu');
+      if (h) { draw(h); return; }
+    }
     box.textContent = 'Claude が下書きを書いています…';
     try {
       const k = claudeWoOboeru(id, 'kasetsu', key, await api('kasetsu', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000));
@@ -492,6 +521,10 @@ async function tsutae(id) {
   const yobidasu = async (force) => {
     const cached = !force && claudeNoOboe(id, 'tsutae', key);
     if (cached) { draw(cached); return; }
+    if (!force && isDemo(id) && JSON.stringify(ids) === JSON.stringify(await hajimeNoChecks(id))) {
+      const h = await hozonNoBun(id, 'tsutae');
+      if (h) { draw(h); return; }
+    }
     box.textContent = 'Claude が下書きを書いています…';
     try {
       const t = claudeWoOboeru(id, 'tsutae', key, await api('tsutae', { record: okuruKiroku(rec), kai: kai.map(okuruKiroku), atehamaru: ids }, 60000));
