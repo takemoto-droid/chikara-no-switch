@@ -47,7 +47,9 @@ img, svg { max-width: 100%; height: auto; }
 button, .btn {
   display: inline-block; font: inherit; font-weight: 700; border: 2px solid var(--accent); background: var(--accent); color: var(--accent-ink);
   border-radius: 12px; padding: 12px 18px; min-height: 48px; cursor: pointer; text-decoration: none; text-align: center;
+  touch-action: manipulation; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; /* 指でもマウスでも同じ手ざわりに：二度押しの拡大・長押しの選択・灰色の光りを出さない */
 }
+button:active, .btn:active { transform: translateY(1px); filter: brightness(.95); } /* 押した手ごたえは、指でもマウスでも同じ */
 button.sub, .btn.sub { background: var(--surface); color: var(--accent); }
 button:disabled { opacity: .45; cursor: default; }
 button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #f0b400; outline-offset: 2px; }
@@ -55,7 +57,7 @@ button:focus-visible, .btn:focus-visible, a:focus-visible { outline: 3px solid #
 .btns.tate { flex-direction: column; }
 .btns.tate > * { width: 100%; }
 .choice { width: 100%; background: var(--surface); color: var(--ink); border: 2px solid var(--line); text-align: left; font-weight: 400; }
-@media (hover: hover) { .choice:hover { border-color: var(--accent); } } /* 12便：タッチの端末で、次の画面の選択肢に枠が残らないように */
+/* 選択肢に hover の枠は付けない（マウスの端末だけに出る見た目は作らない。押したときの手ごたえは button:active と同じ） */
 .marubatsu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .marubatsu button { font-size: 1.05rem; }
 

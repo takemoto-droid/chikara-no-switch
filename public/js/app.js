@@ -4,7 +4,7 @@ import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKid
 import { hikitsugiNoBun } from './hikitsugi.js';
 import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei } from './game.js';
-import { junbiYomiage, yomu, tomeru } from './yomiage.js';
+import { junbiYomiage, yomu, tomeru, yomeru } from './yomiage.js';
 import { cardHtml } from './card_html.js';
 import { gakkoSettei, gakkoWoKaeru } from './gakko.js';
 import { keikakuNoKo, yobiKeikaku } from './keikaku.js';
@@ -658,7 +658,28 @@ async function main() {
     : 'いまは Claude を使わず、決まった順の予備の動きで出しています。';
   try { should = await data('should'); } catch { should = {}; }
   setSettei({ ai: Boolean(joutai.ai), renshu: Boolean(should.renshu?.使う) });
-  document.getElementById('yomu-ue').onclick = async () => { tomeru(); await junbiYomiage(); yomu(yomuMojiretsu()); };
+  // 右上の「▶ 読む」：読んでいるあいだは「■ 止める」。もう一度押すと止まる。この端末で読めないときは、その場で短く知らせる（端末で差が出ないように、黙って何も起きない形にしない）
+  const yomuBtn = document.getElementById('yomu-ue');
+  let yondeiru = false;
+  const modosu = () => { yondeiru = false; yomuBtn.textContent = '▶ 読む'; yomuBtn.setAttribute('aria-label', 'この画面を読み上げる'); };
+  yomuBtn.onclick = async () => {
+    if (yondeiru) { tomeru(); modosu(); return; }
+    tomeru();
+    await junbiYomiage();
+    const moji = yomuMojiretsu();
+    if (!moji) return;
+    if (!yomeru(moji)) {
+      yomuBtn.textContent = 'この端末では 読めません';
+      setTimeout(modosu, 2500);
+      return;
+    }
+    yondeiru = true;
+    yomuBtn.textContent = '■ 止める';
+    yomuBtn.setAttribute('aria-label', '読み上げを止める');
+    await yomu(moji);
+    if (yondeiru) modosu();
+  };
+  window.addEventListener('hashchange', () => { tomeru(); modosu(); });
   window.addEventListener('hashchange', route);
   route();
 }

@@ -25,7 +25,8 @@ await new Promise((r) => srv.stdout.once('data', r));
 const BASE = `http://localhost:${PORT}/?shiken=1`;
 const kiroku = { 字数: {}, 画面: 0, 点検した文の数: 0, 避ける言葉: [], はみ出し: [], 理由: [], まちがい: [] };
 const browser = await chromium.launch();
-let page = await browser.newPage({ viewport: { width: 375, height: 740 }, deviceScaleFactor: 1 });
+// スマホの幅は、指で触る端末として開く（hasTouch）。マウスの hover が写しに混ざらないように
+let page = await browser.newPage({ viewport: { width: 375, height: 740 }, deviceScaleFactor: 1, hasTouch: true });
 page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
 
 function tashika(jouken, setsumei) {
@@ -371,7 +372,7 @@ try {
   // 10便 M2：Claude が書いた文を端末に覚える。開き直しでは呼ばない／押したら呼び直す／記録・設定が変わったら呼び直す／予備の文は覚えない
   // 鍵は使わない。サーバーの予備の返事を、通し確認の中だけ「Claude が書いた」ことにして数える（外へは何も送らない）
   {
-    const ctx2 = await browser.newContext({ viewport: { width: 375, height: 740 } });
+    const ctx2 = await browser.newContext({ viewport: { width: 375, height: 740 }, hasTouch: true });
     const p2 = await ctx2.newPage();
     p2.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
     const kazu = { kasetsu: 0, tsutae: 0, keikaku: 0 };
@@ -445,7 +446,7 @@ try {
 
   // 12便 P4（Should）：⑥ の「図を触る」。架空のデモの子2（どれでも）の記録を、この端末で動かした子として入れ、「文だけで場面をつかむ」を選ぶ
   {
-    const ctx3 = await browser.newContext({ viewport: { width: 375, height: 740 } });
+    const ctx3 = await browser.newContext({ viewport: { width: 375, height: 740 }, hasTouch: true });
     const p3 = await ctx3.newPage();
     p3.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
     const d2 = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo.json'), 'utf8')).結果.デモ2;

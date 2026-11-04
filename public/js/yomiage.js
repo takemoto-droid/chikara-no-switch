@@ -26,7 +26,7 @@ async function taiouWoYomu() {
 
 function browserNoKoe() {
   return new Promise((resolve) => {
-    if (!('speechSynthesis' in window)) { resolve(false); return; }
+    if (!window.speechSynthesis) { resolve(false); return; } // 端末に読み上げが無いときは、声なし
     const pick = () => {
       const vs = speechSynthesis.getVoices().filter((v) => /^ja/i.test(v.lang));
       voice = vs[0] || null;
@@ -55,6 +55,11 @@ export function maeNoOnseiAru(text) {
   return Boolean(taiou[text]);
 }
 
+// この文を、この端末で読めるか（前もって作った音声があるか、端末に日本語の声があるか）
+export function yomeru(text) {
+  return shiken || maeNoOnseiAru(text) || Boolean(voice);
+}
+
 export function koeNoNamae() {
   if (shiken) return '試験用（音なし）';
   return saigoNoKoe || (voice ? voice.name : 'なし');
@@ -62,7 +67,7 @@ export function koeNoNamae() {
 
 export function tomeru() {
   if (ima) { ima.pause(); ima = null; }
-  if (!shiken && 'speechSynthesis' in window) speechSynthesis.cancel();
+  if (!shiken && window.speechSynthesis) speechSynthesis.cancel();
 }
 
 function browserDeYomu(text) {
