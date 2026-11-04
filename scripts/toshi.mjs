@@ -58,7 +58,8 @@ async function mieru(name) {
       const nozoku = '.switch-card, .honbun, .toi, .choice, table, svg, [data-kazoenai], #riyuu, .tsugi-ichibun, .riyuu';
       const top = [...app.querySelectorAll(nozoku)].filter((e) => !e.parentElement.closest(nozoku));
       const kazu = (t) => (t || '').replace(/\s/g, '').length;
-      const kotei = kazu(app.innerText) - top.reduce((a, e) => a + kazu(e.innerText), 0);
+      // 図（svg）には innerText が無いので textContent で数えて引く（13便のもと：図に「前から 〇列め」などの基準を書いたため）
+      const kotei = kazu(app.innerText) - top.reduce((a, e) => a + kazu(e.innerText ?? e.textContent), 0);
       const ichibun = Math.max(0, ...[...app.querySelectorAll('#riyuu, .tsugi-ichibun, .riyuu')].map((e) => kazu(e.innerText)));
       return { kotei, ichibun };
     });
@@ -90,6 +91,8 @@ async function susumu(maxStep) {
   let mondai = 0;
   let mae = null;
   while (tejun++ < 600) {
+    // 13便のもと：次の問題が決まるまでは、前の画面のまま（ボタンは押せない）。そのあいだは待つ
+    if (await page.locator('#game-naka[aria-busy="true"]').count()) { await page.waitForTimeout(50); continue; }
     if (await vis('a[href^="#/card/"]')) return 'owari';
     if (await vis('#tsuzukeru')) {
       const tY = await mieru('ゲーム_ひと休み');
@@ -507,8 +510,30 @@ try {
     await ctx3.close();
   }
 
+  // 13便のもと（実機で見つかった所）：棚 B の問題は、図（または文）・問い・選択肢が1画面に収まる（学校のノートPC・iPad・小さいスマホ）
+  {
+    const B = JSON.parse(readFileSync(path.join(ROOT, 'public/data/tana.json'), 'utf8')).B.問題;
+    for (const [mei, w, h, touch] of [['学校のノートPC', 1366, 657, false], ['iPad 縦', 768, 1024, true], ['小さいスマホ', 375, 667, true]]) {
+      const ctx4 = await browser.newContext({ viewport: { width: w, height: h }, hasTouch: touch });
+      const p4 = await ctx4.newPage();
+      const dame = [];
+      for (const id of Object.keys(B)) for (const mode of ['zu', 'bun']) for (let i = 0; i < B[id].問い.length; i++) {
+        await p4.goto(`${BASE}#/mikurabe/${encodeURIComponent(id)}/${mode}/${i}`);
+        await p4.waitForSelector('.bamen-wrap .choice');
+        const sita = await p4.evaluate(() => Math.max(...[...document.querySelectorAll('.bamen-wrap .choice')].map((x) => x.getBoundingClientRect().bottom + window.scrollY)));
+        if (sita > h) dame.push(`${id}${mode}${i + 1}`);
+      }
+      tashika(!dame.length, `棚 B の問題が1画面に収まる（${mei} ${w}×${h}）${dame.length ? '：' + dame.join(' ') : ''}`);
+      await ctx4.close();
+    }
+  }
+
   // PC の幅（1280px）でも、先生の画面・チェック項目・伝え方が崩れない
   page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
+  await page.goto(`${BASE}#/mikurabe`);
+  await page.waitForSelector('.mikurabe');
+  const tMi = await mieru('PC_文と図を見比べる');
+  tashika((await page.locator('.mikurabe').count()) === 8 && (await page.locator('.mikurabe .bamen-zu').count()) === 8 && /文の版/.test(tMi) && /図の版/.test(tMi), '先生の画面：棚 B の8題の、文の版と図の版を並べて見比べられる');
   page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
   for (const [mei, hash, sel] of [['PC_先生の画面_デモ4', '#/sensei/ko/デモ4', '#kasetsu .kasetsu'], ['PC_先生の画面_デモ1', '#/sensei/ko/デモ1', '#kasetsu .kasetsu'], ['PC_チェック項目', '#/check', '.chip'], ['PC_伝え方_デモ4', '#/tsutae/デモ4', '#kondan'], ['PC_カード_デモ6', '#/card/デモ6', '.switch-card']]) {
     await page.goto(`${BASE}${hash.replace(/デモ(\d)/, (m) => encodeURIComponent(m))}`);

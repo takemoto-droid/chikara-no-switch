@@ -3,9 +3,10 @@ import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
 import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
-import { gameScreen, setSettei } from './game.js';
+import { gameScreen, setSettei, bamenNoGamen, gameWoHanareru } from './game.js';
 import { junbiYomiage, yomu, tomeru, yomeru } from './yomiage.js';
 import { cardHtml } from './card_html.js';
+import { bamenZu } from './zu.js';
 import { gakkoSettei, gakkoWoKaeru } from './gakko.js';
 import { keikakuNoKo, yobiKeikaku } from './keikaku.js';
 import { sodateruGamen, renshuKirokuHtml } from './sodateru_gamen.js';
@@ -218,6 +219,8 @@ async function senseiHub() {
     ${local.length ? local.map((k) => `<p><a href="#/sensei/ko/${enc(k.id)}">${esc(k.id)}</a>（${k.kaisu}回${k.owari ? '' : '・ゲームの途中'}）</p>`).join('') : '<p class="muted">まだありません。</p>'}
     <h2>チェック項目</h2>
     <p><a href="#/check">クラスで「当てはまる子」を選ぶ</a></p>
+    <h2>問題を確かめる</h2>
+    <p><a href="#/mikurabe">棚 B（文で見る／図で見る）の文の版と図の版を見比べる</a></p>
     <h2 class="kugiri-midashi">学校の設定</h2>
     <p class="muted small">学校ごとに変えられます。変えた値は、この端末の中にだけ残ります。</p>
     <div id="settei"></div>
@@ -620,9 +623,41 @@ async function anzen() {
   }
 }
 
+// ---- 13便のもと：棚 B の文の版と図の版を、先生が並べて見比べる（1回のゲームでは片方しか出ないため）
+async function mikurabe(id, mode, i) {
+  const tana = await data('tana');
+  const B = tana.B.問題;
+  if (id && B[id]) {
+    // 子どもの画面と同じ見た目で、1つの版だけを出す（押しても記録しない）
+    michi(1);
+    dare('子どもの画面');
+    document.body.dataset.hakaru = '1';
+    const n = Math.min(Number(i) || 0, B[id].問い.length - 1);
+    app.innerHTML = `<p class="tsugi-ichibun" id="riyuu">次は ${mode === 'zu' ? '🗺️ 図で見る' : '📝 文で見る'}</p><div id="game-naka">${bamenNoGamen(B[id], mode, n)}</div>
+      <p class="small"><a href="#/mikurabe">見比べる画面へ戻る</a>（この画面で押しても、記録は残りません）</p>`;
+    return;
+  }
+  michi(3);
+  dare('先生の画面');
+  const dan = tana.段階.名前.B;
+  const ichiran = Object.entries(B).sort((a, b) => a[1].段階 - b[1].段階 || a[0].localeCompare(b[0]));
+  app.innerHTML = `
+    <h1>文の版と図の版を見比べる（棚 B）</h1>
+    <p>ゲームでは、1つの場面を、文だけ（文で見る）か図だけ（図で見る）のどちらかで出します。ここでは両方を並べます。答えは<strong>太字</strong>です。</p>
+    <p class="muted small">下書き（先生未確認）。「子どもの画面で見る」で、ゲームと同じ見た目で開けます（押しても記録は残りません）。</p>
+    ${ichiran.map(([k, q]) => `<section class="box mikurabe">
+      <h2>${esc(k)}　${esc(q.題)}（${esc(dan[q.段階])}）</h2>
+      <div class="mikurabe-ni"><div><h3>文の版</h3><div class="honbun">${esc(q.文)}</div></div><div><h3>図の版</h3><div class="box">${bamenZu(q.図)}</div></div></div>
+      <ol>${q.問い.map((t, n) => `<li>${esc(t.文)}<br>${t.選択肢.map((c, m) => (m === t.答え ? `<strong>${esc(c)}</strong>` : esc(c))).join('　')}
+        <br><span class="small"><a href="#/mikurabe/${enc(k)}/bun/${n}">子どもの画面で見る（文）</a>　<a href="#/mikurabe/${enc(k)}/zu/${n}">子どもの画面で見る（図）</a></span></li>`).join('')}</ol>
+    </section>`).join('')}
+    <div class="btns"><a class="btn sub" href="#/sensei">先生の画面へ戻る</a></div>`;
+}
+
 // ---- 画面の切りかえ
 async function route() {
   tomeru();
+  gameWoHanareru(); // 前のゲームの続きが、これから開く画面に描かないように
   delete document.body.dataset.hakaru;
   const parts = location.hash.replace(/^#\/?/, '').split('/').map((x) => decodeURIComponent(x));
   const [a, b, c2] = parts;
@@ -636,6 +671,7 @@ async function route() {
     else if (a === 'sensei' && b === 'ko') await senseiKo(c2);
     else if (a === 'sensei') await senseiHub();
     else if (a === 'check') await check();
+    else if (a === 'mikurabe') await mikurabe(b, c2, parts[3]);
     else if (a === 'tsutae') await tsutae(b);
     else if (a === 'anzen') await anzen();
     else await top();

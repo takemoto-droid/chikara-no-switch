@@ -179,3 +179,27 @@ footer details.ai-ko summary { cursor: pointer; color: var(--accent); }
 .fuda { background: #f6ead6; color: var(--ink); border-color: #8a5a2b; min-height: 44px; padding: 6px 14px; }
 .fuda.erabi { background: #8a5a2b; color: #fff; }
 
+/* 13便のもと（実機で見つかった所）：解いているあいだは、問題に要らない表示を出さない。図・問い・選択肢が1画面に収まるように */
+body[data-hakaru="1"] .michi, body[data-hakaru="1"] .dare { display: none; }
+body[data-hakaru="1"] .tsugi-ichibun { margin: 6px 0; padding: 6px 12px; font-size: 1rem; }
+body[data-hakaru="1"] .progress-wrap { margin-top: 4px; }
+.bamen-wrap .bamen-dai { margin-top: 0; }
+.bamen-wrap .box.zu-waku-bamen { margin: 6px 0; padding: 8px; }
+.bamen-wrap .toi { margin: 6px 0; padding: 10px 14px; }
+.bamen-wrap .toi-mae { margin: 4px 0; }
+.bamen-wrap .btns.tate { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0; } /* 選択肢は短いので、どの端末でも 2×2 に並べる（同じ見た目・同じ押し方） */
+.bamen-wrap .btns.tate > * { width: auto; }
+.bamen-wrap .choice { text-align: center; padding: 10px 8px; }
+.bamen-wrap .honbun { line-height: 1.8; padding: 12px 14px; }
+.bamen-wrap .bamen-zu { max-height: 34vh; width: auto; max-width: 100%; }
+@media (min-width: 720px) {
+  body[data-hakaru="1"] main { max-width: 1000px; }
+  .bamen-wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .bamen-wrap .bamen-zu { max-height: 62vh; }
+}
+.junbi { font-size: .9rem; color: var(--muted); margin: 0 0 6px; }
+#game-naka[aria-busy="true"] { opacity: .75; }
+.mikurabe-ni { display: grid; grid-template-columns: 1fr; gap: 12px; }
+@media (min-width: 720px) { .mikurabe-ni { grid-template-columns: 1fr 1fr; } }
+.mikurabe .bamen-zu { max-width: 100%; }
+[hidden] { display: none !important; } /* ボタンの display より hidden を優先する（ひと休みを押したあと、そのボタンを消す） */

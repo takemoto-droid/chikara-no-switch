@@ -7,7 +7,12 @@ import { bamenZu } from './zu.js';
 import { gakkoSettei } from './gakko.js';
 
 
+// いま画面を持っているゲームの番号。別の画面へ移ったり、別のゲームを開いたりしたら増える（前のゲームの続きが、いまの画面に描かないように）
+let imaNoGame = 0;
+export function gameWoHanareru() { imaNoGame++; }
+
 export async function gameScreen(el, id) {
+  const kono = ++imaNoGame;
   const tana = await data('tana');
   let rec = await getRecord(id);
   if (!rec) {
@@ -54,10 +59,10 @@ export async function gameScreen(el, id) {
   const settei = await gakkoSettei();
   const yasumiGamen = () => new Promise((res) => {
     hakaru(false);
-    el.innerHTML = `<h1>半分まで来た。あと少し！</h1><p class="nobi" aria-hidden="true">🙆</p>
+    el.innerHTML = `<div id="game-naka"><h1>半分まで来た。あと少し！</h1><p class="nobi" aria-hidden="true">🙆</p>
       <div class="btns"><button id="tsuzukeru">続ける</button><button class="sub" id="hitoyasumi">ひと休み</button></div>
       <p id="yasumi-bun" class="yasumi-bun" hidden>のびを しよう。いいと 思ったら「続ける」。</p>
-      <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru2">止める</button></div>`;
+      <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru2">止める</button></div></div>`;
     el.querySelector('#tsuzukeru').onclick = () => res(true);
     // 「ひと休み」：この画面のまま、のびを する時間をとる（記録は止めない・時間は比べる数に入れない）
     el.querySelector('#hitoyasumi').onclick = (e) => { e.currentTarget.hidden = true; el.querySelector('#yasumi-bun').hidden = false; };
@@ -65,22 +70,31 @@ export async function gameScreen(el, id) {
   });
 
   const tsugi = async () => {
-    if (yameta) return;
+    if (yameta || kono !== imaNoGame) return;
     if (owatta(rec)) { owariGamen(); return; }
     if (rec.shurui !== 'mijikai' && settei.HRの長さ >= 45 && !rec.yasunda && Object.keys(rec.kekka).length >= Math.floor(zenbuOf(rec) / 2)) {
       rec.yasunda = true;
       saveRecord(rec);
       if (!(await yasumiGamen())) return;
     }
-    const naka = frame();
-    naka.innerHTML = '<p class="muted" aria-live="polite">次を 選んでいます…</p>';
+    // 13便のもと（実機で見つかった所）：次の問題が決まるまで、前の画面のままにする（白い画面で待たせない）。
+    // 前の画面のボタンは押せないようにし、2秒を超えたら小さく「次を 準備しています…」を出す
+    const mae = el.querySelector('#game-naka');
+    let matsu = null;
+    if (mae) {
+      mae.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+      mae.setAttribute('aria-busy', 'true');
+      matsu = setTimeout(() => { if (!el.querySelector('#junbi')) mae.insertAdjacentHTML('afterbegin', '<p class="junbi" id="junbi" aria-live="polite">次を 準備しています…</p>'); }, 2000);
+    }
     let r;
     try {
       r = await api('tsugi', { record: okuruKiroku(rec) }, 15000);
     } catch {
       r = null;
     }
-    if (yameta) return;
+    clearTimeout(matsu);
+    if (yameta || kono !== imaNoGame) return;
+    const naka = frame();
     if (!r || !kouho(rec).includes(r.next)) {
       const nid = yobiNext(rec);
       r = { next: nid, riyuu: yobiRiyuu(rec, nid), dare: 'yobi' };
@@ -98,7 +112,7 @@ export async function gameScreen(el, id) {
     naka.innerHTML = `<p class="tsugi-ichibun" id="riyuu" data-step="${esc(st.id)}">${esc(tsugiNoIchibun(st, atarashii))}</p><div id="mondai"></div>`;
     hakaru(st.kind !== 'D');
     const kekka = await jikko(st, tana, naka.querySelector('#mondai'), yomiageOK);
-    if (yameta) return;
+    if (yameta || kono !== imaNoGame) return;
     rec.kekka[st.id] = kekka;
     rec.erabi = [...(rec.erabi || []), { step: st.id, riyuu: r.riyuu, dare: r.dare }];
     // 段階を選ぶ・切りかえる（7便）。子どもの画面には段階を出さない。変えたことは先生の画面に事実で出す
@@ -221,6 +235,18 @@ function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
   });
 }
 
+// 場面の問題の画面（ゲームと、先生の「文と図を見比べる」で同じものを使う）。
+// 13便のもと（実機で見つかった所）：図・問い・選択肢が1画面に収まるように。広い画面では場面を左、問いと選択肢を右に並べる
+export function bamenNoGamen(q, mode, i) {
+  const t = q.問い[i];
+  return `<div class="bamen-wrap">
+        <div class="bamen-hidari"><p class="bamen-dai">${esc(q.題 || '')}</p>
+        ${mode === 'zu' ? `<div class="box zu-waku-bamen">${bamenZu(q.図)}</div>` : `<div class="honbun">${esc(q.文)}</div>`}</div>
+        <div class="bamen-migi"><p class="toi-mae">${i + 1}／${q.問い.length}</p>
+        <div class="toi">${esc(t.文)}</div>
+        <div class="btns tate">${t.選択肢.map((c, k) => `<button class="choice" data-i="${k}">${esc(c)}</button>`).join('')}</div></div></div>`;
+}
+
 // 場面の問題（図あり／文だけ）。1つの場面に問いが2つ
 function bamenMondai(st, tana, box) {
   return new Promise((resolve) => {
@@ -236,12 +262,7 @@ function bamenMondai(st, tana, box) {
       }
       const t = q.問い[i];
       // 12便 P3：生活の場面。文の版は文だけ、図の版は図だけ（同じ内容）。題は両方に出す
-      box.innerHTML = `
-        <p class="bamen-dai">${esc(q.題 || '')}</p>
-        ${st.mode === 'zu' ? `<div class="box zu-waku-bamen">${bamenZu(q.図)}</div>` : `<div class="honbun">${esc(q.文)}</div>`}
-        <p class="toi-mae">${i + 1}／${q.問い.length}</p>
-        <div class="toi">${esc(t.文)}</div>
-        <div class="btns tate">${t.選択肢.map((c, k) => `<button class="choice" data-i="${k}">${esc(c)}</button>`).join('')}</div>`;
+      box.innerHTML = bamenNoGamen(q, st.mode, i);
       box.querySelectorAll('.choice').forEach((b) => {
         b.onclick = () => { b.blur(); kotae.push(Number(b.dataset.i)); toi(); };
       });

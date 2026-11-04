@@ -645,7 +645,7 @@ await ok('H4：練習の文は段階ごとにあり、棚と同じ作り。同�
   for (const p of pool.B.問題) {
     assert.equal(p.問い.length, p.段階 === 1 ? 1 : 2, p.id);
     assert.ok(p.要点 && p.言葉にする.選択肢[p.言葉にする.答え], p.id);
-    assert.ok(['seki', 'chizu', 'rouka', 'jikanwari', 'tana'].includes(p.図.type) && p.題, `${p.id}：生活の場面の図（12便）`);
+    assert.ok(['seki', 'hyou', 'jikanwari', 'tana'].includes(p.図.type) && p.題, `${p.id}：生活の場面の図（12便・13便のもとで作り直し）`);
   }
   const zenbu = JSON.stringify([pool.A, pool.B, pool.C]); // 説明の文（入れない形の名前を書いている）は除く
   for (const w of ['間違い探し', '違いを探', '覚えて', '数字タッチ', '目で追', '書き写', '記号']) assert.ok(!zenbu.includes(w), `置かない形：${w}`);
@@ -883,7 +883,9 @@ await ok('8便 K3：練習の文に、測る棚と同じ話題が無い（⑦ �
     'ノート', 'えんぴつ', 'シール', 'ジュース', '画用紙', '牛乳', 'おかし',
     '遠足', '理科', '実験', '体育祭', 'リレー', '校外学習', '博物館', '保健室', '身長', '体重', 'そうじ', 'ほうき', '朝の会', '上ばき', '体操服', '図書委員',
     // 12便：棚 B の生活の場面（教室の席・校舎の案内図・時間割・ロッカーの上の棚）
-    '黒板', '校舎', '職員室', '音楽室', '美術室', '時間割', 'ロッカー', 'なわとび', 'うわばき', 'ぼうし', '水とう', 'バケツ', 'タオル', 'ゴーグル'];
+    '黒板', '校舎', '職員室', '音楽室', '美術室', '時間割', 'ロッカー', 'なわとび', 'うわばき', 'ぼうし', 'バケツ', 'タオル', 'ゴーグル',
+    // 13便のもと：作り直した棚 B（当番表・時間割の持ち物・棚の物）
+    '当番', '花の水', '配り', 'リコーダー', 'ぞうきん', 'はさみ', 'ふくろ'];
   for (const w of WADAI) assert.ok(!renshu.includes(w), `練習の文に「${w}」がある`);
   // 選択肢に同じものが2つ無い
   for (const x of [...pool.B.問題, ...pool.C.文章]) for (const q of x.問い) assert.equal(new Set(q.選択肢).size, q.選択肢.length, `${x.id} の選択肢が重なっている`);
@@ -1054,18 +1056,18 @@ await ok('12便 P3：棚 B は生活の場面の文／図問題（段階1・2 �
       assert.equal(new Set(x.選択肢).size, 4, `${id}：選択肢が重ならない`);
       assert.ok(x.選択肢[x.答え], id);
     }
-    assert.ok(['seki', 'chizu', 'rouka', 'jikanwari', 'tana'].includes(q.図.type), id);
+    assert.ok(['seki', 'hyou', 'jikanwari', 'tana'].includes(q.図.type), id);
     // 文の版と図の版に同じ内容：図に出てくる名前（人・部屋・教科・物）は、すべて文にもある
-    for (const n of mei(q.図).filter((x) => !['type', 'seki', 'chizu', 'rouka', 'jikanwari', 'tana', 'mae', 'retsu', 'kai', 'mei', 'hidari', 'migi', 'oku', 'youbi', 'motsu', 'jikan', '1', '2', '3', '4', '5', '教室', ''].includes(x))) {
+    for (const n of mei(q.図).filter((x) => !['type', 'seki', 'hyou', 'jikanwari', 'tana', 'mae', 'retsu', 'mei', 'youbi', 'motsu', 'jikan', 'hi', 'kakari', 'dare', '1', '2', '3', '4', '5', ''].includes(x))) {
       assert.ok(q.文.includes(n.replace(/ /g, '')) || q.文.includes(n), `${id}：図の「${n}」が文にもある`);
     }
     assert.ok(!/(?<!階)段(?!目)/.test(q.文 + JSON.stringify(q.問い)), `${id}：子どもの画面に出る文に「段」が無い`);
   }
-  assert.deepEqual(t.段階.名前.B, { 1: '要素の少ない場面（席4つ・部屋3つ など）', 2: '要素の多い場面（席12・部屋6 など）' });
+  assert.deepEqual(t.段階.名前.B, { 1: '要素の少ない場面（席4つ・当番4つ など）', 2: '要素の多い場面（席12・当番12 など）' });
   // 段階1は要素が少なく、段階2は多い
   const kazu = (z) => mei(z).length;
-  for (const k of ['seki', 'chizu', 'jikanwari', 'tana']) {
-    const ichi = Object.values(B).find((x) => x.段階 === 1 && (x.図.type === k || (k === 'chizu' && x.図.type === 'rouka')));
+  for (const k of ['seki', 'hyou', 'jikanwari', 'tana']) {
+    const ichi = Object.values(B).find((x) => x.段階 === 1 && x.図.type === k);
     const ni = Object.values(B).find((x) => x.段階 === 2 && x.図.type === k);
     assert.ok(kazu(ichi.図) < kazu(ni.図), `${k}：段階1のほうが要素が少ない`);
   }
@@ -1078,12 +1080,12 @@ await ok('12便 P4（Should）：図を触るは、文・図の練習の段1〜2
   assert.ok(sawaruTaishou('zu', 2, rb('RB3').図));
   assert.ok(!sawaruTaishou('bun', 3, rb('RB1').図), '段3からは無い');
   assert.ok(!sawaruTaishou('yomu', 1, rb('RB1').図), '文・図の練習だけ');
-  assert.ok(!sawaruTaishou('bun', 1, rb('RB2').図), '枠がそろわない場面（公園の案内図）は無い');
+  assert.ok(!sawaruTaishou('bun', 1, rb('RB2').図), '表（家の お手伝い表）は、置く形の対象にしない');
   const m = sawaruNoMasu(rb('RB1').図);
-  assert.equal(m.masu.filter((x) => x.kotae != null).length, 5);
+  assert.equal(m.masu.filter((x) => x.kotae != null).length, 6);
   const seikai = Object.fromEntries(m.masu.filter((x) => x.kotae != null).map((x) => [`${x.i}-${x.j}`, x.kotae]));
-  assert.deepEqual(sawaruNoKekka(rb('RB1').図, seikai, 2), { kazu: 5, atta: 5, naoshi: 2 });
-  assert.equal(sawaruNoKekka(rb('RB1').図, { ...seikai, '0-0': 'かな', '0-1': 'ゆう' }, 0).atta, 3);
+  assert.deepEqual(sawaruNoKekka(rb('RB1').図, seikai, 2), { kazu: 6, atta: 6, naoshi: 2 });
+  assert.equal(sawaruNoKekka(rb('RB1').図, { ...seikai, '0-0': 'かな', '0-1': 'ゆう' }, 0).atta, 4);
   // 図を触った記録があっても、段の決まりは変わらない（正解の数だけで決まる）
   const r = [{ hi: '2026-11-04', hitotsu: [1, 1].map((d) => ({ mode: 'bun', dan: d, seikai: 2, kazu: 2, mondai: 'RB1', sawaru: { kazu: 5, atta: 1, naoshi: 9 } })) }];
   assert.equal(danWoDasu(r, 'bun').dan, 2);
@@ -1099,6 +1101,59 @@ await ok('12便のあと：カードの名前を漢字にした（先生の決�
   assert.equal(imaNoNamae(cs, 'どれでもスイッチ'), 'どれでもスイッチ', '変えていない名前はそのまま');
   const hozon = JSON.stringify(j('public/data/demo_claude.json'));
   assert.ok(/「ずでスイッチ」は/.test(hozon), '保存した本文は前の名前のまま（手を入れない）');
+});
+
+// ---- 13便のもと：棚 B と練習 B を、先生の基準で機械でも確かめる
+// 問いの言い方は決まった形だけ。図のデータから答えを解き直し、①答えが一つ ②答えのしるしと同じ ③選択肢はどれも場面の中にある ④向き・視点の言葉が無い
+export function bamenWoToku(z, bun) {
+  const m = (re) => bun.match(re);
+  const n = (s) => Number(String(s).replace(/[０-９]/g, (c) => '０１２３４５６７８９'.indexOf(c)));
+  const rows = z.type === 'seki' ? z.retsu : z.type === 'tana' ? z.tana : null;
+  let r;
+  if (rows && (r = m(/^前から (\d)列めの、左から (\d)番めは だれ？$/) || m(/^上から (\d)つめの たなの、左から (\d)番めは？$/))) return [rows[n(r[1]) - 1]?.[n(r[2]) - 1]];
+  if (rows && (r = m(/^(.+?)(?:さん)?と 同じ(?:列| たな)で、左から (\d)番めは(?: だれ)?？$/))) return rows.filter((row) => row.includes(r[1])).map((row) => row[n(r[2]) - 1]);
+  if (z.type === 'hyou') {
+    const yobi = (h) => `${h}曜日`;
+    if ((r = m(/^(.)曜日の (.+?)は だれ？$/))) return z.kakari.filter((k) => k.mei === r[2]).map((k) => k.dare[z.hi.indexOf(r[1])]);
+    if ((r = m(/^(.+?)さんの (?:当番|お手伝い)は 何曜日？$/))) return z.kakari.flatMap((k) => k.dare.map((d, i) => (d === r[1] ? yobi(z.hi[i]) : null))).filter(Boolean);
+    if ((r = m(/^(.+?)さんの (?:当番|お手伝い)は？$/))) return z.kakari.flatMap((k) => k.dare.map((d, i) => (d === r[1] ? `${yobi(z.hi[i])}の ${k.mei}` : null))).filter(Boolean);
+  }
+  if (z.type === 'jikanwari') {
+    if ((r = m(/^(\d)時間目は どこで する？$/))) return [z.jikan[n(r[1]) - 1]?.[2]];
+    if ((r = m(/^(.+?)を 持っていくのは 何時間目？$/))) return z.jikan.filter((j) => j[3] === r[1]).map((j) => `${j[0]}時間目`);
+    if ((r = m(/^(.+?)で するのは 何時間目？$/))) return z.jikan.filter((j) => j[2] === r[1]).map((j) => `${j[0]}時間目`);
+  }
+  return null;
+}
+
+await ok('13便のもと：棚 B の8題と練習 B の6題は、図から解き直すと答えが一つで、しるしと同じ。選択肢はどれも場面の中。向きや視点の推測が要る言葉が無い', () => {
+  const tana = j('public/data/tana.json');
+  const pool = j('public/data/renshu.json');
+  const zenbu = [...Object.entries(tana.B.問題).map(([id, q]) => ({ id, ...q })), ...pool.B.問題];
+  assert.equal(zenbu.length, 14);
+  const MUKI = ['すぐ前', 'すぐ後ろ', 'すぐ下', 'すぐ上', 'となり', 'ななめ', '向いて', '向き', '下りて', '上って', '進んで', 'つきあたり', 'どちら', '入口', '階段', '北', '南', '移動'];
+  for (const p of zenbu) {
+    const ba = JSON.stringify(p.図) + p.文;
+    for (const x of p.問い) {
+      for (const w of MUKI) assert.ok(!x.文.includes(w), `${p.id}「${x.文}」：向き・視点の言葉「${w}」`);
+      const kotae = bamenWoToku(p.図, x.文);
+      assert.ok(kotae, `${p.id}「${x.文}」：決まった言い方の問い`);
+      assert.equal(kotae.length, 1, `${p.id}「${x.文}」：答えが一つに決まる`);
+      assert.equal(x.選択肢[x.答え], kotae[0], `${p.id}「${x.文}」：答えのしるしが図と合う`);
+      assert.equal(x.選択肢.filter((c) => c === kotae[0]).length, 1, `${p.id}：正しい選択肢は1つだけ`);
+      for (const c of x.選択肢) {
+        const ari = ba.includes(c) || /^\d時間目$/.test(c) && p.図.jikan?.some((jj) => `${jj[0]}時間目` === c) || /^(.)曜日(の (.+))?$/.test(c) && p.図.hi?.includes(c[0]) && (!c.includes('の ') || p.図.kakari.some((k) => c.endsWith(`の ${k.mei}`)));
+        assert.ok(ari, `${p.id}「${x.文}」：選択肢「${c}」が場面の中にある`);
+      }
+    }
+    // 文の版にも、図と同じ基準の言い方がある
+    if (p.図.type === 'seki') assert.ok(/前から 1列めは、左から/.test(p.文), `${p.id}：文にも「前から 〇列め」「左から」`);
+    if (p.図.type === 'tana') assert.ok(/上から 1つめは、左から/.test(p.文), `${p.id}：文にも「上から 〇つめ」「左から」`);
+  }
+  // 答えの位置がかたよらない（測る棚の16問で、どの位置も2回以上）
+  const ichi = [0, 0, 0, 0];
+  for (const q of Object.values(tana.B.問題)) for (const x of q.問い) ichi[x.答え]++;
+  assert.ok(ichi.every((c) => c >= 2), `答えの位置のかたより：${ichi.join('・')}`);
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

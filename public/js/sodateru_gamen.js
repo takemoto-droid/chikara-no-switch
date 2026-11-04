@@ -320,7 +320,7 @@ function sawaruGamen(p, box) {
           const x = masu(i, j);
           if (!x) cells.push('<div></div>');
           else if (x.kotae == null) cells.push('<div class="sawaru-aki" data-kazoenai>空き</div>');
-          else cells.push(`<button class="sawaru-masu${okareta[`${i}-${j}`] ? ' oita' : ''}" data-k="${i}-${j}" aria-label="${i + 1}列目・左から${j + 1}つめ" data-kazoenai>${esc(okareta[`${i}-${j}`] || '')}</button>`);
+          else cells.push(`<button class="sawaru-masu${okareta[`${i}-${j}`] ? ' oita' : ''}" data-k="${i}-${j}" aria-label="${p.図.type === 'tana' ? `上から${i + 1}つめの たな` : `前から${i + 1}列め`}・左から${j + 1}番め" data-kazoenai>${esc(okareta[`${i}-${j}`] || '')}</button>`);
         }
       }
       box.innerHTML = `

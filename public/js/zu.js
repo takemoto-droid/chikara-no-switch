@@ -54,20 +54,30 @@ export function bamenZu(z, { wakuDake = false } = {}) {
   if (z.type === 'rouka') return roukaZu(z, wakuDake);
   if (z.type === 'jikanwari') return jikanwariZu(z, wakuDake);
   if (z.type === 'tana') return tanaZu(z, wakuDake);
+  if (z.type === 'hyou') return hyouZu(z, wakuDake);
   return '';
 }
 
-// 座席：上が前（黒板・運転席）。行は前から、列は左から
+// 座席：上が前（黒板・運転席）。行は前から、列は左から。
+// 13便のもと：向きや「前・左」の基準を推測しなくてよいように、図にも「前から 〇列め」「← 左　右 →」を書く（文の版と同じ言い方）
 function sekiZu(z, waku) {
   const W = 340;
+  const L = 44; // 左の「〇列め」の欄
   const C = Math.max(...z.retsu.map((r) => r.length));
-  const cw = Math.min(76, (W - 20 - (C - 1) * 6) / C);
-  const ch = 38;
-  const x0 = (W - (C * cw + (C - 1) * 6)) / 2;
-  const parts = [`<rect x="${x0}" y="6" width="${C * cw + (C - 1) * 6}" height="24" rx="4" fill="#3d5a4c"/><text x="${W / 2}" y="23" font-size="13" text-anchor="middle" fill="#ffffff">${SVG_ESC(z.mae || '黒板')}（前）</text>`];
-  z.retsu.forEach((r, i) => r.forEach((n, j) => parts.push(hako(x0 + j * (cw + 6), 40 + i * (ch + 8), cw, ch, n, { kara: n == null, waku }))));
-  const H = 40 + z.retsu.length * (ch + 8) + 4;
-  return svg(W, H, `${z.mae || '黒板'}が前の、席の図`, parts);
+  const cw = Math.min(70, (W - L - 10 - (C - 1) * 6) / C);
+  const ch = 36;
+  const haba = C * cw + (C - 1) * 6;
+  const x0 = L + (W - L - haba) / 2;
+  const parts = [`<rect x="${x0}" y="6" width="${haba}" height="24" rx="4" fill="#3d5a4c"/><text x="${x0 + haba / 2}" y="23" font-size="13" text-anchor="middle" fill="#ffffff">${SVG_ESC(z.mae || '黒板')}（前）</text>`,
+    `<text x="${x0}" y="46" font-size="11" fill="#5d636b">← 左</text><text x="${x0 + haba}" y="46" font-size="11" text-anchor="end" fill="#5d636b">右 →</text>`,
+    `<text x="4" y="46" font-size="11" fill="#5d636b">前から</text>`];
+  z.retsu.forEach((r, i) => {
+    const y = 52 + i * (ch + 8);
+    parts.push(`<text x="4" y="${y + ch / 2 + 4}" font-size="12" fill="#23262b">${i + 1}列め</text>`);
+    r.forEach((n, j) => parts.push(hako(x0 + j * (cw + 6), y, cw, ch, n, { kara: n == null, waku })));
+  });
+  const H = 52 + z.retsu.length * (ch + 8) + 2;
+  return svg(W, H, `${z.mae || '黒板'}が前の、席の図（前から 何列め・左から 何番め）`, parts);
 }
 
 // 校舎の案内図：階ごとに、まん中に階段。左と右に、階段に近い順に部屋
@@ -133,19 +143,44 @@ function jikanwariZu(z, waku) {
   return svg(W, H, `${z.youbi || ''}の時間割の表`, parts);
 }
 
-// 棚：上から順に、左から順に物。空きは点線
+// 棚：上から順に、左から順に物。空きは点線。
+// 13便のもと：図にも「上から 〇つめ」「← 左　右 →」を書く（文の版と同じ言い方）
 function tanaZu(z, waku) {
   const W = 340;
+  const L = 44;
   const C = Math.max(...z.tana.map((r) => r.length));
-  const cw = Math.min(76, (W - 28 - (C - 1) * 6) / C);
-  const ch = 38;
-  const x0 = (W - (C * cw + (C - 1) * 6)) / 2;
-  const parts = [`<text x="${W / 2}" y="16" font-size="13" text-anchor="middle" fill="#23262b">${SVG_ESC(z.mei || '')}</text>`];
+  const cw = Math.min(70, (W - L - 14 - (C - 1) * 6) / C);
+  const ch = 36;
+  const haba = C * cw + (C - 1) * 6;
+  const x0 = L + (W - L - haba) / 2;
+  const parts = [`<text x="${x0 + haba / 2}" y="14" font-size="13" text-anchor="middle" fill="#23262b">${SVG_ESC(z.mei || '')}</text>`,
+    `<text x="${x0}" y="30" font-size="11" fill="#5d636b">← 左</text><text x="${x0 + haba}" y="30" font-size="11" text-anchor="end" fill="#5d636b">右 →</text>`,
+    `<text x="4" y="30" font-size="11" fill="#5d636b">上から</text>`];
   z.tana.forEach((r, i) => {
-    const y = 26 + i * (ch + 12);
-    parts.push(`<line x1="${x0 - 8}" y1="${y + ch + 4}" x2="${x0 + C * cw + (C - 1) * 6 + 8}" y2="${y + ch + 4}" stroke="#8a5a2b" stroke-width="4"/>`);
+    const y = 36 + i * (ch + 12);
+    parts.push(`<text x="4" y="${y + ch / 2 + 4}" font-size="12" fill="#23262b">${i + 1}つめ</text>`);
+    parts.push(`<line x1="${x0 - 6}" y1="${y + ch + 4}" x2="${x0 + haba + 6}" y2="${y + ch + 4}" stroke="#8a5a2b" stroke-width="4"/>`);
     r.forEach((n, j) => parts.push(hako(x0 + j * (cw + 6), y, cw, ch, n, { kara: n == null, waku, iro: '#f6ead6', sen: '#8a5a2b' })));
   });
-  const H = 26 + z.tana.length * (ch + 12) + 4;
-  return svg(W, H, `${z.mei || '棚'}の図`, parts);
+  const H = 36 + z.tana.length * (ch + 12) + 2;
+  return svg(W, H, `${z.mei || '棚'}の図（上から 何つめ・左から 何番め）`, parts);
+}
+
+// 当番表（13便のもと）：上に曜日、左に係。向きの基準が要らない表
+function hyouZu(z, waku) {
+  const W = 340;
+  const C = z.hi.length;
+  const kw = 70;
+  const cw = Math.min(66, (W - 8 - kw - C * 2) / C);
+  const rh = 32;
+  const parts = [`<text x="4" y="14" font-size="13" fill="#23262b">${SVG_ESC(z.mei || '')}</text>`];
+  parts.push(hako(4, 22, kw, rh, '', { iro: '#ebe8df', sen: '#9aa0a6', size: 12 }));
+  z.hi.forEach((h, k) => parts.push(hako(4 + kw + 2 + k * (cw + 2), 22, cw, rh, h, { iro: '#ebe8df', sen: '#9aa0a6', size: 12 })));
+  z.kakari.forEach((row, i) => {
+    const y = 22 + (i + 1) * (rh + 2);
+    parts.push(hako(4, y, kw, rh, row.mei, { iro: '#f6ead6', sen: '#9aa0a6', size: 12 }));
+    row.dare.forEach((n, k) => parts.push(hako(4 + kw + 2 + k * (cw + 2), y, cw, rh, n, { waku, iro: '#ffffff', sen: '#9aa0a6', size: 12 })));
+  });
+  const H = 22 + (z.kakari.length + 1) * (rh + 2) + 4;
+  return svg(W, H, `${z.mei || '当番表'}（上に曜日・左に係）`, parts);
 }
