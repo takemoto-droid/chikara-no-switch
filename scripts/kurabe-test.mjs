@@ -6,7 +6,8 @@ const require_fs = () => fsAll;
 import path from 'node:path';
 import { ROOT, seihon } from '../lib/kotoba.mjs';
 import { askClaude, niseNoClaude } from '../lib/claude.mjs';
-import { keikakuNoKo, yobiKeikaku, kikanNoHi } from '../public/js/keikaku.js';
+import { keikakuNoKo, yobiKeikaku, kikanNoHi, shitaKoto } from '../public/js/keikaku.js';
+import { keikakuNoZairyou, keikakuNoMondai } from '../lib/api.mjs';
 import { doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
 import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
@@ -891,6 +892,79 @@ await ok('8便 K3：練習の文（読む／聞く）の音声がそろってい
       assert.ok(o[t] && files.has(o[t]), `${p.id}「${t.slice(0, 16)}…」の音声`);
     }
   }
+});
+
+// ---- 10便 M1：計画の言葉（回の種類・一人前）
+const kodomoNoKeikaku = () => Object.values(demo.結果).map((k, i) => {
+  const kai = doreNashiWoTsukeru(k.kai.map((r, n) => ({ ...r, kai: r.kai ?? n + 1 })), k.renshu || []);
+  return keikakuNoKo(`子${i + 1}`, kai, k.renshu || []);
+});
+await ok('10便 M1：計画に渡す材料に、回の種類（HR のゲーム／また見つける）と回数・一人前かが入る', () => {
+  const ko = kodomoNoKeikaku();
+  const ids = Object.keys(demo.結果);
+  const d1 = ko[ids.indexOf('デモ1')];
+  const d4 = ko[ids.indexOf('デモ4')];
+  const d7 = ko[ids.indexOf('デモ7')];
+  assert.deepEqual([d1.gameKaisu, d1.mataKaisu], [1, 0]);
+  assert.deepEqual([d4.gameKaisu, d4.mataKaisu], [3, 0]);
+  assert.deepEqual([d7.gameKaisu, d7.mataKaisu], [1, 1]);
+  assert.equal(d7.sodate[0].ichininmae, true);
+  assert.match(shitaKoto(d1), /⑦ また見つける（短いゲーム）は、まだしていない/);
+  const z = keikakuNoZairyou(j('public/data/gakko.json').設定, ko);
+  assert.ok(!JSON.stringify(z).includes('デモ'), '呼び名を入れない');
+  const z7 = z.子ども[ids.indexOf('デモ7')];
+  assert.match(z7.したこと, /⑦ また見つける（短いゲーム）を1回/);
+  assert.match(z7.育てる出し方[0].一人前, /^はい/);
+});
+
+await ok('10便 M1：予備の計画は、一人前の出し方を「続ける」と書かず、また見つけるをしていない子に「また見つけるで見つかった」と書かない', () => {
+  const ko = kodomoNoKeikaku();
+  const y = yobiKeikaku(j('public/data/gakko.json').設定, ko);
+  const ids = Object.keys(demo.結果);
+  const y7 = y.ko[ids.indexOf('デモ7')].bun;
+  assert.match(y7, /一人前（段4・上限）で、この出し方の練習は終わっています。次に育てる出し方は先生が決めます/);
+  assert.deepEqual(keikakuNoMondai(y, ko), [], '予備の計画は、取り違えの点検に通る');
+  for (const x of y.ko) assert.ok(!/また見つける」?(の(ゲーム|回))?で[^。]*見つか(りました|った)/.test(x.bun), x.label);
+});
+
+await ok('10便 M1：公開デモで見た取り違え（1回の「また見つける」で見つかった／一人前を続ける）は書き直させる', async () => {
+  const ko = kodomoNoKeikaku();
+  const ids = Object.keys(demo.結果);
+  const l1 = `子${ids.indexOf('デモ1') + 1}`;
+  const l7 = `子${ids.indexOf('デモ7') + 1}`;
+  const warui = {
+    zentai: '学校の設定から、次の「また見つける」までの計画の案です。',
+    ko: ko.map((k) => ({ label: k.label, bun: k.label === l1 ? '1回の「また見つける」で、聞くの候補が見つかりました。朝の練習で「自分で読む」を段1から。' : k.label === l7 ? 'いまの段は「読むだけ」。この段から続けて週2回・16日ほど練習する案です。' : '朝の練習の案です。' })),
+  };
+  const mondai = keikakuNoMondai(warui, ko);
+  assert.equal(mondai.length, 2);
+  assert.match(mondai.join(''), /まだしていません/);
+  assert.match(mondai.join(''), /一人前で、練習は終わっています/);
+  const yoi = { ...warui, ko: warui.ko.map((x) => (x.label === l1 ? { ...x, bun: 'HR のゲーム1回で、聞くの候補が出ました。朝の練習で「自分で読む」を段1から。' } : x.label === l7 ? { ...x, bun: '「自分で読む」は一人前。次に育てる出し方は先生が決めます。' } : x)) };
+  const c = nisemono([warui, yoi]);
+  niseNoClaude(c);
+  const [st, r] = await handle('keikaku', 'POST', { settei: j('public/data/gakko.json').設定, kodomo: ko }, { ANTHROPIC_API_KEY: 'nise' }, 'test-keikaku');
+  niseNoClaude(null);
+  assert.equal(st, 200);
+  assert.equal(r.dare, 'claude');
+  assert.equal(r.tenken.kaisu, 2, '1回目は取り違えで書き直し、2回目で通る');
+  assert.match(c.okutta[1].messages[0].content, /まだしていません/);
+  // 頼み方（システムプロンプト）に、回の種類と一人前の決まりが入っている
+  assert.match(c.okutta[0].system, /「② 見つける」は HR のゲーム、「⑦ また見つける」は間隔をあけてする短いゲームで、別のもの/);
+  assert.match(c.okutta[0].system, /一人前：はい/);
+});
+
+await ok('10便 M1：計画の文も、言葉の正本で点検され、避ける言葉が出れば書き直させる', async () => {
+  const ko = kodomoNoKeikaku();
+  const yoi = { zentai: '次の「また見つける」までの計画の案です。', ko: ko.map((k) => ({ label: k.label, bun: '朝の練習の案です。' })) };
+  const warui = { ...yoi, zentai: `この子たちは${sakeru}です。` };
+  const c = nisemono([warui, yoi]);
+  niseNoClaude(c);
+  const [, r] = await handle('keikaku', 'POST', { kodomo: ko }, { ANTHROPIC_API_KEY: 'nise' }, 'test-keikaku2');
+  niseNoClaude(null);
+  assert.equal(r.dare, 'claude');
+  assert.equal(r.tenken.kaisu, 2);
+  assert.ok(!r.zentai.includes(sakeru));
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
