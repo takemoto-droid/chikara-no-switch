@@ -91,7 +91,13 @@ async function susumu(maxStep) {
   let mae = null;
   while (tejun++ < 600) {
     if (await vis('a[href^="#/card/"]')) return 'owari';
-    if (await vis('#tsuzukeru')) { await mieru('ゲーム_ひと休み'); kiroku.yasumi = (kiroku.yasumi || 0) + 1; await page.click('#tsuzukeru'); continue; }
+    if (await vis('#tsuzukeru')) {
+      const tY = await mieru('ゲーム_ひと休み');
+      kiroku.yasumi = (kiroku.yasumi || 0) + 1;
+      if (await vis('#hitoyasumi')) { await page.click('#hitoyasumi'); kiroku.hitoyasumi = /半分まで来た/.test(tY) && (await vis('#yasumi-bun')) && (await vis('#tsuzukeru')); }
+      await page.click('#tsuzukeru');
+      continue;
+    }
     if (await vis('#riyuu[data-step]')) {
       const step = await page.locator('#riyuu[data-step]').first().getAttribute('data-step');
       if (step !== mae) {
@@ -174,7 +180,8 @@ try {
   const r2 = await susumu(99);
   tashika(r2 === 'owari', 'ゲームを最後まで通せた');
   tashika(kiroku.yasumi === 1, '長い HR の途中に、休みの画面が1回出る');
-  tashika(kiroku.理由.every((r) => /^つぎは /.test(r) && r.length <= 20), `問題の上に「つぎは 〇〇」の一文（20字以内）が毎回出る（${kiroku.理由.length}回）`);
+  tashika(kiroku.hitoyasumi === true, '休みの画面：「半分まで来た。あと少し！」と「続ける」「ひと休み」。ひと休みを押しても、その画面のまま続けられる');
+  tashika(kiroku.理由.every((r) => /^次は /.test(r) && r.length <= 20), `問題の上に「次は 〇〇」の一文（20字以内）が毎回出る（${kiroku.理由.length}回）`);
   await mieru('ゲーム_おわり');
 
   // ③ カード
@@ -185,7 +192,7 @@ try {
   tashika(!/\d+\s*枚/.test(tCard), 'カードの枚数が出ない');
   const tCardZen = await zentai();
   tashika(/これは何か/.test(tCardZen) && /自分でできる使い方/.test(tCardZen) && /先生にお願いしてよいこと/.test(tCardZen) && /くわしく/.test(tCard), 'カードの説明が3つある（「くわしく」で開く）');
-  tashika(/べつの日は ちがうかも/.test(tCard), 'カードに「べつの日は ちがうかも。」が出る');
+  tashika(/別の日は 違うかも/.test(tCard) && /力が 出せ(るかも|そう|る)|いろいろな出し方で 考えてみた/.test(tCard), 'カードに、レベルに合う一文と「別の日は 違うかも。」が出る');
 
   // ④ 先生の画面
   await page.click('text=先生が見る画面へ');
@@ -249,13 +256,13 @@ try {
   await page.waitForSelector('#riyuu, .choice');
   if (await vis('.choice')) { await mieru('育てる_出し方を選ぶ'); await page.locator('.choice').first().click(); await page.waitForSelector('#riyuu'); }
   const tKyou = await mieru('育てる_今日の練習');
-  tashika(/きょうの練習：/.test(tKyou) && /きょうの やり方：/.test(tKyou) && (await page.locator('#riyuu').innerText()).length >= 5, '⑥：きょうの練習・きょうの やり方と、選んだ理由が画面に出る（「段」と言わない）');
+  tashika(/今日の練習：/.test(tKyou) && /今日の やり方：/.test(tKyou) && (await page.locator('#riyuu').innerText()).length >= 5, '⑥：今日の練習・今日の やり方と、選んだ理由が画面に出る（「段」と言わない）');
   tashika(await vis('#yasumu'), '⑥：「今日はやらない」を選べる');
   await page.click('#hajimeru');
   let susunda = false;
   for (let i = 0; i < 300; i++) {
     if (await vis('h1:has-text("おつかれさま")')) break;
-    if (await vis('#tsugi')) { const t = await mieru('育てる_つぎのやり方の理由'); susunda ||= /つぎの やり方に なった理由/.test(t) && /2回つづけて 正解が多かったから/.test(t) && /つぎの やり方：/.test(t); await page.click('#tsugi'); continue; }
+    if (await vis('#tsugi')) { const t = await mieru('育てる_つぎのやり方の理由'); susunda ||= /次の やり方に 進んだ わけ/.test(t) && /2回 続けて、正解が 多かったから/.test(t) && /次の やり方：/.test(t); await page.click('#tsugi'); continue; }
     if (await vis('#next')) { if (i === 1) await mieru('育てる_ひとつ'); await page.click('#next'); continue; }
     const toiBun = (await vis('.toi')) ? await page.locator('.toi').first().innerText() : '';
     const q = zenToi.find((x) => x.文 === toiBun.trim());
@@ -269,7 +276,7 @@ try {
   await page.locator('.choice', { hasText: '同じくらい' }).click();
   await page.waitForSelector('.switch-card');
   const tSodate = await mieru('育てる_そだてちゅうのカード');
-  tashika(/レベル：そだてちゅう/.test(tSodate) && /●●●○/.test(tSodate) && /を支えに、.+を育てている/.test(tSodate), '⑥：そだてちゅうのカードが現れ、レベル＝段（4つのうち3つ目）と副題が付く');
+  tashika(/レベル：育て中/.test(tSodate) && /●●●○/.test(tSodate) && /を支えに、.+を育てている/.test(tSodate), '⑥：そだてちゅうのカードが現れ、レベル＝段（4つのうち3つ目）と副題が付く');
   await page.goto(`${BASE}#/card/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('.switch-card');
   const tCard2 = await mieru('カード_育てている');
@@ -280,7 +287,7 @@ try {
   await page.waitForSelector('#yasumu');
   await page.click('#yasumu');
   const tYasumi = await mieru('育てる_今日はやらない');
-  tashika(/きょうは お休み/.test(tYasumi), '⑥：「今日はやらない」を選ぶと、練習しないで終わる');
+  tashika(/今日は お休み/.test(tYasumi) && /また 別の日に/.test(tYasumi), '⑥：「今日はやらない」を選ぶと、練習しないで終わる');
   await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
   await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
   const tRenshu = await mieru('先生の画面_練習の記録');
@@ -301,13 +308,13 @@ try {
       tashika(/持っているカード/.test(c) && (await page.locator('.switch-card').count()) === 2 && /1回目のゲーム（2026-09-09）のあとで、もらったカード/.test(await zentai()), `${id}：1回目にもらったカードが手元に残っている`);
     }
     tashika(/— (読むと聞くを比べて|文と図を比べて|一気にと区切ってを比べて|どれでも力が出た)/.test(c), `${id}：カードに、比べた2つの出し方の副題が付く`);
-    tashika(/レベル：(みつけた|たしかめた|しっかり)/.test(c) && /レベル：/.test(t) === false, `${id}：カードにレベルが付く（先生の画面はカードの名前とレベルの名前だけ）`);
+    tashika(/レベル：(見つけた|確かめた|しっかり)/.test(c) && /レベル：/.test(t) === false, `${id}：カードにレベルが付く（先生の画面はカードの名前とレベルの名前だけ）`);
     if (id === 'デモ4') {
       tashika(/レベル：しっかり/.test(c) && /聞いてスイッチ（しっかり）/.test(t), `${id}：3日で同じ向きのカードは、いちばん上のレベル`);
       tashika(KITAI[id].test(c) && /別々の日にした3日分のゲームのすべてで、くり返し/.test(await zentai()), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
       tashika(/くり返し出た候補「聞く」/.test(t), `${id}：先生の画面に「くり返し出た候補」が出る`);
     } else {
-      tashika(KITAI[id].test(c) && /この日のゲームでは/.test(await zentai()) && /きょう、/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
+      tashika(KITAI[id].test(c) && /この日のゲームでは/.test(await zentai()) && /力が 出せ(るかも|そう|る)/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
       tashika(!/くり返し出た候補「/.test(t), `${id}：くり返し出た候補にならない`);
     }
     await page.goto(`${BASE}#/tsutae/${encodeURIComponent(id)}`);

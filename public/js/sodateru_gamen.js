@@ -14,7 +14,7 @@ import { bamenZu } from './zu.js';
 import { cardHtml } from './card_html.js';
 
 const enc = encodeURIComponent;
-export const RAKU = ['前より楽になった', '同じくらい', 'むずかしかった'];
+export const RAKU = ['前より楽になった', '同じくらい', '難しかった'];
 const KOTAENAI = '今は答えない';
 
 // 練習の記録（本人の画面・先生の画面で同じ並び）
@@ -71,14 +71,14 @@ export async function sodateruGamen(el, id) {
       <h1>朝の練習</h1>
       <p>どれを 育てる？（あとで 変えられる）</p>
       <div class="btns tate">${SODATE_MODES.map((m) => `<button class="choice" data-m="${m}">${esc(SODATE_MEI[m])}</button>`).join('')}</div>
-      <p class="small"><a href="#/card/${enc(id)}">カードにもどる</a></p>`;
+      <p class="small"><a href="#/card/${enc(id)}">カードに戻る</a></p>`;
     el.querySelectorAll('.choice').forEach((b) => {
       b.onclick = async () => { jibun = b.dataset.m; kouho = [jibun]; await kyouNoGamen(); };
     });
   }
 
   async function kyouNoGamen() {
-    el.innerHTML = '<h1>朝の練習</h1><p class="muted" aria-live="polite">えらんでいます…</p>';
+    el.innerHTML = '<h1>朝の練習</h1><p class="muted" aria-live="polite">選んでいます…</p>';
     // 10便 M2：Claude が選んだ理由は端末に覚える。練習の記録か候補が変わったときだけ呼び直す（予備の文は覚えない）
     const key = motoNoKey({ renshu, hoka: kouho });
     let r = claudeNoOboe(id, 'sodate', key);
@@ -95,22 +95,22 @@ export async function sodateruGamen(el, id) {
     const { dan } = danWoDasu(renshu, mode);
     const n = hitotsuNoKazu(settei.朝の練習の長さ);
     // 12便 P1：子どもの画面には「予備の動き」「決まった順」を出さない。AI が選んだときだけ、そのことを出す
-    const who = r.dare === 'claude' ? 'AI（Claude）が えらんだ理由' : '';
+    const who = r.dare === 'claude' ? 'AI（Claude）が 選んだ理由' : '';
     // 12便 P2：「いまの段」→「きょうの やり方」（段階と区別がつかないため、子どもの画面では「段」と言わない）
     el.innerHTML = `
       <h1>朝の練習</h1>
-      <div class="box soft"><p><strong>きょうの練習：${esc(SODATE_MEI[mode])}</strong></p><p>きょうの やり方：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan - 1])}</span></p><p class="muted small">1つ 2〜3分。${n}つ します。</p></div>
+      <div class="box soft"><p><strong>今日の練習：${esc(SODATE_MEI[mode])}</strong></p><p>今日の やり方：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan - 1])}</span></p><p>1つ 2〜3分。${n}つ します。</p></div>
       <div class="riyuu" id="riyuu">${who ? `<span class="who">${esc(who)}</span>` : ''}${esc(r.riyuu)}</div>
       ${demoNoKo ? '<p class="muted">架空の子なので 始めません。</p>' : ''}
       <div class="btns">
-        ${demoNoKo ? '' : '<button id="hajimeru">はじめる</button><button class="sub" id="yasumu">今日はやらない</button>'}
+        ${demoNoKo ? '' : '<button id="hajimeru">始める</button><button class="sub" id="yasumu">今日はやらない</button>'}
       </div>
-      <p class="small"><a href="#/card/${enc(id)}">カードにもどる</a></p>`;
+      <p class="small"><a href="#/card/${enc(id)}">カードに戻る</a></p>`;
     if (demoNoKo) return;
     const entry = { no: Date.now(), hi: hiduke(), jibun: jibun || undefined, hitotsu: [], riyuu: r.riyuu, dare: r.dare };
     el.querySelector('#yasumu').onclick = () => {
       saveRenshu(id, { ...entry, yasumi: true });
-      el.innerHTML = `<h1>きょうは お休み</h1><p>また べつの日に。</p><div class="btns"><a class="btn" href="#/card/${enc(id)}">カードを見る</a></div>`;
+      el.innerHTML = `<h1>今日は お休み。</h1><p>また 別の日に。</p><div class="btns"><a class="btn" href="#/card/${enc(id)}">カードを見る</a></div>`;
     };
     el.querySelector('#hajimeru').onclick = () => renshuSuru(mode, n, entry);
   }
@@ -142,11 +142,11 @@ export async function sodateruGamen(el, id) {
       if (ato.dan > dan) {
         // 12便 P2：「段が進んだ理由」→「つぎの やり方に なった理由」
         el.innerHTML = `
-          <h1>つぎの やり方に なった理由</h1>
+          <h1>次の やり方に 進んだ わけ</h1>
           <div class="riyuu">${esc(agariNoRiyuu())}</div>
-          <p>つぎの やり方：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan])}</span></p>
+          <p>次の やり方：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan])}</span></p>
           ${ato.dan >= DAN_JOUGEN ? '<p><strong>カードが 一人前に なったよ！</strong></p>' : ''}
-          <div class="btns"><button id="tsugi">つぎへ</button></div>`;
+          <div class="btns"><button id="tsugi">次へ</button></div>`;
         await new Promise((res) => { el.querySelector('#tsugi').onclick = res; });
       }
     }
@@ -185,16 +185,16 @@ function bunsho(mode, dan, p, box, yomiageOK) {
     let oshita = 0;
     let html;
     if (!kiku) {
-      const setsumei = ['読み上げを 聞きながら 読もう。', 'はじめだけ 読み上げるよ。', '聞きたいときだけ ▶。', '自分で 読もう。'][dan - 1];
+      const setsumei = ['読み上げを 聞きながら 読もう。', '始めだけ 読み上げるよ。', '聞きたいときだけ ▶。', '自分で 読もう。'][dan - 1];
       html = `<p>${esc(setsumei)}</p><div class="honbun">${esc(zenbun)}</div>
-        <div class="btns">${dan === 3 && !nashi ? '<button class="sub" id="kiku">▶ 聞く</button>' : ''}${dan <= 2 && !nashi ? '<button class="sub" id="mou">▶ もう一度</button>' : ''}<button id="next">つぎへ</button></div>`;
+        <div class="btns">${dan === 3 && !nashi ? '<button class="sub" id="kiku">▶ 聞く</button>' : ''}${dan <= 2 && !nashi ? '<button class="sub" id="mou">▶ もう一度</button>' : ''}<button id="next">次へ</button></div>`;
     } else {
       const ushiro = Math.floor(n / 2);
-      const mieru = dan === 1 ? esc(zenbun) : dan === 2 ? `<span class="muted">（はじめは 聞いてね）</span>${esc(p.本文.slice(ushiro).join(''))}` : '';
-      const setsumei = ['文を 見ながら 聞こう。', 'うしろだけ 文が 見えるよ。', '見たいときだけ「文を 見る」。', 'よく 聞こう。'][dan - 1];
+      const mieru = dan === 1 ? esc(zenbun) : dan === 2 ? `<span class="muted">（始めは 聞いてね）</span>${esc(p.本文.slice(ushiro).join(''))}` : '';
+      const setsumei = ['文を 見ながら 聞こう。', '後ろだけ 文が 見えるよ。', '見たいときだけ「文を 見る」。', 'よく 聞こう。'][dan - 1];
       html = `<p>${esc(setsumei)}</p>${mieru ? `<div class="honbun">${mieru}</div>` : ''}<div id="mieru-box"></div>
-        <div class="btns"><button class="sub" id="mou">▶ もう一度</button>${dan === 3 ? '<button class="sub" id="miru">文を 見る</button>' : ''}<button id="next">つぎへ</button></div>`;
-      if (nashi) html = `<p class="muted small">（文字で出します）</p><div class="honbun">${esc(zenbun)}</div><div class="btns"><button id="next">つぎへ</button></div>`;
+        <div class="btns"><button class="sub" id="mou">▶ もう一度</button>${dan === 3 ? '<button class="sub" id="miru">文を 見る</button>' : ''}<button id="next">次へ</button></div>`;
+      if (nashi) html = `<p class="muted small">（文字で出します）</p><div class="honbun">${esc(zenbun)}</div><div class="btns"><button id="next">次へ</button></div>`;
     }
     box.innerHTML = html;
     if (!nashi) {
@@ -221,7 +221,7 @@ function bunsho(mode, dan, p, box, yomiageOK) {
         <p class="toi-mae">${i + 1}／${p.問い.length}　合ってる？</p>
         <div class="toi">${kakusu ? '<span class="kakushi">（聞いてね）</span>' : esc(q.文)}</div>
         ${kiku && !nashi ? '<div class="btns"><button class="sub" id="again">▶ この文をもう一度聞く</button></div>' : ''}
-        <div class="marubatsu"><button data-k="1" class="maru"><span aria-hidden="true">○</span> 合う</button><button data-k="0" class="batsu"><span aria-hidden="true">×</span> ちがう</button></div>`;
+        <div class="marubatsu"><button data-k="1" class="maru"><span aria-hidden="true">○</span> 合う</button><button data-k="0" class="batsu"><span aria-hidden="true">×</span> 違う</button></div>`;
       if ((kiku && !nashi) || (!kiku && dan === 1 && !nashi)) yomu(q.文);
       on('#again', () => yomu(q.文));
       box.querySelectorAll('.marubatsu button').forEach((b) => { b.onclick = () => { tomeru(); kotae.push(b.dataset.k === '1'); toi(); }; });
@@ -237,7 +237,7 @@ function bamen(mode, dan, p, box) {
     const ue = () => {
       if (mode === 'bun') {
         const zu = dan === 1 ? bamenZu(p.図) : dan === 2 ? bamenZu(p.図, { wakuDake: true }) : '';
-        return `<p class="bamen-dai">${esc(p.題 || '')}</p><div class="honbun">${esc(p.文)}</div>${zu ? `<div class="box">${zu}</div>` : ''}${dan === 3 ? '<div class="box zu-waku" aria-label="図をかく枠"><p class="muted small">ここに 図を かくつもりで（紙に かいても いい）</p></div>' : ''}`;
+        return `<p class="bamen-dai">${esc(p.題 || '')}</p><div class="honbun">${esc(p.文)}</div>${zu ? `<div class="box">${zu}</div>` : ''}${dan === 3 ? '<div class="box zu-waku" aria-label="図をかく枠"><p class="muted small">ここに 図を 描く つもりで（紙に 描いても いい）</p></div>' : ''}`;
       }
       const shita = dan === 1 ? `<div class="honbun">${esc(p.文)}</div>` : dan === 2 ? `<div class="honbun">${esc(p.要点)}</div>` : '';
       return `<p class="bamen-dai">${esc(p.題 || '')}</p><div class="box">${bamenZu(p.図)}</div>${shita}`;
@@ -278,7 +278,7 @@ function renraku(dan, p, box) {
     };
     const yomaseru = (a) => {
       const b = Math.min(n, a + haba);
-      box.innerHTML = `${haba >= n ? '' : `<p class="toi-mae">${a + 1}〜${b}／${n}</p>`}${misete(a, b)}<div class="btns"><button id="next">つぎへ</button></div>`;
+      box.innerHTML = `${haba >= n ? '' : `<p class="toi-mae">${a + 1}〜${b}／${n}</p>`}${misete(a, b)}<div class="btns"><button id="next">次へ</button></div>`;
       box.querySelector('#next').onclick = () => toi(a, b);
     };
     const toi = (a, b) => {
@@ -329,7 +329,7 @@ function sawaruGamen(p, box) {
         <div class="honbun">${esc(p.文)}</div>
         <div class="sawaru-zu" style="grid-template-columns: repeat(${m.cols}, 1fr)">${mae}${cells.join('')}</div>
         <div class="sawaru-fuda">${nokori.map((f) => `<button class="fuda${erabi === f ? ' erabi' : ''}" data-f="${esc(f)}" aria-pressed="${erabi === f}" data-kazoenai>${esc(f)}</button>`).join('')}</div>
-        <div class="btns"><button class="sub" id="modosu" ${rireki.length ? '' : 'disabled'}>もどす</button><button id="dekita" ${nokori.length ? 'disabled' : ''}>できた</button></div>`;
+        <div class="btns"><button class="sub" id="modosu" ${rireki.length ? '' : 'disabled'}>戻す</button><button id="dekita" ${nokori.length ? 'disabled' : ''}>できた</button></div>`;
       box.querySelectorAll('.fuda').forEach((b) => { b.onclick = () => { erabi = erabi === b.dataset.f ? null : b.dataset.f; kaku(); }; });
       box.querySelectorAll('.sawaru-masu').forEach((b) => {
         b.onclick = () => {

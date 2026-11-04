@@ -12,7 +12,7 @@ import { sodateruGamen, renshuKirokuHtml } from './sodateru_gamen.js';
 import { sodateCards, sodateCardNoBun, ichininmaeOf, jibunDeErabu, DAN_JOUGEN, SODATE_MEI } from './sodateru.js';
 
 export const SOUDAN_OTONA_UTSUSHI = '気になることや困っていることがあれば、かかりつけの医師や、お住まいの市区町村の相談窓口に相談できます。このゲームの結果があってもなくても、相談はできます。';
-export const SOUDAN_KO_UTSUSHI = 'こまったら、担任か 相談の窓口に 言ってね。結果と 関係なく。';
+export const SOUDAN_KO_UTSUSHI = '困ったときは、担任の先生か相談室に話してね。結果とは関係ないよ。';
 export const SOUDAN_UTSUSHI = '気になることや困っていることがあれば、いつでも担任の先生や、学校の相談の窓口に話してください。このゲームの結果があってもなくても、相談はできます。';
 const app = document.getElementById('app');
 let should = {};
@@ -44,7 +44,7 @@ function dare(t) {
 }
 
 // 12便 P1：右上の読み上げ ▶。比べる対象ではない文（つぎの一文・質問・案内・カード・練習）を読む。
-// 測っている問題のあいだ（body[data-hakaru]）は、本文や問いを読まず、「つぎは 〇〇」の一文だけを読む（比べがこわれないように）
+// 測っている問題のあいだ（body[data-hakaru]）は、本文や問いを読まず、「次は 〇〇」の一文だけを読む（比べがこわれないように）
 function yomuMojiretsu() {
   if (document.body.dataset.hakaru === '1') return document.getElementById('riyuu')?.textContent || '';
   const el = [...app.querySelectorAll('h1, h2, h3, p, li, .toi, .honbun, .choice, .mei, .fukudai, .hitokoto')]
@@ -106,7 +106,7 @@ function annaiKo(gamen, i = 0) {
     <p class="annai-kazu">${i + 1}／${zen}</p>
     ${saigo ? `<div class="annai-ichibun soudan-ko">${soudanHtml(false, 'ko')}</div>` : `<p class="annai-ichibun">${esc(g.文)}</p>`}
     ${g?.e ? `<div class="annai-e">${g.e.map(([e, t]) => `<span><span class="e" aria-hidden="true">${e}</span>${esc(t)}</span>`).join('')}</div>` : ''}
-    <div class="btns">${saigo ? '<a class="btn" href="#/hajimeru">はじめる</a>' : '<button id="annai-tsugi">つぎへ</button>'}</div>
+    <div class="btns">${saigo ? '<a class="btn" href="#/hajimeru">始める</a>' : '<button id="annai-tsugi">次へ</button>'}</div>
     <p class="small"><a href="#/annai/hogo">保護者の方へ</a></p>`;
   const b = document.getElementById('annai-tsugi');
   if (b) b.onclick = () => { tomeru(); annaiKo(gamen, i + 1); window.scrollTo(0, 0); };
@@ -153,9 +153,9 @@ async function card(id) {
     ${sodate.length ? `<h2>育てているカード</h2>${sodate.map(sodateHyouji).join('')}` : ''}
     ${rec.owari ? '' : `<div class="box soft"><a class="btn sub" href="#/game/${enc(id)}">つづきから</a></div>`}
     <div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 朝の練習へ</a></div>
-    ${tsugiNoKai ? `<details class="box soft" id="mata-waku"><summary>⑦ また見つける</summary><p>べつの日に、短いゲーム（10分ほど）を もう一度します。前のゲームと あわせて 比べます。もらったカードは、なくならないよ。</p><button class="sub" id="tsugi-kai">はじめる</button></details>` : ''}
+    ${tsugiNoKai ? `<details class="box soft" id="mata-waku"><summary>⑦ また見つける</summary><p>別の日に、短いゲーム（10分ほど）を もう一度します。前のゲームと あわせて 比べます。もらったカードは、なくならないよ。</p><button class="sub" id="tsugi-kai">はじめる</button></details>` : ''}
     ${renshu.length ? `<details class="box"><summary>練習の記録</summary><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}</details>` : ''}
-    <details class="box soudan"><summary>こまったとき</summary>${isOtona(id) ? soudanHtml(true) : soudanHtml(false, 'ko')}</details>
+    <details class="box soudan"><summary>困ったとき</summary>${isOtona(id) ? soudanHtml(true) : soudanHtml(false, 'ko')}</details>
     <p class="small"><a href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果（先生の画面と同じもの）' : '先生が見る画面へ'}</a></p>`;
   const b = document.getElementById('tsugi-kai');
   if (b) b.onclick = () => { if (newKai(id, 'mijikai')) location.hash = `#/game/${enc(id)}`; };

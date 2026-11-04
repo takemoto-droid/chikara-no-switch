@@ -539,8 +539,8 @@ await ok('H3：カードのレベルは下がらない。上限は3。副題と�
   assert.deepEqual(motteiruCards([r1]).agatta, []);
   assert.deepEqual(motteiruCards([r1, r2]).agatta, ['kiku']);
   assert.deepEqual(motteiruCards([r1, r2, r3, r4]).agatta, [], '進まなかった日は出さない');
-  assert.equal(levelNoNamae(cards, kiku([r1])), 'みつけた');
-  assert.equal(levelNoNamae(cards, kiku([r1, r2])), 'たしかめた');
+  assert.equal(levelNoNamae(cards, kiku([r1])), '見つけた');
+  assert.equal(levelNoNamae(cards, kiku([r1, r2])), '確かめた');
   assert.equal(levelNoNamae(cards, kiku([r1, r2, r3])), 'しっかり');
   assert.deepEqual(motteiruCards([r1, r2, r3]).agatta, ['kiku'], '同じカードのレベルが進んだことは分かる');
   assert.equal(cards.カード.kiku.名前, '聞いてスイッチ');
@@ -568,8 +568,10 @@ await ok('H3：カードの名前は card_namae.json の1つだけにある（ca
     const t = readFileSync(path.join(ROOT, f), 'utf8');
     for (const x of mei) assert.ok(!t.includes(x), `${f} に「${x}」を書かない`);
   }
+  // レベルの名前は、ふつうの言葉（「見つけた」など）とも重なるので、文字列として書いていないか（'見つけた' など）を見る
+  const mojiretsu = (t, x) => [`'${x}'`, `"${x}"`, `\`${x}\``, `：${x}`].some((q) => t.includes(q));
   for (const x of [...Object.values(namae.レベル.見つけた), ...Object.values(namae.副題.見つけた), namae.副題.どれでも]) {
-    for (const f of ['public/js/app.js', 'public/js/kurabe.js']) assert.ok(!readFileSync(path.join(ROOT, f), 'utf8').includes(x), `${f} に「${x}」を書かない`);
+    for (const f of ['public/js/app.js', 'public/js/kurabe.js', 'lib/api.mjs']) assert.ok(!mojiretsu(readFileSync(path.join(ROOT, f), 'utf8'), x), `${f} に「${x}」を書かない`);
   }
 });
 
@@ -668,7 +670,7 @@ await ok('H4：そだてちゅうのカードは練習を始めると現れ、�
   assert.equal(c.card, 'yomu');
   assert.equal(c.level, 2);
   assert.equal(c.ichininmae, false);
-  assert.equal(levelNoNamae(cards, c), 'そだてちゅう');
+  assert.equal(levelNoNamae(cards, c), '育て中');
   assert.equal(cardNoFukudai(cards, c), '聞くを支えに、読むを育てている');
   assert.match(sodateCardNoBun(cards, c).ひとこと, /育てている/);
   assert.equal(sodateCardNoBun(cards, c).名前, '読んでスイッチ');

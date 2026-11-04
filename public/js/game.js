@@ -11,7 +11,7 @@ export async function gameScreen(el, id) {
   const tana = await data('tana');
   let rec = await getRecord(id);
   if (!rec) {
-    el.innerHTML = `<h1>見つかりません</h1><p>この端末には、この記録がありません。</p><p><a href="#/hajimeru">はじめから動かす</a></p>`;
+    el.innerHTML = `<h1>見つかりません</h1><p>この端末には、この記録がありません。</p><p><a href="#/hajimeru">始めから動かす</a></p>`;
     return;
   }
   if (isDemo(id)) {
@@ -35,8 +35,8 @@ export async function gameScreen(el, id) {
       tomeru();
       saveRecord(rec);
       hakaru(false);
-      el.innerHTML = `<h1>止めました</h1><p>つづきは、あとで できます。</p>
-        <div class="btns"><a class="btn" href="#/game/${encodeURIComponent(rec.id)}">つづきから</a><a class="btn sub" href="#/">はじめの画面</a></div>`;
+      el.innerHTML = `<h1>止めました</h1><p>続きは、後で できます。</p>
+        <div class="btns"><a class="btn" href="#/game/${encodeURIComponent(rec.id)}">続きから</a><a class="btn sub" href="#/">はじめの画面</a></div>`;
     };
     return el.querySelector('#game-naka');
   };
@@ -54,10 +54,13 @@ export async function gameScreen(el, id) {
   const settei = await gakkoSettei();
   const yasumiGamen = () => new Promise((res) => {
     hakaru(false);
-    el.innerHTML = `<h1>はんぶん きた！</h1><p class="nobi" aria-hidden="true">🙆</p><p>のびを してから。</p>
-      <div class="btns"><button id="tsuzukeru">つづける</button></div>
+    el.innerHTML = `<h1>半分まで来た。あと少し！</h1><p class="nobi" aria-hidden="true">🙆</p>
+      <div class="btns"><button id="tsuzukeru">続ける</button><button class="sub" id="hitoyasumi">ひと休み</button></div>
+      <p id="yasumi-bun" class="yasumi-bun" hidden>のびを しよう。いいと 思ったら「続ける」。</p>
       <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru2">止める</button></div>`;
     el.querySelector('#tsuzukeru').onclick = () => res(true);
+    // 「ひと休み」：この画面のまま、のびを する時間をとる（記録は止めない・時間は比べる数に入れない）
+    el.querySelector('#hitoyasumi').onclick = (e) => { e.currentTarget.hidden = true; el.querySelector('#yasumi-bun').hidden = false; };
     el.querySelector('#tomeru2').onclick = () => { yameta = true; saveRecord(rec); location.hash = '#/'; res(false); };
   });
 
@@ -70,7 +73,7 @@ export async function gameScreen(el, id) {
       if (!(await yasumiGamen())) return;
     }
     const naka = frame();
-    naka.innerHTML = '<p class="muted" aria-live="polite">つぎを えらんでいます…</p>';
+    naka.innerHTML = '<p class="muted" aria-live="polite">次を 選んでいます…</p>';
     let r;
     try {
       r = await api('tsugi', { record: okuruKiroku(rec) }, 15000);
@@ -116,10 +119,10 @@ function hakaru(on) {
 // 問題の上の一文（12便 P1）。絵印＋短い言葉。
 const EJIRUSHI = { yomu: '📖 読む', kiku: '👂 聞く', bun: '📝 文で見る', zu: '🗺️ 図で見る', ikki: '📄 まとめて読む', kugiri: '✂️ 一文ずつ読む' };
 export function tsugiNoIchibun(st, atarashii = false) {
-  if (st.kind === 'D') return 'つぎは 質問 💬';
+  if (st.kind === 'D') return '次は 質問 💬';
   const e = EJIRUSHI[st.mode] || '';
-  if (st.renshu) return `つぎは 練習（${e}）`;
-  return atarashii ? `つぎは 新しい問題（${e}）` : `つぎは ${e}`;
+  if (st.renshu) return `次は 練習（${e}）`;
+  return atarashii ? `次は 新しい問題（${e}）` : `次は ${e}`;
 }
 
 // 練習問題を Claude が作る（Should・5便）：キーがあり、should.json で使うときだけ。練習は比べる数に入れない
@@ -165,7 +168,7 @@ function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
     // 1：本文
     if (kiku) {
       box.innerHTML = `${tsukuttaLabel}
-        <div class="btns"><button id="play" class="sub">▶ 聞く</button><button id="next" disabled>つぎへ</button></div>`;
+        <div class="btns"><button id="play" class="sub">▶ 聞く</button><button id="next" disabled>次へ</button></div>`;
       box.querySelector('#play').onclick = async () => {
         kikuKaisu++;
         box.querySelector('#play').disabled = true;
@@ -177,7 +180,7 @@ function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
     } else {
       box.innerHTML = `${tsukuttaLabel}${yomiageNashi ? '<p class="muted small">（文字で出します）</p>' : ''}
         <div class="honbun">${honbunHtml}</div>
-        <div class="btns"><button id="next">つぎへ</button></div>`;
+        <div class="btns"><button id="next">次へ</button></div>`;
       box.querySelector('#next').onclick = () => toi();
     }
 
@@ -200,7 +203,7 @@ function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
           <button class="sub" id="mikaesu" ${mikaeshi >= 1 ? 'disabled' : ''}>${kiku ? 'もう一度 聞く（あと1回）' : 'もう一度 見る（あと1回）'}</button>
         </div>
         <div id="mikaeshi-box"></div>
-        <div class="marubatsu"><button data-k="1" class="maru"><span aria-hidden="true">○</span> 合う</button><button data-k="0" class="batsu"><span aria-hidden="true">×</span> ちがう</button></div>`;
+        <div class="marubatsu"><button data-k="1" class="maru"><span aria-hidden="true">○</span> 合う</button><button data-k="0" class="batsu"><span aria-hidden="true">×</span> 違う</button></div>`;
       if (kiku) {
         yomu(q.文);
         box.querySelector('#again').onclick = () => { toiKikuKaisu++; yomu(q.文); };
@@ -265,7 +268,7 @@ function shijiMondai(st, tana, box) {
       box.innerHTML = `
         ${ikki ? '' : `<p class="toi-mae">${i + 1}／${p.連絡.length}</p>`}
         ${ikki ? shijiHtml(upto) : `<div class="honbun">${i === 0 ? `<p>${esc(p.前おき)}</p>` : ''}<p>${esc(p.連絡[i])}</p></div>`}
-        <div class="btns"><button id="next">つぎへ</button></div>`;
+        <div class="btns"><button id="next">次へ</button></div>`;
       box.querySelector('#next').onclick = () => toi(i);
     };
     const toi = (i) => {
