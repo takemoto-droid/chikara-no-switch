@@ -2,7 +2,7 @@
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
 import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
-import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
+import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei } from './game.js';
 import { junbiYomiage, yomu, tomeru, yomeru } from './yomiage.js';
 import { cardHtml } from './card_html.js';
@@ -527,6 +527,7 @@ async function tsutae(id) {
   app.innerHTML = `<h1>伝え方の下書き（${esc(id)}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>`;
   const box = document.getElementById('tsutae');
   const key = motoNoKey({ kai, renshu: (await getKid(id))?.renshu || [], atehamaru: ids, settei: await gakkoSettei() });
+  const cardsData = await data('cards');
   const draw = (t) => {
     box.innerHTML = `
       <p>${whoLabel(t.dare)}<span class="label sankou">${esc(t.sankou)}</span></p>
@@ -534,7 +535,7 @@ async function tsutae(id) {
       ${t.wake ? `<p class="muted small">${esc(t.wake)}</p>` : ''}
       <h2>懇談で口で言う下書き</h2>
       <textarea id="kondan" aria-label="懇談で口で言う下書き">${esc(t.kondan)}</textarea>
-      <h2>カードの保護者向け説明（${esc(t.cardMei)}）</h2>
+      <h2>カードの保護者向け説明（${esc(imaNoNamae(cardsData, t.cardMei))}）</h2>
       <p class="muted small">求められたときに渡すための文です。</p>
       <textarea id="hogosha" aria-label="カードの保護者向け説明">${esc(t.hogosha)}</textarea>
       <h2>学年・教科の先生への一言</h2>

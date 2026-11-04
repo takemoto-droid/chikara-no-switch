@@ -287,7 +287,7 @@ try {
   tashika(/練習の記録（⑥ 育てる）/.test(tRenshu) && /育てているカード：/.test(tRenshu) && /「今日はやらない」を選んだ日：1日/.test(tRenshu) && /楽になったか/.test(tRenshu), '④(e)：先生の画面に、練習の記録（回数・段・楽になったか・やらなかった日）が出る');
 
   // 保存した結果を見る（デモの子：1回だけの3人と、3回分の3人）
-  const KITAI = { デモ1: /きいてスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /ずでスイッチ/, デモ4: /きいてスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/, デモ7: /きいてスイッチ/, デモ8: /ずでスイッチ/ };
+  const KITAI = { デモ1: /聞いてスイッチ/, デモ2: /どれでもスイッチ/, デモ3: /図でスイッチ/, デモ4: /聞いてスイッチ/, デモ5: /どれでもスイッチ/, デモ6: /どれでもスイッチ/, デモ7: /聞いてスイッチ/, デモ8: /図でスイッチ/ };
   for (const id of Object.keys(KITAI)) {
     await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kasetsu .kasetsu', { timeout: 60000 });
@@ -303,7 +303,7 @@ try {
     tashika(/— (読むと聞くを比べて|文と図を比べて|一気にと区切ってを比べて|どれでも力が出た)/.test(c), `${id}：カードに、比べた2つの出し方の副題が付く`);
     tashika(/レベル：(みつけた|たしかめた|しっかり)/.test(c) && /レベル：/.test(t) === false, `${id}：カードにレベルが付く（先生の画面はカードの名前とレベルの名前だけ）`);
     if (id === 'デモ4') {
-      tashika(/レベル：しっかり/.test(c) && /きいてスイッチ（しっかり）/.test(t), `${id}：3日で同じ向きのカードは、いちばん上のレベル`);
+      tashika(/レベル：しっかり/.test(c) && /聞いてスイッチ（しっかり）/.test(t), `${id}：3日で同じ向きのカードは、いちばん上のレベル`);
       tashika(KITAI[id].test(c) && /別々の日にした3日分のゲームのすべてで、くり返し/.test(await zentai()), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
       tashika(/くり返し出た候補「聞く」/.test(t), `${id}：先生の画面に「くり返し出た候補」が出る`);
     } else {
@@ -313,10 +313,11 @@ try {
     await page.goto(`${BASE}#/tsutae/${encodeURIComponent(id)}`);
     await page.waitForSelector('#kondan', { timeout: 60000 });
     const tT = await mieru(`デモ_${id}_伝え方`);
+    tashika(!/保護者向け説明（(きいて|よんで|ずで|ぶんで|くぎって|いっきに)スイッチ）/.test(tT), `${id}：伝え方の見出しは今のカードの名前（保存した文の本文は前の名前のまま）`);
     if (id === 'デモ1') tashika(/HR の冒頭で先生が話すこと/.test(tT) && /今は答えない/.test(tT), '⑤：HR の冒頭で先生が話すことの下書きが出る');
     if (id === 'デモ7') {
       tashika(!/どれでもスイッチ/.test(c) && !/どれでもスイッチ/.test(t), 'デモ7：一人前になった日に「どれでも」を出さない（8便 K4）');
-      tashika(/育てているカード/.test(c) && /よんでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
+      tashika(/育てているカード/.test(c) && /読んでスイッチ/.test(c) && /レベル：一人前/.test(c) && /●●●●/.test(c) && /聞くを支えに、読むを育てた/.test(c) && /練習の記録/.test(c), 'デモ7：練習で育ったカードが一人前で出て、本人の練習の記録がある');
       tashika(/練習の記録（⑥ 育てる）/.test(t) && /「今日はやらない」を選んだ日：1日/.test(t) && /前の回との違い/.test(t), 'デモ7：先生の画面に、練習の記録と前の回との違いが出る');
       await page.goto(`${BASE}#/sodateru/${encodeURIComponent(id)}`);
       await page.waitForSelector('#riyuu');

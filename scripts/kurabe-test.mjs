@@ -11,7 +11,7 @@ import { keikakuNoKo, yobiKeikaku, kikanNoHi, shitaKoto } from '../public/js/kei
 import { keikakuNoZairyou, keikakuNoMondai } from '../lib/api.mjs';
 import { sawaruTaishou, sawaruNoMasu, sawaruNoKekka, doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
-import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
+import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
@@ -543,7 +543,7 @@ await ok('H3：カードのレベルは下がらない。上限は3。副題と�
   assert.equal(levelNoNamae(cards, kiku([r1, r2])), 'たしかめた');
   assert.equal(levelNoNamae(cards, kiku([r1, r2, r3])), 'しっかり');
   assert.deepEqual(motteiruCards([r1, r2, r3]).agatta, ['kiku'], '同じカードのレベルが進んだことは分かる');
-  assert.equal(cards.カード.kiku.名前, 'きいてスイッチ');
+  assert.equal(cards.カード.kiku.名前, '聞いてスイッチ');
   assert.equal(cardNoFukudai(cards, kiku([r1])), '読むと聞くを比べて');
   assert.equal(cardNoFukudai(cards, { card: 'dore' }), 'どれでも力が出た');
   assert.equal(cardNoFukudai(cards, { card: 'zu', kind: 'B' }), '文と図を比べて');
@@ -671,7 +671,7 @@ await ok('H4：そだてちゅうのカードは練習を始めると現れ、�
   assert.equal(levelNoNamae(cards, c), 'そだてちゅう');
   assert.equal(cardNoFukudai(cards, c), '聞くを支えに、読むを育てている');
   assert.match(sodateCardNoBun(cards, c).ひとこと, /育てている/);
-  assert.equal(sodateCardNoBun(cards, c).名前, 'よんでスイッチ');
+  assert.equal(sodateCardNoBun(cards, c).名前, '読んでスイッチ');
   const zen = [{ hi: '2026-11-01', hitotsu: [1, 1, 2, 2, 3, 3].map((d) => hh('yomu', d, 4, 4, { oshita: 0 })) }];
   const [d] = sodateCards(zen);
   assert.equal(d.level, 4);
@@ -870,7 +870,7 @@ await ok('8便 K4：印はサーバーにも届き、伝え方の予備の文も
   const d7 = demo.結果.デモ7;
   const k7 = doreNashiWoTsukeru(d7.kai.map((x, i) => ({ ...x, kai: x.kai ?? i + 1 })), d7.renshu);
   const [, t] = await handle('tsutae', 'POST', { kai: k7 }, {});
-  assert.equal(t.cardMei, 'きいてスイッチ');
+  assert.equal(t.cardMei, '聞いてスイッチ');
 });
 
 await ok('8便 K3：練習の文に、測る棚と同じ話題が無い（⑦ の比べに、練習の記憶が混ざらないように）', () => {
@@ -1086,6 +1086,17 @@ await ok('12便 P4（Should）：図を触るは、文・図の練習の段1〜2
   const r = [{ hi: '2026-11-04', hitotsu: [1, 1].map((d) => ({ mode: 'bun', dan: d, seikai: 2, kazu: 2, mondai: 'RB1', sawaru: { kazu: 5, atta: 1, naoshi: 9 } })) }];
   assert.equal(danWoDasu(r, 'bun').dan, 2);
   assert.equal(j('public/data/should.json').zuWoSawaru.使う, true, 'should.json で外せる');
+});
+
+await ok('12便のあと：カードの名前を漢字にした（先生の決定）。保存した Claude の文の見出しに前の名前が残っても、画面は今の名前。本文は書きかえない', () => {
+  const cs = namaeWoAwaseru(j('public/data/cards.json'), j('public/data/card_namae.json'));
+  const mei = { kiku: '聞いてスイッチ', yomu: '読んでスイッチ', zu: '図でスイッチ', bun: '文でスイッチ', kugiru: '区切ってスイッチ', ikki: '一気にスイッチ' };
+  for (const [id, m] of Object.entries(mei)) assert.equal(cs.カード[id].名前, m);
+  assert.equal(imaNoNamae(cs, 'きいてスイッチ'), '聞いてスイッチ');
+  assert.equal(imaNoNamae(cs, 'ずでスイッチ'), '図でスイッチ');
+  assert.equal(imaNoNamae(cs, 'どれでもスイッチ'), 'どれでもスイッチ', '変えていない名前はそのまま');
+  const hozon = JSON.stringify(j('public/data/demo_claude.json'));
+  assert.ok(/「ずでスイッチ」は/.test(hozon), '保存した本文は前の名前のまま（手を入れない）');
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

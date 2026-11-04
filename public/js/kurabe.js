@@ -248,7 +248,13 @@ export const CARD_KIND = { kiku: 'A', yomu: 'A', zu: 'B', kugiru: 'C' };
 export function namaeWoAwaseru(cards, namae) {
   const カード = {};
   for (const [id, c] of Object.entries(cards.カード)) カード[id] = { ...c, 名前: namae.名前[id] ?? c.名前 };
-  return { ...cards, カード, 副題: namae.副題, レベル: namae.レベル };
+  return { ...cards, カード, 副題: namae.副題, レベル: namae.レベル, 前の名前: namae.前の名前 || {} };
+}
+
+// 前の名前を、今の名前に直す（保存した Claude の文の見出し用。本文は直さない）
+export function imaNoNamae(cards, mei) {
+  const id = cards?.前の名前?.[mei];
+  return id ? cards.カード[id]?.名前 ?? mei : mei;
 }
 
 // カードの副題（比べた2つの出し方）。見つけたカード・どれでも・ためした。
