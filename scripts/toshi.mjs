@@ -46,7 +46,7 @@ async function mieru(name) {
   // 子どもの画面に、難しさの段階と「苦手」が出ていない（7便・R14）
   const dareNoGamen = await page.evaluate(() => document.getElementById('dare')?.textContent || '');
   if (/子どもの画面|大人が試す画面/.test(dareNoGamen)) {
-    for (const l of lines) if (/段階|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面|苦手/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に段階か「苦手」がある「${l.slice(0, 40)}」`);
+    for (const l of lines) if (/段階|ふつうの文|3文の連絡|4文の連絡|要素の少ない場面|要素の多い場面|苦手/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に段階か「苦手」がある「${l.slice(0, 40)}」`);
     // 12便：練習の「段」も子どもの画面に出さない（「やり方」と言う）。「階段」「2段目」（棚）は段のことではないので除く
     for (const l of lines) if (/(?<!階)段(?!目)/.test(l)) kiroku.まちがい.push(`${name}：子どもの画面に「段」がある「${l.slice(0, 40)}」`);
   }
@@ -322,7 +322,7 @@ try {
       const tS = await mieru('デモ7_育てる');
       tashika(/読むだけ/.test(tS) && !(await vis('#hajimeru')), 'デモ7：⑥ 育てるは、段4（読むだけ）で、架空の子なので練習は始めない');
     }
-    if (id === 'デモ8') tashika(/比べた問題：物が1つの場面/.test(t) && /比べた問題：短い文/.test(t), 'デモ8：先生の画面に、やさしい段階で比べたことが事実で出る（子どもの画面には出ない）');
+    if (id === 'デモ8') tashika(/比べた問題：要素の少ない場面/.test(t) && /比べた問題：短い文/.test(t), 'デモ8：先生の画面に、やさしい段階で比べたことが事実で出る（子どもの画面には出ない）');
   }
 
   // Should：引き継ぎの記録の書き出し（デモ4）

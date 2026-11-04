@@ -9,7 +9,7 @@ import {
 } from './sodateru.js';
 import { gakkoSettei } from './gakko.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
-import { tapeZu } from './zu.js';
+import { bamenZu } from './zu.js';
 import { cardHtml } from './card_html.js';
 
 const enc = encodeURIComponent;
@@ -225,11 +225,11 @@ function bamen(mode, dan, p, box) {
     let kotobaOK;
     const ue = () => {
       if (mode === 'bun') {
-        const zu = dan === 1 ? tapeZu(p.図) : dan === 2 ? tapeZu(p.図, { wakuDake: true }) : '';
-        return `<div class="honbun">${esc(p.文)}</div>${zu ? `<div class="box">${zu}</div>` : ''}${dan === 3 ? '<div class="box zu-waku" aria-label="図をかく枠"><p class="muted small">ここに 図を かくつもりで（紙に かいても いい）</p></div>' : ''}`;
+        const zu = dan === 1 ? bamenZu(p.図) : dan === 2 ? bamenZu(p.図, { wakuDake: true }) : '';
+        return `<p class="bamen-dai">${esc(p.題 || '')}</p><div class="honbun">${esc(p.文)}</div>${zu ? `<div class="box">${zu}</div>` : ''}${dan === 3 ? '<div class="box zu-waku" aria-label="図をかく枠"><p class="muted small">ここに 図を かくつもりで（紙に かいても いい）</p></div>' : ''}`;
       }
       const shita = dan === 1 ? `<div class="honbun">${esc(p.文)}</div>` : dan === 2 ? `<div class="honbun">${esc(p.要点)}</div>` : '';
-      return `<div class="box">${tapeZu(p.図)}</div>${shita}`;
+      return `<p class="bamen-dai">${esc(p.題 || '')}</p><div class="box">${bamenZu(p.図)}</div>${shita}`;
     };
     const toi = () => {
       const i = kotae.length;
@@ -245,7 +245,7 @@ function bamen(mode, dan, p, box) {
     // 図だけで場面をつかむの段3：はじめに「言葉で言うと？」（選んで答える。数には入れない）
     if (mode === 'zu' && dan === 3) {
       const k = p.言葉にする;
-      box.innerHTML = `<div class="box">${tapeZu(p.図)}</div><p><strong>言葉で言うと？</strong></p><div class="toi">${esc(k.文)}</div>
+      box.innerHTML = `<p class="bamen-dai">${esc(p.題 || '')}</p><div class="box">${bamenZu(p.図)}</div><p><strong>言葉で言うと？</strong></p><div class="toi">${esc(k.文)}</div>
         <div class="btns tate">${k.選択肢.map((c, i) => `<button class="choice" data-i="${i}">${esc(c)}</button>`).join('')}</div>`;
       box.querySelectorAll('.choice').forEach((b) => { b.onclick = () => { kotobaOK = Number(b.dataset.i) === k.答え; toi(); }; });
     } else toi();

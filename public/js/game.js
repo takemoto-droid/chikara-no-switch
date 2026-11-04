@@ -3,7 +3,7 @@ import { esc, api, data, okuruKiroku, whoLabel } from './util.js';
 import { getRecord, saveRecord, isDemo } from './kiroku.js';
 import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA, zenbuOf, dankaiWoSusumeru } from './kurabe.js';
 import { junbiYomiage, yomu, tomeru, koeNoNamae } from './yomiage.js';
-import { tapeZu } from './zu.js';
+import { bamenZu } from './zu.js';
 import { gakkoSettei } from './gakko.js';
 
 
@@ -232,9 +232,10 @@ function bamenMondai(st, tana, box) {
         return;
       }
       const t = q.問い[i];
+      // 12便 P3：生活の場面。文の版は文だけ、図の版は図だけ（同じ内容）。題は両方に出す
       box.innerHTML = `
-        <div class="honbun">${esc(q.文)}</div>
-        ${st.mode === 'zu' ? `<div class="box">${tapeZu(q.図)}</div>` : ''}
+        <p class="bamen-dai">${esc(q.題 || '')}</p>
+        ${st.mode === 'zu' ? `<div class="box zu-waku-bamen">${bamenZu(q.図)}</div>` : `<div class="honbun">${esc(q.文)}</div>`}
         <p class="toi-mae">${i + 1}／${q.問い.length}</p>
         <div class="toi">${esc(t.文)}</div>
         <div class="btns tate">${t.選択肢.map((c, k) => `<button class="choice" data-i="${k}">${esc(c)}</button>`).join('')}</div>`;

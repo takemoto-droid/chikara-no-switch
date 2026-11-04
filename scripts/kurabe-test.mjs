@@ -519,7 +519,7 @@ await ok('H2：子どもの画面のもと（ゲーム・カード・案内）�
   const card = j('public/data/cards.json');
   const annai = j('public/data/annai.json');
   for (const [mei, t] of [['game.js', game], ['cards', JSON.stringify(card.カード)], ['annai', JSON.stringify(annai.子ども)]]) {
-    assert.ok(!/段階|やさしめ|むずかしめ|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面/.test(t.replace(/\/\/.*$/gm, '')), mei);
+    assert.ok(!/段階|やさしめ|むずかしめ|ふつうの文|3文の連絡|4文の連絡|要素の少ない場面|要素の多い場面/.test(t.replace(/\/\/.*$/gm, '')), mei);
   }
 });
 
@@ -643,7 +643,7 @@ await ok('H4：練習の文は段階ごとにあり、棚と同じ作り。同�
   for (const p of pool.B.問題) {
     assert.equal(p.問い.length, p.段階 === 1 ? 1 : 2, p.id);
     assert.ok(p.要点 && p.言葉にする.選択肢[p.言葉にする.答え], p.id);
-    assert.equal(p.図.べつ == null, p.段階 === 1, p.id);
+    assert.ok(['seki', 'chizu', 'rouka', 'jikanwari', 'tana'].includes(p.図.type) && p.題, `${p.id}：生活の場面の図（12便）`);
   }
   const zenbu = JSON.stringify([pool.A, pool.B, pool.C]); // 説明の文（入れない形の名前を書いている）は除く
   for (const w of ['間違い探し', '違いを探', '覚えて', '数字タッチ', '目で追', '書き写', '記号']) assert.ok(!zenbu.includes(w), `置かない形：${w}`);
@@ -704,7 +704,7 @@ await ok('H4：今日の練習の選び方（予備は練習した日が少な�
 await ok('H4：子どもの練習の画面のもとに「苦手」と段階の名前が無い', () => {
   for (const f of ['public/js/sodateru_gamen.js', 'public/js/sodateru.js']) {
     const t = readFileSync(path.join(ROOT, f), 'utf8').replace(/\/\/.*$/gm, '');
-    assert.ok(!/苦手|やさしめ|むずかしめ|ふつうの文|3文の連絡|4文の連絡|物が1つの場面|物が2つの場面/.test(t), f);
+    assert.ok(!/苦手|やさしめ|むずかしめ|ふつうの文|3文の連絡|4文の連絡|要素の少ない場面|要素の多い場面/.test(t), f);
   }
   assert.ok(!/苦手/.test(JSON.stringify(Object.values(DAN_NO_DASHIKATA))));
 });
@@ -837,7 +837,7 @@ await ok('8便 K2：段階1の棚 B は問い2つ（1つの出し方あたり4�
     assert.equal(q.問い.length, 2, id);
     assert.ok(q.下書き, id);
     q.問い.forEach((x) => assert.ok(x.選択肢[x.答え], id));
-    assert.match(q.問い[1].選択肢[q.問い[1].答え], new RegExp(`^${q.図.ひとつ}x＝\\d+$`), `${id}：2問目の答えは「ひとつ×x＝代金」`);
+    assert.ok(q.図 && q.文, `${id}：文の版と図の版がある`);
   }
   // 段階1で比べても、各回の問いの数は2
   const r = hrWoSuru(makeJunban('B2問'), (st, kazu) => (st.renshu ? 1 : Math.ceil(kazu / 2)));
@@ -879,7 +879,9 @@ await ok('8便 K3：練習の文に、測る棚と同じ話題が無い（⑦ �
   // 測る棚（tana.json）の話題の言葉。練習の文には出さない
   const WADAI = ['パン屋', '図書館', '図書', '交換会', '犬', '兄', '姉', '花だん', 'チューリップ', '水やり', '牧場', '牛', '自転車', '打ち水', '商店街', '壁画', '美術', 'サッカー',
     'ノート', 'えんぴつ', 'シール', 'ジュース', '画用紙', '牛乳', 'おかし',
-    '遠足', '理科', '実験', '体育祭', 'リレー', '校外学習', '博物館', '保健室', '身長', '体重', 'そうじ', 'ほうき', '朝の会', '上ばき', '体操服', '図書委員'];
+    '遠足', '理科', '実験', '体育祭', 'リレー', '校外学習', '博物館', '保健室', '身長', '体重', 'そうじ', 'ほうき', '朝の会', '上ばき', '体操服', '図書委員',
+    // 12便：棚 B の生活の場面（教室の席・校舎の案内図・時間割・ロッカーの上の棚）
+    '黒板', '校舎', '職員室', '音楽室', '美術室', '時間割', 'ロッカー', 'なわとび', 'うわばき', 'ぼうし', '水とう', 'バケツ', 'タオル', 'ゴーグル'];
   for (const w of WADAI) assert.ok(!renshu.includes(w), `練習の文に「${w}」がある`);
   // 選択肢に同じものが2つ無い
   for (const x of [...pool.B.問題, ...pool.C.文章]) for (const q of x.問い) assert.equal(new Set(q.選択肢).size, q.選択肢.length, `${x.id} の選択肢が重なっている`);
@@ -1023,6 +1025,48 @@ await ok('12便 P5：時間の起点は3つの棚でそろう（問題が画面�
   assert.ok(!/if \(!t0\) t0 = performance\.now\(\)/.test(g), '問いが出てから始める前の数え方は残っていない');
   assert.match(kansu('bunshoMondai'), /kikuKaisu, toiKikuKaisu/);
   assert.match(readFileSync(path.join(ROOT, 'public/js/app.js'), 'utf8'), /かかった時間（参考）/);
+});
+
+await ok('12便 P3：棚 B は生活の場面の文／図問題（段階1・2 各4題・問い2つ・4択）。式・計算・探す・照合・時間制限が無い', () => {
+  const t = j('public/data/tana.json');
+  const B = t.B.問題;
+  for (const d of [1, 2]) assert.equal(Object.values(B).filter((x) => x.段階 === d).length, 4, `段階${d} は4題`);
+  const zen = JSON.stringify(B);
+  assert.ok(!/[0-9０-９]x|x[＋＝+=]|＝|代金|計算|式/.test(zen), '式・計算が無い');
+  for (const w of ['探', '照合', '見本', '間違い', 'ちがいを', '回転', '写す', '秒', '時間内', 'できるだけ速く']) assert.ok(!zen.includes(w), `入れない形：${w}`);
+  // 図に出てくる名前（値の文字列だけ。キーと種類の名前・時間の番号・空き・空の欄は除く）
+  const mei = (z) => {
+    const out = [];
+    const walk = (o, key) => {
+      if (Array.isArray(o)) o.forEach((v) => walk(v, key));
+      else if (o && typeof o === 'object') Object.entries(o).forEach(([k, v]) => walk(v, k));
+      else if (typeof o === 'string' && o && !['type', 'mei'].includes(key) && !/^\d+$/.test(o)) out.push(o);
+    };
+    walk(z, '');
+    return out;
+  };
+  for (const [id, q] of Object.entries(B)) {
+    assert.equal(q.問い.length, 2, id);
+    for (const x of q.問い) {
+      assert.equal(x.選択肢.length, 4, id);
+      assert.equal(new Set(x.選択肢).size, 4, `${id}：選択肢が重ならない`);
+      assert.ok(x.選択肢[x.答え], id);
+    }
+    assert.ok(['seki', 'chizu', 'rouka', 'jikanwari', 'tana'].includes(q.図.type), id);
+    // 文の版と図の版に同じ内容：図に出てくる名前（人・部屋・教科・物）は、すべて文にもある
+    for (const n of mei(q.図).filter((x) => !['type', 'seki', 'chizu', 'rouka', 'jikanwari', 'tana', 'mae', 'retsu', 'kai', 'mei', 'hidari', 'migi', 'oku', 'youbi', 'motsu', 'jikan', '1', '2', '3', '4', '5', '教室', ''].includes(x))) {
+      assert.ok(q.文.includes(n.replace(/ /g, '')) || q.文.includes(n), `${id}：図の「${n}」が文にもある`);
+    }
+    assert.ok(!/(?<!階)段(?!目)/.test(q.文 + JSON.stringify(q.問い)), `${id}：子どもの画面に出る文に「段」が無い`);
+  }
+  assert.deepEqual(t.段階.名前.B, { 1: '要素の少ない場面（席4つ・部屋3つ など）', 2: '要素の多い場面（席12・部屋6 など）' });
+  // 段階1は要素が少なく、段階2は多い
+  const kazu = (z) => mei(z).length;
+  for (const k of ['seki', 'chizu', 'jikanwari', 'tana']) {
+    const ichi = Object.values(B).find((x) => x.段階 === 1 && (x.図.type === k || (k === 'chizu' && x.図.type === 'rouka')));
+    const ni = Object.values(B).find((x) => x.段階 === 2 && x.図.type === k);
+    assert.ok(kazu(ichi.図) < kazu(ni.図), `${k}：段階1のほうが要素が少ない`);
+  }
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

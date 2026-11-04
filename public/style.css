@@ -164,4 +164,6 @@ footer details.ai-ko summary { cursor: pointer; color: var(--accent); }
 .annai-e { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 8px 0 16px; }
 .annai-e > span { display: flex; flex-direction: column; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 4px; font-weight: 700; }
 .annai-e .e { font-size: 1.8rem; line-height: 1.2; }
-
+.bamen-dai { font-weight: 700; margin: 8px 0 4px; }
+.zu-waku-bamen { padding: 8px; }
+.bamen-zu { width: 100%; max-width: 420px; display: block; margin: 0 auto; }

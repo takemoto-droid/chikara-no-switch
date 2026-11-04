@@ -5,7 +5,6 @@ import { hikitsugiNoBun } from './hikitsugi.js';
 import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei } from './game.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
-import { tapeZu } from './zu.js';
 import { cardHtml } from './card_html.js';
 import { gakkoSettei, gakkoWoKaeru } from './gakko.js';
 import { keikakuNoKo, yobiKeikaku } from './keikaku.js';
