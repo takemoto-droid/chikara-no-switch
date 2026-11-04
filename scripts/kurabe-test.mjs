@@ -1011,4 +1011,18 @@ await ok('11便 N3：保存した Claude の本物の文（デモの子8人・�
   assert.deepEqual(keikakuNoMondai(kk, kodomoNoKeikaku()), [], '保存した計画は、10便の取り違えの点検にも通る');
 });
 
+await ok('12便 P5：時間の起点は3つの棚でそろう（問題が画面に出たとき）。聞いた回数を記録に残す。先生の画面の秒に「参考」', () => {
+  const g = readFileSync(path.join(ROOT, 'public/js/game.js'), 'utf8');
+  const kansu = (mei) => g.slice(g.indexOf(`function ${mei}(`), g.indexOf('\nfunction ', g.indexOf(`function ${mei}(`) + 10));
+  for (const mei of ['bunshoMondai', 'bamenMondai', 'shijiMondai']) {
+    const k = kansu(mei);
+    assert.match(k, /const t0 = performance\.now\(\);/, `${mei}：はじめに時計を始める`);
+    assert.ok(k.indexOf('const t0 = performance.now();') < k.indexOf('box.innerHTML'), `${mei}：問題を出す前に時計を始める`);
+    assert.match(k, /kiten: 'hyouji'/, `${mei}：起点の印`);
+  }
+  assert.ok(!/if \(!t0\) t0 = performance\.now\(\)/.test(g), '問いが出てから始める前の数え方は残っていない');
+  assert.match(kansu('bunshoMondai'), /kikuKaisu, toiKikuKaisu/);
+  assert.match(readFileSync(path.join(ROOT, 'public/js/app.js'), 'utf8'), /かかった時間（参考）/);
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);

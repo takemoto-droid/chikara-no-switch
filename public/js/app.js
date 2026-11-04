@@ -311,10 +311,11 @@ function tanaHtml(m) {
   return `
     <h3>${esc(TANA_MEI[m.kind])}</h3>
     <div class="table-wrap"><table>
-      <tr><th>出し方</th><th>正解（1回目・2回目）</th><th>かかった時間</th></tr>
+      <tr><th>出し方</th><th>正解（1回目・2回目）</th><th>かかった時間（参考）</th></tr>
       <tr><td>${esc(DASHIKATA[m1])}</td><td>${seikaiCell(m[m1], m.kazu)}</td><td>${byou(m.jikan[m1])}</td></tr>
       <tr><td>${esc(DASHIKATA[m2])}</td><td>${seikaiCell(m[m2], m.kazu)}</td><td>${byou(m.jikan[m2])}</td></tr>
     </table></div>
+    <p class="muted small">時間は参考です（起点は、問題が画面に出たとき。端末や読み上げの再生で変わります）。比べる数には入れず、速さは評価しません。11便までの記録の「読む」は、最初の問いが出たときからです。</p>
     <p class="small">比べた問題：${esc(dankaiNoNamae(m.kind, m.dankai))}${m.kirikae ? `（はじめは${esc(dankaiNoNamae(m.kind, m.hajimeDankai))}。1組目のあとで変えたので、1組目は練習扱いにした）` : ''}</p>
     ${m.kurabenikui?.length ? `<p class="small"><span class="label">比べにくかった</span>${esc(m.kurabenikui.join('・'))}</p>` : ''}
     <p class="small">同じ出し方を2回やったときの揺れ：${m.yure == null ? '—' : `${m.yure}問`}　／　${esc(DASHIKATA[m2])}−${esc(DASHIKATA[m1])} の差：${m.sa.length ? m.sa.map((n) => `${n > 0 ? '+' : ''}${n}問`).join('、') : '—'}　／　確かめた回数：${m.kakunin}回</p>

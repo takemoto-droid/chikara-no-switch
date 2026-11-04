@@ -158,6 +158,9 @@ function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
     const honbunHtml = esc(zenbun);
     let mikaeshi = 0;
     let kikuKaisu = 0;
+    let toiKikuKaisu = 0; // 問いの文を聞き直した回数（12便 P5）
+    // 12便 P5：時間の起点を3つの棚でそろえる。問題が画面に出たとき（A の読む版は本文が出たとき・聞く版は聞く画面が出たとき）から、最後の答えまで
+    const t0 = performance.now();
 
     // 1：本文
     if (kiku) {
@@ -180,14 +183,12 @@ function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
 
     // 2：問い（1つずつ）
     const kotae = [];
-    let t0 = 0;
     function toi() {
-      if (!t0) t0 = performance.now();
       const i = kotae.length;
       if (i >= p.問い.length) {
         tomeru();
         const seikai = kotae.filter((k, j) => k === p.問い[j].答え).length;
-        resolve({ seikai, kazu: p.問い.length, ms: Math.round(performance.now() - t0), mikaeshi, kikuKaisu, kotae, koe: st.mode === 'kiku' ? koeNoNamae() : undefined, yomiageNashi: yomiageNashi || undefined });
+        resolve({ seikai, kazu: p.問い.length, ms: Math.round(performance.now() - t0), kiten: 'hyouji', mikaeshi, kikuKaisu, toiKikuKaisu, kotae, koe: st.mode === 'kiku' ? koeNoNamae() : undefined, yomiageNashi: yomiageNashi || undefined });
         return;
       }
       const q = p.問い[i];
@@ -202,7 +203,7 @@ function bunshoMondai(st, tana, box, yomiageOK, tsukutta = null) {
         <div class="marubatsu"><button data-k="1" class="maru"><span aria-hidden="true">○</span> 合う</button><button data-k="0" class="batsu"><span aria-hidden="true">×</span> ちがう</button></div>`;
       if (kiku) {
         yomu(q.文);
-        box.querySelector('#again').onclick = () => yomu(q.文);
+        box.querySelector('#again').onclick = () => { toiKikuKaisu++; yomu(q.文); };
       }
       box.querySelector('#mikaesu').onclick = (e) => {
         mikaeshi++;
@@ -227,7 +228,7 @@ function bamenMondai(st, tana, box) {
       const i = kotae.length;
       if (i >= q.問い.length) {
         const seikai = kotae.filter((k, j) => k === q.問い[j].答え).length;
-        resolve({ seikai, kazu: q.問い.length, ms: Math.round(performance.now() - t0), kotae: kotae.map((k, j) => q.問い[j].選択肢[k]) });
+        resolve({ seikai, kazu: q.問い.length, ms: Math.round(performance.now() - t0), kiten: 'hyouji', kotae: kotae.map((k, j) => q.問い[j].選択肢[k]) });
         return;
       }
       const t = q.問い[i];
@@ -255,7 +256,7 @@ function shijiMondai(st, tana, box) {
     const ikki = st.mode === 'ikki';
     const kotae = [];
     let mikaeshi = 0;
-    const t0 = performance.now(); // 時間は、読み始めから最後の答えまで（どちらの出し方も同じ数え方）
+    const t0 = performance.now(); // 時間は、問題（連絡）が出たときから最後の答えまで（3つの棚で同じ起点・12便 P5）
     const shijiHtml = (upto) => `<div class="honbun"><p>${esc(p.前おき)}</p><ol>${p.連絡.slice(0, upto).map((x, i) => (ikki || i === upto - 1 ? `<li>${esc(x)}</li>` : '')).join('')}</ol></div>`;
     const yomu = (i) => {
       // 一気に：はじめに全部。区切って：i 番目の文だけ
@@ -269,7 +270,7 @@ function shijiMondai(st, tana, box) {
     const toi = (i) => {
       if (i >= p.問い.length) {
         const seikai = kotae.filter((k, j) => k === p.問い[j].答え).length;
-        resolve({ seikai, kazu: p.問い.length, ms: Math.round(performance.now() - t0), mikaeshi, kotae: kotae.map((k, j) => p.問い[j].選択肢[k]) });
+        resolve({ seikai, kazu: p.問い.length, ms: Math.round(performance.now() - t0), kiten: 'hyouji', mikaeshi, kotae: kotae.map((k, j) => p.問い[j].選択肢[k]) });
         return;
       }
       const q = p.問い[i];
