@@ -1058,7 +1058,7 @@ await ok('12便 P3：棚 B は生活の場面の文／図問題（段階1・2 �
     }
     assert.ok(['seki', 'hyou', 'jikanwari', 'tana'].includes(q.図.type), id);
     // 文の版と図の版に同じ内容：図に出てくる名前（人・部屋・教科・物）は、すべて文にもある
-    for (const n of mei(q.図).filter((x) => !['type', 'seki', 'hyou', 'jikanwari', 'tana', 'mae', 'retsu', 'mei', 'youbi', 'motsu', 'jikan', 'hi', 'kakari', 'dare', '1', '2', '3', '4', '5', ''].includes(x))) {
+    for (const n of mei(q.図).filter((x) => !['type', 'seki', 'hyou', 'jikanwari', 'tana', 'mae', 'retsu', 'mei', 'youbi', 'motsu', 'jikan', 'hi', 'kakari', 'dare', 'iikata', 'shihou', '1', '2', '3', '4', '5', ''].includes(x))) {
       assert.ok(q.文.includes(n.replace(/ /g, '')) || q.文.includes(n), `${id}：図の「${n}」が文にもある`);
     }
     assert.ok(!/(?<!階)段(?!目)/.test(q.文 + JSON.stringify(q.問い)), `${id}：子どもの画面に出る文に「段」が無い`);
@@ -1112,6 +1112,14 @@ export function bamenWoToku(z, bun) {
   let r;
   if (rows && (r = m(/^前から (\d)列めの、左から (\d)番めは だれ？$/) || m(/^上から (\d)つめの たなの、左から (\d)番めは？$/))) return [rows[n(r[1]) - 1]?.[n(r[2]) - 1]];
   if (rows && (r = m(/^(.+?)(?:さん)?と 同じ(?:列| たな)で、左から (\d)番めは(?: だれ)?？$/))) return rows.filter((row) => row.includes(r[1])).map((row) => row[n(r[2]) - 1]);
+  // 2×2（iikata: shihou）：「右後ろの 席は だれ？」「さきさんの 席は どこ？」「右上に あるのは？」「ボールは どこ？」
+  if (rows && z.iikata === 'shihou') {
+    const tate = z.type === 'tana' ? ['上', '下'] : ['前', '後ろ'];
+    const yobi = (i, j) => `${['左', '右'][j]}${tate[i]}`;
+    const ichi = [0, 1].flatMap((i) => [0, 1].map((j) => ({ i, j, mei: yobi(i, j), mono: rows[i][j] })));
+    if ((r = m(/^(左|右)(前|後ろ)の 席は だれ？$/) || m(/^(左|右)(上|下)に あるのは？$/))) return ichi.filter((x) => x.mei === r[1] + r[2]).map((x) => x.mono);
+    if ((r = m(/^(.+?)(?:さんの 席)?は どこ？$/))) return ichi.filter((x) => x.mono === r[1]).map((x) => x.mei);
+  }
   if (z.type === 'hyou') {
     const yobi = (h) => `${h}曜日`;
     if ((r = m(/^(.)曜日の (.+?)は だれ？$/))) return z.kakari.filter((k) => k.mei === r[2]).map((k) => k.dare[z.hi.indexOf(r[1])]);
@@ -1147,8 +1155,15 @@ await ok('13便のもと：棚 B の8題と練習 B の6題は、図から解き
       }
     }
     // 文の版にも、図と同じ基準の言い方がある
-    if (p.図.type === 'seki') assert.ok(/前から 1列めは、左から/.test(p.文), `${p.id}：文にも「前から 〇列め」「左から」`);
-    if (p.図.type === 'tana') assert.ok(/上から 1つめは、左から/.test(p.文), `${p.id}：文にも「上から 〇つめ」「左から」`);
+    if (p.図.iikata === 'shihou') {
+      // 2×2 は「左前・右後ろ」「右上・左下」の言い方（先生の決定）。「左から 〇番め」は使わない
+      assert.ok(p.図.type === 'seki' ? /左前は .+右後ろは/.test(p.文) : /左上に .+右下に/.test(p.文), `${p.id}：2×2 の言い方が文にある`);
+      assert.ok(!/左から/.test(JSON.stringify(p.問い)), `${p.id}：2×2 で「左から 〇番め」を使わない`);
+    } else {
+      if (p.図.type === 'seki') assert.ok(/前から 1列めは、左から/.test(p.文), `${p.id}：文にも「前から 〇列め」「左から」`);
+      if (p.図.type === 'tana') assert.ok(/上から 1つめは、左から/.test(p.文), `${p.id}：文にも「上から 〇つめ」「左から」`);
+    }
+    if ((p.図.retsu || p.図.tana)?.length === 2 && (p.図.retsu || p.図.tana).every((r) => r.length === 2)) assert.equal(p.図.iikata, 'shihou', `${p.id}：2×2 は左前・右上の言い方にする`);
   }
   // 答えの位置がかたよらない（測る棚の16問で、どの位置も2回以上）
   const ichi = [0, 0, 0, 0];

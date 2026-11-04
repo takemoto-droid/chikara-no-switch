@@ -34,16 +34,18 @@ export async function gameScreen(el, id) {
       <div class="progress-wrap"><div class="progress" aria-hidden="true"><div style="width:${Math.round((n / zen) * 100)}%"></div></div><span class="progress-kazu" aria-label="${n + 1}問目／${zen}問">${Math.min(n + 1, zen)}／${zen}</span></div>
       <div id="game-naka"></div>
       ${yomiageOK ? '' : '<p class="muted small">この端末は読み上げが使えません。</p>'}
-      <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru">止める</button></div>`;
-    el.querySelector('#tomeru').onclick = () => {
-      yameta = true;
-      tomeru();
-      saveRecord(rec);
-      hakaru(false);
-      el.innerHTML = `<h1>止めました</h1><p>続きは、後で できます。</p>
-        <div class="btns"><a class="btn" href="#/game/${encodeURIComponent(rec.id)}">続きから</a><a class="btn sub" href="#/">はじめの画面</a></div>`;
-    };
+      <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru">ひと休み</button></div>`;
+    el.querySelector('#tomeru').onclick = hitoyasumi;
     return el.querySelector('#game-naka');
+  };
+  // 13便のもと（先生の決定）：「止める」は無くし「ひと休み」にまとめる。押すと止まり、後で続きから始められる
+  const hitoyasumi = () => {
+    yameta = true;
+    tomeru();
+    saveRecord(rec);
+    hakaru(false);
+    el.innerHTML = `<h1>ひと休み中</h1><p>続きは、後で できます。</p>
+        <div class="btns"><a class="btn" href="#/game/${encodeURIComponent(rec.id)}">続きから</a><a class="btn sub" href="#/">はじめの画面</a></div>`;
   };
 
   const owariGamen = () => {
@@ -60,13 +62,10 @@ export async function gameScreen(el, id) {
   const yasumiGamen = () => new Promise((res) => {
     hakaru(false);
     el.innerHTML = `<div id="game-naka"><h1>半分まで来た。あと少し！</h1><p class="nobi" aria-hidden="true">🙆</p>
-      <div class="btns"><button id="tsuzukeru">続ける</button><button class="sub" id="hitoyasumi">ひと休み</button></div>
-      <p id="yasumi-bun" class="yasumi-bun" hidden>のびを しよう。いいと 思ったら「続ける」。</p>
-      <div class="tomeru-waku"><button class="tomeru-chiisai" id="tomeru2">止める</button></div></div>`;
+      <div class="btns"><button id="tsuzukeru">続ける</button><button class="sub" id="hitoyasumi">ひと休み</button></div></div>`;
     el.querySelector('#tsuzukeru').onclick = () => res(true);
-    // 「ひと休み」：この画面のまま、のびを する時間をとる（記録は止めない・時間は比べる数に入れない）
-    el.querySelector('#hitoyasumi').onclick = (e) => { e.currentTarget.hidden = true; el.querySelector('#yasumi-bun').hidden = false; };
-    el.querySelector('#tomeru2').onclick = () => { yameta = true; saveRecord(rec); location.hash = '#/'; res(false); };
+    // 「ひと休み」：ここで止まり、後で続きから（問題の画面の右下の「ひと休み」と同じ働き）
+    el.querySelector('#hitoyasumi').onclick = () => { hitoyasumi(); res(false); };
   });
 
   const tsugi = async () => {

@@ -97,7 +97,7 @@ async function susumu(maxStep) {
     if (await vis('#tsuzukeru')) {
       const tY = await mieru('ゲーム_ひと休み');
       kiroku.yasumi = (kiroku.yasumi || 0) + 1;
-      if (await vis('#hitoyasumi')) { await page.click('#hitoyasumi'); kiroku.hitoyasumi = /半分まで来た/.test(tY) && (await vis('#yasumi-bun')) && (await vis('#tsuzukeru')); }
+      kiroku.hitoyasumi = /半分まで来た/.test(tY) && (await vis('#hitoyasumi')) && !/止める/.test(tY);
       await page.click('#tsuzukeru');
       continue;
     }
@@ -169,12 +169,13 @@ try {
   await page.waitForSelector('#riyuu');
   const r1 = await susumu(5);
   tashika(r1 === 'tochuu', 'ゲームを5問まで進めた');
+  tashika((await page.locator('#tomeru').innerText()) === 'ひと休み' && !(await page.locator('#app').innerText()).includes('止める'), '問題の画面の右下は「ひと休み」（「止める」は無い）');
   await page.click('#tomeru');
-  await page.waitForSelector('text=止めました');
+  await page.waitForSelector('text=ひと休み中');
   await mieru('ゲーム_止めた');
   await page.goto(`${BASE}#/`);
   await page.reload();
-  await page.waitForSelector('text=途中で止めたゲーム');
+  await page.waitForSelector('text=ひと休み中のゲーム');
   await mieru('はじめ_続きあり');
   await page.click('text=の続きから始める');
   await page.waitForSelector('#riyuu');
@@ -183,7 +184,7 @@ try {
   const r2 = await susumu(99);
   tashika(r2 === 'owari', 'ゲームを最後まで通せた');
   tashika(kiroku.yasumi === 1, '長い HR の途中に、休みの画面が1回出る');
-  tashika(kiroku.hitoyasumi === true, '休みの画面：「半分まで来た。あと少し！」と「続ける」「ひと休み」。ひと休みを押しても、その画面のまま続けられる');
+  tashika(kiroku.hitoyasumi === true, '休みの画面：「半分まで来た。あと少し！」と「続ける」「ひと休み」（「止める」は無い）');
   tashika(kiroku.理由.every((r) => /^次は /.test(r) && r.length <= 20), `問題の上に「次は 〇〇」の一文（20字以内）が毎回出る（${kiroku.理由.length}回）`);
   await mieru('ゲーム_おわり');
 

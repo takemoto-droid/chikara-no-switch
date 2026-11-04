@@ -70,10 +70,11 @@ function sekiZu(z, waku) {
   const x0 = L + (W - L - haba) / 2;
   const parts = [`<rect x="${x0}" y="6" width="${haba}" height="24" rx="4" fill="#3d5a4c"/><text x="${x0 + haba / 2}" y="23" font-size="13" text-anchor="middle" fill="#ffffff">${SVG_ESC(z.mae || '黒板')}（前）</text>`,
     `<text x="${x0}" y="46" font-size="11" fill="#5d636b">← 左</text><text x="${x0 + haba}" y="46" font-size="11" text-anchor="end" fill="#5d636b">右 →</text>`,
-    `<text x="4" y="46" font-size="11" fill="#5d636b">前から</text>`];
+    ...(z.iikata === 'shihou' ? [] : [`<text x="4" y="46" font-size="11" fill="#5d636b">前から</text>`])];
   z.retsu.forEach((r, i) => {
     const y = 52 + i * (ch + 8);
-    parts.push(`<text x="4" y="${y + ch / 2 + 4}" font-size="12" fill="#23262b">${i + 1}列め</text>`);
+    // 2×2（iikata: shihou）は「左前・右後ろ」の言い方なので、行の名前も「前」「後ろ」
+    parts.push(`<text x="4" y="${y + ch / 2 + 4}" font-size="12" fill="#23262b">${z.iikata === 'shihou' ? ['前', '後ろ'][i] : `${i + 1}列め`}</text>`);
     r.forEach((n, j) => parts.push(hako(x0 + j * (cw + 6), y, cw, ch, n, { kara: n == null, waku })));
   });
   const H = 52 + z.retsu.length * (ch + 8) + 2;
@@ -155,10 +156,11 @@ function tanaZu(z, waku) {
   const x0 = L + (W - L - haba) / 2;
   const parts = [`<text x="${x0 + haba / 2}" y="14" font-size="13" text-anchor="middle" fill="#23262b">${SVG_ESC(z.mei || '')}</text>`,
     `<text x="${x0}" y="30" font-size="11" fill="#5d636b">← 左</text><text x="${x0 + haba}" y="30" font-size="11" text-anchor="end" fill="#5d636b">右 →</text>`,
-    `<text x="4" y="30" font-size="11" fill="#5d636b">上から</text>`];
+    ...(z.iikata === 'shihou' ? [] : [`<text x="4" y="30" font-size="11" fill="#5d636b">上から</text>`])];
   z.tana.forEach((r, i) => {
     const y = 36 + i * (ch + 12);
-    parts.push(`<text x="4" y="${y + ch / 2 + 4}" font-size="12" fill="#23262b">${i + 1}つめ</text>`);
+    // 2×2（iikata: shihou）は「右上・左下」の言い方なので、行の名前も「上」「下」
+    parts.push(`<text x="4" y="${y + ch / 2 + 4}" font-size="12" fill="#23262b">${z.iikata === 'shihou' ? ['上', '下'][i] : `${i + 1}つめ`}</text>`);
     parts.push(`<line x1="${x0 - 6}" y1="${y + ch + 4}" x2="${x0 + haba + 6}" y2="${y + ch + 4}" stroke="#8a5a2b" stroke-width="4"/>`);
     r.forEach((n, j) => parts.push(hako(x0 + j * (cw + 6), y, cw, ch, n, { kara: n == null, waku, iro: '#f6ead6', sen: '#8a5a2b' })));
   });
@@ -184,3 +186,10 @@ function hyouZu(z, waku) {
   const H = 22 + (z.kakari.length + 1) * (rh + 2) + 4;
   return svg(W, H, `${z.mei || '当番表'}（上に曜日・左に係）`, parts);
 }
+
+// 枠の呼び方（図を触るの読み上げ用。文の版と同じ言い方）
+export function masuNoYobikata(z, i, j) {
+  if (z.iikata === 'shihou') return z.type === 'tana' ? `${['左', '右'][j]}${['上', '下'][i]}` : `${['左', '右'][j]}${['前', '後ろ'][i]}`;
+  return z.type === 'tana' ? `上から${i + 1}つめの たな・左から${j + 1}番め` : `前から${i + 1}列め・左から${j + 1}番め`;
+}
+

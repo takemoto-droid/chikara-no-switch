@@ -10,7 +10,7 @@ import {
 } from './sodateru.js';
 import { gakkoSettei } from './gakko.js';
 import { junbiYomiage, yomu, tomeru } from './yomiage.js';
-import { bamenZu } from './zu.js';
+import { bamenZu, masuNoYobikata } from './zu.js';
 import { cardHtml } from './card_html.js';
 
 const enc = encodeURIComponent;
@@ -320,7 +320,7 @@ function sawaruGamen(p, box) {
           const x = masu(i, j);
           if (!x) cells.push('<div></div>');
           else if (x.kotae == null) cells.push('<div class="sawaru-aki" data-kazoenai>空き</div>');
-          else cells.push(`<button class="sawaru-masu${okareta[`${i}-${j}`] ? ' oita' : ''}" data-k="${i}-${j}" aria-label="${p.図.type === 'tana' ? `上から${i + 1}つめの たな` : `前から${i + 1}列め`}・左から${j + 1}番め" data-kazoenai>${esc(okareta[`${i}-${j}`] || '')}</button>`);
+          else cells.push(`<button class="sawaru-masu${okareta[`${i}-${j}`] ? ' oita' : ''}" data-k="${i}-${j}" aria-label="${masuNoYobikata(p.図, i, j)}" data-kazoenai>${esc(okareta[`${i}-${j}`] || '')}</button>`);
         }
       }
       box.innerHTML = `
