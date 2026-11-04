@@ -88,33 +88,60 @@ for (const k of Object.values(demoKids)) {
 }
 kiroku(`予備の動きの文（結果の組み合わせ ${kumiawase} 通り）`, [...new Set(yobiTexts)]);
 
-// 3. Claude の出力
+// 3. Claude の出力（9便で広げた：仮説・伝え方（懇談・保護者向け・一言・HR の冒頭）・次を選ぶ理由・今日の練習・計画）
+// 架空のデモの子だけを使う。呼ぶ回数を少なくするため、子ごとに1回ずつ。書き直しを含めた呼び出しの回数を数える
 if (process.env.TENKEN_CLAUDE === '1' && process.env.ANTHROPIC_API_KEY) {
   const { handle } = await import('../lib/api.mjs');
+  const { doreNashiWoTsukeru, sodateKouho, danWoDasu, renshuNoHi } = await import('../public/js/sodateru.js');
+  const { keikakuNoKo } = await import('../public/js/keikaku.js');
+  const { stepsOf, yobiNext } = await import('../public/js/kurabe.js');
   const demo = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo.json'), 'utf8'));
+  const gakko = JSON.parse(readFileSync(path.join(ROOT, 'public/data/gakko.json'), 'utf8'));
   const out = [];
   const tries = [];
-  for (const kid of Object.values(demo.結果)) {
-    const rec = kid.kai[kid.kai.length - 1];
-    rec.id = kid.id;
+  let kaisu = 0;
+  let r12 = 0;
+  const kiroku1 = (mei, r) => {
+    tries.push(`${mei}：${r.dare}${r.tenken ? `（${r.tenken.kaisu}回目で通過）` : ''}${r.wake ? `（${r.wake}）` : ''}`);
+    if (r.dare === 'claude') kaisu += r.tenken?.kaisu || 1;
+  };
+  const kodomo = [];
+  for (const [n, kid] of Object.values(demo.結果).entries()) {
+    const kai = doreNashiWoTsukeru(kid.kai.map((r, i) => ({ ...r, kai: r.kai ?? i + 1 })), kid.renshu || []);
+    const rec = kai[kai.length - 1];
     for (const name of ['kasetsu', 'tsutae']) {
-      const [, r] = await handle(name, 'POST', { record: rec, kai: kid.kai, atehamaru: ['c04', 'c14'] }, process.env, 'tenken');
-      tries.push(`${rec.id}/${name}：${r.dare}${r.tenken ? `（${r.tenken.kaisu}回目で通過）` : ''}`);
-      out.push(...mojiretsu({ a: r.kasetsu, b: r.tsugi, c: r.konkyo, d: r.kondan, e: r.hogosha }));
+      const [, r] = await handle(name, 'POST', { record: rec, kai, atehamaru: ['c04', 'c14'] }, process.env, 'tenken');
+      kiroku1(`${kid.id}/${name}`, r);
+      out.push(...mojiretsu({ a: r.kasetsu, b: r.tsugi, c: r.konkyo, d: r.kondan, e: r.hogosha, f: r.hitokoto, g: r.hr }));
+      // R12：仮説に「確かめた回数」「参考程度・決めるのは先生」が付いている（画面の側で付けるものを、返す値で確かめる）
+      if (name === 'kasetsu' && !(r.kakunin && r.sankou === '参考程度・決めるのは先生' && /かも/.test(r.kasetsu || ''))) r12++;
     }
-    const half = { ...rec, kekka: Object.fromEntries(Object.entries(rec.kekka).slice(0, 4)) };
-    const [, r] = await handle('tsugi', 'POST', { record: half }, process.env, 'tenken');
-    tries.push(`${rec.id}/tsugi：${r.dare}`);
-    out.push(r.riyuu);
+    // 次を選ぶ理由：練習が終わって、選ぶ余地がある所まで進めた記録
+    const half = { junban: rec.junban, kekka: {}, dankai: rec.dankai, shurui: rec.shurui };
+    for (let k = 0; k < 3; k++) { const id = yobiNext(half); if (id) half.kekka[id] = rec.kekka[id] ?? { seikai: 2, kazu: 4 }; }
+    const [, t] = await handle('tsugi', 'POST', { record: half }, process.env, 'tenken');
+    kiroku1(`${kid.id}/tsugi`, t);
+    out.push(t.riyuu);
+    // 今日の練習：候補が2つ以上あるときだけ Claude が選ぶ（1つなら決まった文）
+    const kouho = sodateKouho(kai) || ['yomu', 'zu'];
+    if (kouho.length > 1) {
+      const [, sd] = await handle('sodate', 'POST', { kouho, jokyou: kouho.map((m) => ({ mode: m, ...danWoDasu(kid.renshu || [], m), hi: renshuNoHi(kid.renshu || [], m).length })) }, process.env, 'tenken');
+      kiroku1(`${kid.id}/sodate`, sd);
+      out.push(sd.riyuu);
+    }
+    kodomo.push(keikakuNoKo(`子${n + 1}`, kai, kid.renshu || []));
   }
-  kiroku('Claude の出力（デモの子）', out);
-  kekka['Claude の出力（デモの子）'].呼び出し = tries;
+  const [, kk] = await handle('keikaku', 'POST', { settei: gakko.設定, kodomo }, process.env, 'tenken');
+  kiroku1('クラス/keikaku', kk);
+  out.push(kk.zentai, ...(kk.ko || []).map((x) => x.bun));
+  kiroku('Claude の出力（デモの子）', out.filter(Boolean));
+  kekka['Claude の出力（デモの子）'].呼び出し = [...tries, `Claude を呼んだ回数（書き直しを含む）：${kaisu}回`, `仮説に「確かめた回数」「参考程度・決めるのは先生」「〇〇かも」が無かったもの：${r12}件`];
 } else {
   kekka['Claude の出力'] = { 説明: 'キーが無い（または TENKEN_CLAUDE=1 が無い）ので省略。Claude の出力は、サーバーが毎回この点検を通してから画面に出す（lib/claude.mjs）。' };
 }
 
 // 制作が書いた文書（出典の題名を写した 権利と出典.md・研究の言葉を引く 科学的根拠 は除く）
-kiroku('制作が書いた文書（docs/）', ['デプロイの手順.md', '先生が確かめる一覧.md', '合成データでの確かめ.md', '子どもの安全とプライバシー.md', '概要_下書き.md', '先生の画面の見やすさ.md', '動画素材/README.md', '見直し_4便.md', '見直し_5便.md', '制作の記録.md', '線の比べ_6便.md', '見直し_6便.md', '段階の比べ_7便.md', '見直し_7便.md']
+kiroku('制作が書いた文書（docs/）', ['デプロイの手順.md', '先生が確かめる一覧.md', '合成データでの確かめ.md', '子どもの安全とプライバシー.md', '概要_下書き.md', '先生の画面の見やすさ.md', '動画素材/README.md', '見直し_4便.md', '見直し_5便.md', '制作の記録.md', '線の比べ_6便.md', '見直し_6便.md', '段階の比べ_7便.md', '見直し_7便.md', '見直し_9便.md', 'Claudeの出力の点検_9便.md']
   .flatMap((f) => readFileSync(path.join(ROOT, 'docs', f), 'utf8').split('\n')));
 
 // 4. README

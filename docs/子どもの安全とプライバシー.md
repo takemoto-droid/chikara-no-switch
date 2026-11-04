@@ -1,6 +1,6 @@
 # 子どもの安全とプライバシー
 
-> 下書き（先生未確認）。制作4便で書きました。Anthropic の規約・指針は、下の「確かめたページ」を 2026-11-03 に開いて確かめました。
+> 下書き（先生未確認）。制作4便で書きました。Anthropic の規約・指針は、下の「確かめたページ」を 2026-11-03 と 2026-11-04（9便）に開いて確かめました。
 
 チカラのスイッチは、中学生が授業の中で使うことを考えて作っています。このページでは、子どもの安全とプライバシーのためにしていることを書きます。
 
@@ -39,7 +39,7 @@ Anthropic の「Responsible Use of Anthropic's Models: Guidelines for Organizati
 | 不適切な内容をふせぐしくみ | 子どもとの自由な会話はありません。問題と選択肢は決まった棚から出します。Claude の文は言葉の正本で点検してから出します。 |
 | 問題を見つけて対応するしくみ | 先生の画面で、Claude が書いたものと、次を選んだ理由の記録をすべて見られます。言葉の点検は自動で走ります（`npm test`）。 |
 | 安全な使い方についての、未成年向けの説明 | 子ども向けの案内（何をするか・しないこと・AI のこと・相談先）があります。 |
-| 子どもの安全のためのシステムプロンプト（Anthropic が用意したもの） | **まだ入れていません。** API キーが来た日に、Anthropic から受け取れるかを確かめ、Claude への頼み方に組み込みます。 |
+| 子どもの安全のためのシステムプロンプト（Anthropic が用意したもの） | **まだ入れていません（受け取り方が見つからなかった）。** 2026-11-04 に、Anthropic の公式の案内を2つ確かめました（下の「8」）。指針には「Anthropic は子どもの安全のためのシステムプロンプトを用意することがあり（may provide）、未成年に提供する組織はそれを組みこむべき」とありますが、どこで・どう受け取るかは書かれていませんでした。受け取れたら、Claude への頼み方（`lib/claude.mjs`）に組みこみます。 |
 | 子どもの安全・データ保護の法令を守り、そのことを公開する | 日本の法令（個人情報保護法など）に従います。このページがその公開の場所です。 |
 | AI と話していることを使う人に伝える | 1 のとおりです。 |
 
@@ -50,8 +50,32 @@ Anthropic の「Responsible Use of Anthropic's Models: Guidelines for Organizati
 - 参加しなくても、成績などで不利益はありません。参加しない子にも、相談先の案内は同じ文で届けます。
 - 改正個人情報保護法は 2026年7月に成立し、まだ施行されていません。16歳未満の子どもについては、保護者が同意の相手になります。根拠は、個人情報保護委員会「令和８年 改正個人情報保護法について」（https://www.ppc.go.jp/personalinfo/legal/r8kaiseihogohou ）のページからリンクされた参考資料「16歳未満の者の個人情報等の取扱いの規定関係」（第369回個人情報保護委員会・令和８年９月16日・読替表）です。ページの本文には、この一文はそのままは書かれていません。
 
+## 8. Anthropic の規約と利用ポリシーのうち、この作品の使い方に関わる所（9便・2026-11-04 に確かめた）
+法律上の判断は書きません。条文の中身と、この作品でしていることを、事実として並べます。
+
+| ページ・条文 | 書かれていること（要点・かっこ内は原文） | この作品でしていること |
+|---|---|---|
+| 利用ポリシー（Usage Policy・有効日 2026年11月12日）：未成年 | 18歳未満を未成年とする。未成年が API を使った製品と直接やりとりできるようにする組織は、指針の記事とすべての法令に従う（"organizations providing minors with the ability to directly interact with products that incorporate our API(s) … must comply with the additional guidelines outlined in our Support article and all applicable laws"） | 子どもが Claude と自由に文を打ってやりとりする入口はありません（問いは選んで答える形）。Claude の文は、言葉の正本で点検してから画面に出します。指針に沿うためにしていることは 6 の表のとおりです。 |
+| 利用ポリシー：AI であることを伝える | AI と話していることを使う人に伝える。少なくとも、やりとりの始めか、製品の画面の中で（"at a minimum at the beginning of each chat session or in the product interface"）。Anthropic や Claude の名前を出す必要はない | どの画面の下にも「このアプリは AI（Anthropic の Claude）を使っています」と出します。案内（子ども・保護者）にも書いています。Claude が書いた文には「Claude（AI）が書いた下書き」の印を付けます。 |
+| 利用ポリシー：High-risk Areas（重い決定に使うとき） | 「教育と資格」が入っている（入学の可否・順位づけ、入学や卒業を決める試験の採点（選択式の試験はのぞく）、不正の認定や停学・退学）。「医療」には、病気や状態の見立て・心の健康の状態の見立てや治療が入っている。こうした個人への勧めや決定に使うときは、資格のある人が中身を見直して変えられること、AI が使われたことを本人に伝えることが求められる。社内の下書き・調べもの・分析で、最終の勧めとして渡さないものは対象外とある | 点数・順位・合格や不合格は出しません。医療や専門の検査の代わりではなく、状態の見立てはしません（言葉の正本で、その言葉を出さないように点検しています）。Claude の文は「参考程度・決めるのは先生」の下書きで、先生が読んで書きかえられます。法律上どれに当たるかの判断は、ここには書きません。 |
+| 利用ポリシー：人に点数を付ける・人の情報を集める | 信頼や社会的なふるまいの評価で人に点数を付けること、いろいろな所から個人の情報を集めて人物像を作ることは、してはいけないこととして書かれている | チェック項目は点数にせず、基準も作りません（「気づきの候補」として残るだけ）。Claude に送るのは出し方ごとの結果と仮の番号だけで、名前は送りません。記録は端末の中だけです。 |
+| 商用規約（Commercial Terms of Service・2025年6月17日から有効）B：お客さまの内容 | Anthropic は、サービスに送られた内容（入力と出力）でモデルを学習させない（"Anthropic may not train models on Customer Content from Services."） | 5 のとおりです。 |
+| 商用規約 D.2・D.3・D.5 | 利用ポリシーを守って使う（D.2）。出力が使い方に合っているかを確かめるのは使う側の責任（D.3）。アカウントの下の使い方はすべて使う側の責任（D.5）。商用規約には、年齢についての一文は無かった | Claude の文は、言葉の正本で機械的に点検し、先生が読んで決めます。鍵（API キー）は先生のアカウントで作り、ホスティングの秘密の欄にだけ置きます。 |
+
+### 子どもの安全のためのシステムプロンプトを探した結果（9便・2026-11-04）
+- Anthropic「Responsible Use of Anthropic's Models: Guidelines for Organizations Serving Minors」（ページの日付 2026年3月16日）：「子どもの安全のためのシステムプロンプトを用意することがある（we may provide a child-safety system prompt）。未成年に提供する組織はそれを組みこむべき」とある。**受け取り方（連絡先・申しこみの場所）は書かれていなかった。**
+- Anthropic「Child safety guidance for developers」（ページの日付 2026年6月26日）：未成年がモデルと直接やりとりする製品は、上の指針を見るように、とある。**システムプロンプトについての文は無かった。**
+- ウェブの検索でも、受け取り方を書いた公式のページは見つからなかった。
+- そのため、まだ組みこんでいません。受け取るには、Anthropic に問い合わせることになると思われます（問い合わせは先生のアカウントから。するかどうかは先生が決める）。
+
 ## 確かめたページ（2026-11-03 に開いて確かめた）
 - Anthropic「Responsible Use of Anthropic's Models: Guidelines for Organizations Serving Minors」 https://support.claude.com/en/articles/9307344-responsible-use-of-anthropic-s-models-guidelines-for-organizations-serving-minors （同じ記事の support.anthropic.com のアドレスは、制作の環境から開けなかった）
 - Anthropic「Commercial Terms of Service」 https://www.anthropic.com/legal/commercial-terms （2025年6月17日から有効）
 - Anthropic「Usage Policy」 https://www.anthropic.com/legal/aup （ページに書かれた有効日は 2026年11月12日。未成年に提供する組織は、上の指針に従うこと、AI と話していることを伝えることが書かれている）
 - 個人情報保護委員会「令和８年 改正個人情報保護法について」 https://www.ppc.go.jp/personalinfo/legal/r8kaiseihogohou （相談チャットが 2026-11-03 に開いて確かめた。16歳未満の扱いの根拠は、このページからリンクされた参考資料「16歳未満の者の個人情報等の取扱いの規定関係」（第369回個人情報保護委員会・令和８年９月16日・PDF）。**PDF の中身までは、まだ確かめていない**。制作の環境からは、このページを開けなかった）
+
+## 確かめたページ（2026-11-04 に開いて確かめた・9便）
+- Anthropic「Responsible Use of Anthropic's Models: Guidelines for Organizations Serving Minors」 https://support.claude.com/en/articles/9307344-responsible-use-of-anthropic-s-models-guidelines-for-organizations-serving-minors （ページの日付 2026年3月16日。子どもの安全のためのシステムプロンプトの受け取り方は書かれていなかった）
+- Anthropic「Child safety guidance for developers」 https://support.claude.com/en/articles/15591275-child-safety-guidance-for-developers （ページの日付 2026年6月26日。システムプロンプトについての文は無かった）
+- Anthropic「Usage Policy」 https://www.anthropic.com/legal/aup （有効日 2026年11月12日。未成年・AI であることを伝える・High-risk Areas・人に点数を付けること の条文を見た）
+- Anthropic「Commercial Terms of Service」 https://www.anthropic.com/legal/commercial-terms （2025年6月17日から有効。B・D.2・D.3・D.5 を見た。年齢についての一文は無かった）
