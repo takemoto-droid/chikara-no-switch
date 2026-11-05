@@ -18,3 +18,15 @@ export async function gakkoWoKaeru(k, v) {
   save(st);
   return true;
 }
+
+// 相談先の文に、学校の設定の呼び名を入れる（2026-11-05 先生の決定。学校の中では全員に同じ文）
+export function soudanNoBun(hinagata, settei) {
+  return String(hinagata || '').replaceAll('{相談先}', settei?.相談先の呼び名 || 'カウンセラーの先生');
+}
+
+// 計画・Claude の文の目印に使う設定（相談先の呼び名は入れない。呼び名を変えても、Claude を呼び直さない・送らない）
+export function keikakuNoSettei(settei) {
+  const { 相談先の呼び名: _, ...hoka } = settei || {};
+  return hoka;
+}
+

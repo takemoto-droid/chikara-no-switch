@@ -7,14 +7,14 @@ import { gameScreen, setSettei, bamenNoGamen, gameWoHanareru } from './game.js';
 import { junbiYomiage, yomu, tomeru, yomeru } from './yomiage.js';
 import { cardHtml } from './card_html.js';
 import { bamenZu } from './zu.js';
-import { gakkoSettei, gakkoWoKaeru } from './gakko.js';
+import { gakkoSettei, gakkoWoKaeru, soudanNoBun, keikakuNoSettei } from './gakko.js';
 import { keikakuNoKo, yobiKeikaku } from './keikaku.js';
 import { sodateruGamen, renshuKirokuHtml } from './sodateru_gamen.js';
 import { sodateCards, sodateCardNoBun, ichininmaeOf, jibunDeErabu, DAN_JOUGEN, SODATE_MEI } from './sodateru.js';
 
 export const SOUDAN_OTONA_UTSUSHI = '気になることや困っていることがあれば、かかりつけの医師や、お住まいの市区町村の相談窓口に相談できます。このゲームの結果があってもなくても、相談はできます。';
-export const SOUDAN_KO_UTSUSHI = '困ったときは、担任の先生か相談室に話してね。結果とは関係ないよ。';
-export const SOUDAN_UTSUSHI = '気になることや困っていることがあれば、いつでも担任の先生や、学校の相談の窓口に話してください。このゲームの結果があってもなくても、相談はできます。';
+export const SOUDAN_KO_UTSUSHI = '困ったときは、担任の先生か{相談先}に話してね。結果とは関係ないよ。';
+export const SOUDAN_UTSUSHI = '気になることや困っていることがあれば、いつでも担任の先生や、{相談先}に話してください。このゲームの結果があってもなくても、相談はできます。';
 const app = document.getElementById('app');
 let should = {};
 let joutai = { ai: false, soudan: '', soudanKo: '', soudanOtona: '' };
@@ -54,9 +54,11 @@ function yomuMojiretsu() {
 }
 // 相談先：子ども・保護者には全員に同じ文。大人が自分で試す画面には、大人用の決まった文（どちらも結果に関係なく同じ）
 // 12便：子どもの画面は短い文（kind 'ko'）。これも結果に関係なく、全員に同じ文
+// 相談先の呼び名（学校の設定）。画面を開くたびに読み直す
+let yobina = { 相談先の呼び名: 'カウンセラーの先生' };
 function soudanHtml(otona = false, kind = '') {
-  if (kind === 'ko') return `<div class="box soudan"><p>${esc(joutai.soudanKo || SOUDAN_KO_UTSUSHI)}</p></div>`;
-  return `<div class="box soudan"><h3>相談したいとき</h3><p>${esc(otona ? joutai.soudanOtona || SOUDAN_OTONA_UTSUSHI : joutai.soudan)}</p></div>`;
+  if (kind === 'ko') return `<div class="box soudan"><p>${esc(soudanNoBun(joutai.soudanKo || SOUDAN_KO_UTSUSHI, yobina))}</p></div>`;
+  return `<div class="box soudan"><h3>相談したいとき</h3><p>${esc(otona ? joutai.soudanOtona || SOUDAN_OTONA_UTSUSHI : soudanNoBun(joutai.soudan || SOUDAN_UTSUSHI, yobina))}</p></div>`;
 }
 const enc = encodeURIComponent;
 
@@ -192,7 +194,7 @@ async function hajimeNoChecks(id) {
 }
 async function hajimeNoSettei(settei) {
   const g = (await data('gakko')).設定;
-  return Object.keys(g).every((k) => g[k] === settei[k]);
+  return Object.keys(keikakuNoSettei(g)).every((k) => g[k] === settei[k]);
 }
 
 // Claude の文を端末に覚えていることの表示（10便 M4）。予備の文には出さない。保存した文（11便）には、保存の印を出す
@@ -241,6 +243,8 @@ async function setteiWoKaku() {
       const k = sel.dataset.k;
       const v = typeof g.設定[k] === 'number' ? Number(sel.value) : sel.value;
       await gakkoWoKaeru(k, v);
+      yobina = await gakkoSettei();
+      if (k === '相談先の呼び名') return; // 呼び名は計画に使わない（Claude を呼び直さない）
       await keikakuWoKaku();
     };
   });
@@ -250,7 +254,7 @@ async function setteiWoKaku() {
 async function keikakuWoKaku() {
   const box = document.getElementById('keikaku');
   if (!box) return;
-  const settei = await gakkoSettei();
+  const settei = keikakuNoSettei(await gakkoSettei());
   const list = (await classList()).filter((k) => !isOtona(k.id));
   const kodomo = [];
   const yobina = {};
@@ -472,7 +476,7 @@ async function senseiKo(id) {
       <div class="btns"><button class="sub" id="again">もう一度書いてもらう</button></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
   };
-  const key = motoNoKey({ kai, renshu: kidRenshu, atehamaru: ids, settei: await gakkoSettei() });
+  const key = motoNoKey({ kai, renshu: kidRenshu, atehamaru: ids, settei: keikakuNoSettei(await gakkoSettei()) });
   const yobidasu = async (force) => {
     const cached = !force && claudeNoOboe(id, 'kasetsu', key);
     if (cached) { draw(cached); return; }
@@ -529,7 +533,7 @@ async function tsutae(id) {
   const ids = await atehamaruIds(id);
   app.innerHTML = `<h1>伝え方の下書き（${esc(id)}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>`;
   const box = document.getElementById('tsutae');
-  const key = motoNoKey({ kai, renshu: (await getKid(id))?.renshu || [], atehamaru: ids, settei: await gakkoSettei() });
+  const key = motoNoKey({ kai, renshu: (await getKid(id))?.renshu || [], atehamaru: ids, settei: keikakuNoSettei(await gakkoSettei()) });
   const cardsData = await data('cards');
   const draw = (t) => {
     box.innerHTML = `
@@ -657,6 +661,7 @@ async function mikurabe(id, mode, i) {
 // ---- 画面の切りかえ
 async function route() {
   tomeru();
+  try { yobina = await gakkoSettei(); } catch { /* はじめの値のまま */ }
   gameWoHanareru(); // 前のゲームの続きが、これから開く画面に描かないように
   delete document.body.dataset.hakaru;
   const parts = location.hash.replace(/^#\/?/, '').split('/').map((x) => decodeURIComponent(x));

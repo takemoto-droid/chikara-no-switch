@@ -147,7 +147,8 @@ try {
   await page.click('text=その場で動かす');
   await page.waitForSelector('.annai-ichibun');
   // 12便 P2：子ども向けの案内は一画面一文。「つぎへ」で進み、最後に「はじめる」。どの画面にも同じ短い相談先
-  const SOUDAN_KO = seihon()['相談先の案内（子どもの画面・短い文・結果に関係なく全員に同じ文）'];
+  const YOBINA = seihon()['相談先の呼び名（学校の設定で選ぶ・はじめの値）'];
+  const SOUDAN_KO = seihon()['相談先の案内（子どもの画面・短い文・結果に関係なく全員に同じ文）'].replaceAll('{相談先}', YOBINA);
   let tKo = '';
   let tSaigo = '';
   for (let i = 0; i < 8; i++) {
@@ -160,7 +161,23 @@ try {
   await page.goto(`${BASE}#/annai/hogo`);
   await page.waitForSelector('text=保護者のみなさまへ');
   const tHogo = await mieru('案内_保護者');
-  tashika(tHogo.includes(seihon()['相談先の案内（結果に関係なく全員に同じ文）']), '保護者の画面には、全員に同じ相談先の文が出る');
+  tashika(tHogo.includes(seihon()['相談先の案内（結果に関係なく全員に同じ文）'].replaceAll('{相談先}', YOBINA)) && tSaigo.includes('担任の先生かカウンセラーの先生に話してね'), '保護者の画面には、全員に同じ相談先の文が出る');
+  // 2026-11-05（先生の決定）：相談先の呼び名は学校の設定で選べる。子どもの画面と保護者の案内の両方に同じ呼び名が入る
+  await page.goto(`${BASE}#/sensei`);
+  await page.waitForSelector('select[data-k="相談先の呼び名"]');
+  await page.selectOption('select[data-k="相談先の呼び名"]', '相談室');
+  await page.waitForTimeout(200);
+  await page.goto(`${BASE}#/annai/hogo`);
+  await page.waitForSelector('text=保護者のみなさまへ');
+  const tHogoYobina = await page.evaluate(() => document.body.innerText);
+  await page.goto(`${BASE}#/annai/ko`);
+  for (let i = 0; i < 8 && (await vis('#annai-tsugi')); i++) await page.click('#annai-tsugi');
+  const tKoYobina = await page.evaluate(() => document.body.innerText);
+  tashika(/担任の先生や、相談室に話してください/.test(tHogoYobina) && /担任の先生か相談室に話してね/.test(tKoYobina), '相談先の呼び名を学校の設定で「相談室」にすると、子どもの画面と保護者の案内の両方に入る');
+  await page.goto(`${BASE}#/sensei`);
+  await page.waitForSelector('select[data-k="相談先の呼び名"]');
+  await page.selectOption('select[data-k="相談先の呼び名"]', YOBINA);
+  await page.waitForTimeout(200);
 
   // ② ゲーム（途中で止めて、再開する）
   await page.goto(`${BASE}#/annai/ko`);
