@@ -121,5 +121,12 @@ writeFileSync(path.join(OUT, 'README.md'), [
   ...shots.map((s) => `| ${s.file} | ${s.setsumei} |`),
   '| 画面録画_音なし.webm | 上の流れを通した画面録画（音なし） |',
   '',
+  '## 3分の動画（24便）',
+  '',
+  '- `npm run douga:tsukuru`（scripts/douga_tsukuru.mjs）で、台本（資料の 23・第3版）どおりの3分以内の動画（1920×1080・30fps・H.264＋AAC）を作ります。mp4 は `.douga/` に置き、Git には入れません（先生に直接渡します）。',
+  '- 声は台本の文を合成の声 “Mei”（pyopenjtalk・speed 1.2・文の間 0.28 秒・区間の頭 0.5 秒）で読みます（scripts/douga_koe.py）。読み違える2語（言ってね・区切って）だけ、合成に渡す読みをかなにしています。字幕は声と同じ文（「クロード」は「Claude」、漢数字は算用数字）。',
+  '- 画面は、鍵なし（CHIKARA_KEY_NASHI=1）で動かしたアプリの本物の写しです。デモ1 の仮説と伝え方は、保存した Claude の文が出ます。写す範囲に「予備の動き」・鍵・Vercel の表示が入ったら止まります。字幕と重ねる文は言葉の正本で点検し、1件でもあれば止まります。',
+  '- 要るもの：Playwright と Chromium・ffmpeg・字体 BIZ UDPGothic・pyopenjtalk の入った Python（`python3 -m venv .onsei-env && .onsei-env/bin/pip install pyopenjtalk` のあと `DOUGA_PYTHON=.onsei-env/bin/python npm run douga:tsukuru`）。冒頭の絵は `DOUGA_E` で渡します（既定は資料の `動画冒頭_100人の点.svg`。無ければ同じ形で描きます）。',
+  '',
 ].join('\n'));
 console.log(`画面写し ${shots.length} 枚と画面録画を ${OUT} に置きました。`);

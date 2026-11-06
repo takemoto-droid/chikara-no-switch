@@ -14,7 +14,8 @@
     "toshi": "node scripts/toshi.mjs",
     "test": "node scripts/tenken.mjs && node scripts/kurabe-test.mjs",
     "utsusu": "node scripts/utsusu.mjs",
-    "douga": "node scripts/douga_sozai.mjs"
+    "douga": "node scripts/douga_sozai.mjs",
+    "douga:tsukuru": "node scripts/douga_tsukuru.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.4.0"
