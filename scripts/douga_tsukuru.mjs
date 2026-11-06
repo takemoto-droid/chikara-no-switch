@@ -23,6 +23,8 @@ const NAKA = path.join(SAGYOU, 'naka');
 const DEKIAGARI = path.join(SAGYOU, 'チカラのスイッチ_3分.mp4');
 const PY = process.env.DOUGA_PYTHON || 'python3';
 const E_SVG = process.env.DOUGA_E || path.join(ROOT, '..', 'chikara-no-switch-shiryo', '動画冒頭_100人の点.svg');
+// 次を選んだ理由の記録（25便）：2026-11-06 に公開デモで Claude が書いた記録（資料 31）。DOUGA_KIROKU で指定できる
+const KIROKU = process.env.DOUGA_KIROKU || path.join(ROOT, '..', 'chikara-no-switch-shiryo', '31_その場3_次を選んだ理由の記録_公開デモ_20261106.json');
 
 const FPS = 30;
 const ATAMA = 0.5; // 区間の頭の間（秒）
@@ -101,6 +103,7 @@ const KASANE = {
   hayaokuri: '早送り',
   kouka: '学力への効果は確かめていません',
   kakuuData: '架空の子のデータで確かめた',
+  kirokuNoHi: '2026-11-06 に公開デモで Claude が書いた記録',
   shou: ['解けているのに、ノートは白紙。', '「困ったら言ってね」では、声は上がらない。', 'でも、こちらからたずねれば、答えてくれる。'],
   yomu: '📖 読む', kiku: '👂 聞く', kikuSoe: '上と同じ文章を、\n声で聞く',
   ikki: '📄 まとめて読む', kugiri: '✂️ 一文ずつ読む',
@@ -347,15 +350,44 @@ async function gamenWoUtsusu() {
     if (!G.yomu) throw new Error('読む版と聞く版で同じ文章の画面を写せませんでした');
     G.ff = Array.from({ length: ff }, (_, i) => `ff_${String(i + 1).padStart(2, '0')}`);
 
-    // 先生の画面の「ゲームで Claude が次を選んだ理由の記録」（その場で動かした1人目の子）
-    await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent('その場1')}`);
-    await page.waitForSelector('details summary');
-    const sum = page.locator('summary', { hasText: '次を選んだ理由の記録' });
-    await sum.click();
-    await page.waitForTimeout(300);
-    const riyuu = await sum.evaluate((s) => { const d = s.closest('details'); const li = d.querySelectorAll('li'); return [window.__shikaku(s), window.__shikaku(li[Math.min(5, li.length - 1)])]; });
-    await kiru(page, 'riyuu_kiroku', union(riyuu), {}, { shita: 4 });
     await page.context().close();
+
+    // 先生の画面の「ゲームで Claude が次を選んだ理由の記録」（25便）。
+    // 2026-11-06 に公開デモ（鍵あり）で Claude が書いた記録（資料 31）を、撮るときだけ端末の覚えに架空の子「その場3」として入れる。
+    // erabi・junban・hi・dankai は 31 のまま。ほかの欄はデモの子1の形にそろえる（結果と時間は映さない。記録の欄だけを写す）
+    const kiroku = JSON.parse(readFileSync(KIROKU, 'utf8'));
+    if (!Array.isArray(kiroku.erabi) || !kiroku.erabi.length) throw new Error(`次を選んだ理由の記録が読めません：${KIROKU}`);
+    const demo1 = JSON.parse(readFileSync(path.join(ROOT, 'public', 'data', 'demo.json'), 'utf8')).結果['デモ1'].kai[0];
+    const sono3 = { id: 'その場3', kai: 1, kekka: demo1.kekka, owari: true, erabi: kiroku.erabi, junban: kiroku.junban, hi: kiroku.hi, dankai: kiroku.dankai };
+    const p4 = await atarashii();
+    await p4.goto(`${BASE}#/`);
+    await p4.waitForSelector('a[href="#/annai/ko"]');
+    await p4.evaluate((rec) => {
+      const KEY = 'chikara-no-switch.v3';
+      const st = { kids: {}, check: null, ai: {}, seq: 0, ...JSON.parse(localStorage.getItem(KEY) || '{}') };
+      st.kids[rec.id] = { id: rec.id, kai: [rec] };
+      st.seq = Math.max(st.seq || 0, 3);
+      localStorage.setItem(KEY, JSON.stringify(st));
+    }, sono3);
+    await p4.goto(`${BASE}#/sensei/ko/${encodeURIComponent('その場3')}`);
+    const sum = p4.locator('summary', { hasText: '次を選んだ理由の記録' });
+    await sum.waitFor();
+    await sum.click();
+    await p4.waitForTimeout(300);
+    await yoi(p4);
+    const gyou = await sum.evaluate((x) => [...x.closest('details').querySelectorAll('li')].map((li) => ({ t: li.textContent.replace(/\s+/g, ' ').trim(), r: window.__shikaku(li) })));
+    const mitai = kiroku.erabi.map((e) => `${e.step}：${e.riyuu} （${e.dare === 'claude' ? 'Claude' : '決まった順'}）`.replace(/\s+/g, ' '));
+    if (gyou.length !== mitai.length || gyou.some((g, i) => g.t !== mitai[i])) throw new Error(`記録の欄の行が、資料 31 の文と違います：\n${gyou.map((g) => g.t).join('\n')}`);
+    // 読める大きさにするため、前半（見出し＋1〜11行目）と後半（12行目から）の2枚に分けて写す
+    const naka = Math.ceil(gyou.length / 2);
+    const sumR = await sum.evaluate((x) => window.__shikaku(x));
+    // 左右は記録の欄の幅にそろえる（行の番号は行の枠の外に出るため）
+    const waku = await sum.evaluate((x) => window.__shikaku(x.closest('details')));
+    const haba = (r) => ({ ...r, x: waku.x, width: waku.width });
+    await kiru(p4, 'riyuu_kiroku_1', haba(union([sumR, ...gyou.slice(0, naka).map((g) => g.r)])), {}, { shita: 4 });
+    await kiru(p4, 'riyuu_kiroku_2', haba(union(gyou.slice(naka).map((g) => g.r))), {}, { ue: 6, shita: 6 });
+    G.kirokuGyou = { zen: gyou.length, claude: kiroku.erabi.filter((e) => e.dare === 'claude').length };
+    await p4.context().close();
 
     // ---- 保存した結果（架空の子・デモ1）。その場の子のいない端末で開く（保存した Claude の文が出る）
     const p2 = await atarashii();
@@ -694,7 +726,8 @@ function eNoNarabi(G, eSvg) {
     ],
     fukasa: [
       { s: 0, f: 0, midashi: 'Claude と深さ', pic: zen('kiku_zen', mk('kiku_zen', { waku: 'ichibun' })) },
-      { s: 2, f: 0, pic: kiri('riyuu_kiroku', null) },
+      { s: 2, f: 0, shita: KASANE.kirokuNoHi, pic: kiri('riyuu_kiroku_1', null) },
+      { s: 2, f: 0.5, shita: KASANE.kirokuNoHi, pic: kiri('riyuu_kiroku_2', null) },
       { s: 3, f: 0, pic: hikaku(false) },
       { s: 5, f: 0, pic: hikaku(true) },
       { s: 6, f: 0, pic: sakeruHtml },
@@ -845,6 +878,7 @@ async function main() {
     流れ: pr.streams.map((s) => s.codec_name === 'aac' ? `aac ${s.sample_rate}Hz` : `${s.codec_name} ${s.width}×${s.height} ${s.r_frame_rate}`),
     区間: kukan.map((k) => ({ 区間: k.na, 秒: (k.fLen / FPS).toFixed(2), 声: k.bun.reduce((a, b) => a + b.d, 0).toFixed(2) })),
     同じ文章の読む版と聞く版: G.onajiMondai,
+    次を選んだ理由の記録: `資料 31 の ${G.kirokuGyou.zen} 行（うち Claude ${G.kirokuGyou.claude} 行）`,
     字幕の点検: '避ける言葉 0 件',
     冒頭の絵: e.dare,
   };
