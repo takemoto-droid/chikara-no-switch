@@ -1,4 +1,4 @@
-// 3分の動画を作る（24便で作り、25便・26便で直した）。台本は資料の「23 動画の台本」第6版。
+// 3分の動画を作る（24便で作り、25便・26便・27便で直した）。台本は資料の「23 動画の台本」第6版。
 // 声の文・字幕・字幕・小（注意書き）・画面の順・間・字幕と札の値は、すべて台本のとおり。声の文は言い換えない。
 // 使い方：npm run douga:tsukuru
 // 要るもの：Playwright と Chromium・ffmpeg・pyopenjtalk の入った Python（DOUGA_PYTHON。既定は python3）・字体 BIZ UDPGothic
@@ -34,8 +34,9 @@ const AIDA = 0.28; // 文と文の間（秒）
 const KANAME_MA = 0.4; // 要点の文の後ろに足す間（秒）
 const SAIGO = 4; // 最後の一枚（秒）
 const NAGASA_MAX = 180; // 3:00
-const DSF = 3; // 画面写しの倍率（1280×720 の画面を 3 倍で写す。寄りでも字がつぶれないように）
-const SEMAI = 560; // 寄りや左右 2 枚の絵で字を大きくするため、アプリの本物の折り返しで写す画面の幅（px）
+const DSF = 2.5; // 画面写しの倍率（27便 Y2：760×428 の画面を 2.5 倍で写す＝1900×1070）
+const HABA = { w: 760, h: 428 }; // 27便 Y2：撮る幅は一律 760（アプリの本物の折り返し）。1280 幅で写す画面は無い
+const HIROI = { w: 960, h: 540 }; // 例外：図＋2×2（測る問題）と、先生の画面のデモ1（まとめ｜仮説の 2 列）だけ 960 幅
 const SAMPLE = 48000;
 const KIRI_MIN = 2.5; // 寄りの最短の秒（台本 §2-2）
 const KIRI_MOJI = 44; // 寄りの中の字の大きさの目安（px）
@@ -43,7 +44,8 @@ const KIRI_MOJI = 44; // 寄りの中の字の大きさの目安（px）
 // ---- 台本 第6版 §1（7区間・28文）。kaname：後ろに +0.4 秒の間を足す要点の文（0 から数える）
 const DAIHON = [
   { id: 'ki', koe: '01_ki', na: '起', waku: '#0E0F12', kaname: [2],
-    chuui: ['15 歳：読解力が基礎的な水準（レベル2）に届かない 18.6%（PISA 2025・国立教育政策研究所）', '約 20 万人・35 人に 6〜7 人は推定・単純計算', '大人：読解力レベル1以下 10%（PIAAC 2023・OECD）。足し合わせていません。'],
+    // 27便 Y1：起の字幕・小は 2 行に（投げ文 34 の文のまま）
+    chuui: ['15 歳：レベル2に届かない 18.6%（PISA 2025・国立教育政策研究所）／大人：レベル1以下 10%（PIAAC 2023・OECD）', '約 20 万人・35 人に 6〜7 人は推定・単純計算'],
     bun: [
       '国際学力調査、ピザの結果です。文章を読んで、理解して、使うこと。そこに難しさを抱える十五歳は、百人に十九人。',
       '日本では、およそ二十万人。教室なら、三十五人のうち、六人か七人です。',
@@ -129,6 +131,11 @@ const KASANE = {
   senDai: '線の比べ（docs/線の比べ_6便.md）',
   saigo: ['チカラのスイッチ', '言葉にできなくても、力のスイッチを見つけて育てる', 'github.com/takemoto-droid/chikara-no-switch', 'Built with Claude Code'],
   // 声 “Mei” は CC BY 3.0。docs/権利と出典.md の決まり（動画にも同じ表示を入れる）で、最後の一枚の下に小さく出す
+  // 27便 Y3〜Y5：寄りの上の札・転A-5 の工夫の札・深さ-3 の 2 枚の見出し
+  kakinaosu: '先生が書き直す',
+  kufuu: ['声に出して読む', '分からないときは 聞き返す'],
+  mieru: ['先生に見える', '本人に見える'],
+  nerai: 'ねらい', sasae: 'きょうの支え',
   koeHyouji: 'ナレーションの音声：Open JTalk で作成。声 “Mei” © 2009-2013 Nagoya Institute of Technology（CC BY 3.0）',
 };
 
@@ -246,8 +253,9 @@ async function gamenWoUtsusu() {
   const BASE = `http://localhost:${PORT}/?shiken=1`;
   const browser = await chromium.launch();
   const G = {};
-  const atarashii = async (haba = 1280) => {
-    const ctx = await browser.newContext({ viewport: { width: haba, height: 720 }, deviceScaleFactor: DSF });
+  // 27便 Y2：撮る画面は 760×428（例外だけ 960×540）。倍率は 2.5
+  const atarashii = async (o = HABA) => {
+    const ctx = await browser.newContext({ viewport: { width: o.w, height: o.h }, deviceScaleFactor: DSF });
     return ctx.newPage();
   };
 
@@ -323,7 +331,9 @@ async function gamenWoUtsusu() {
   const zen = async (page, name, marks = {}) => {
     await page.waitForTimeout(500);
     const s = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
-    await shashin(page, name, { x: s.x, y: s.y, width: 1280, height: 720 }, marks);
+    const v = page.viewportSize();
+    if (v.width > HIROI.w) throw new Error(`${name}：${v.width} 幅で写そうとしました（27便：1280 幅で写す画面は無い）`);
+    await shashin(page, name, { x: s.x, y: s.y, width: v.width, height: v.height }, marks);
   };
   // pad：まわりの余白（数か { ue, shita, yoko }）。上下は、となりの札や行がはみ出して映らないよう小さくできる
   const clipOf = async (page, rect, pad = 14) => {
@@ -355,11 +365,11 @@ async function gamenWoUtsusu() {
   }, kids);
 
   try {
-    // ---- その場で動かす子（はじめの画面 → 案内 → ゲーム）
+    // ---- その場で動かす子（はじめの画面 → 案内 → ゲーム）。27便：760×428
     const page = await atarashii();
     await page.goto(`${BASE}#/`);
     await page.waitForSelector('a[href="#/annai/ko"] .box');
-    await zen(page, 'home', { sonoba: [await shikaku(page, 'a[href="#/annai/ko"] .box')] });
+    await zen(page, 'home');
     // 承-6：はじめの画面の題名と 1 行目の説明
     const dai = await page.evaluate(() => { const h = document.querySelector('main h1, #app h1'); const p = h.nextElementSibling; return [window.__shikaku(h), window.__shikaku(p)]; });
     await kiru(page, 'home_dai', union(dai), {}, 16, { moji: await mojiNoOokisa(page, 'main h1, #app h1') });
@@ -368,9 +378,8 @@ async function gamenWoUtsusu() {
     while (await vis(page, '#annai-tsugi')) await page.click('#annai-tsugi');
     await page.click('a[href="#/hajimeru"]');
 
-    // 子どもがゲームを通す。semai：幅 560 の画面（左右 2 枚の絵に使う、読む・聞く・図・区切っての切り取り）。
-    // そうでないとき：PC 幅のゲームのはじめ・「次は 👂 聞く」・選んで答える質問のタップ
-    const asobu = async (page, semai) => {
+    // 子どもがゲームを通す。kiriDasu：読む・聞く・図・区切っての切り取り（2-up の絵）。そうでないとき：ゲームのはじめ・「次は 👂 聞く」・選んで答える質問
+    const asobu = async (page, kiriDasu) => {
       const stepNoNakami = () => page.evaluate(async () => {
         const { stepOf } = await import('/js/kurabe.js');
         const { getRecord } = await import('/js/kiroku.js');
@@ -380,8 +389,9 @@ async function gamenWoUtsusu() {
         const st = el && rec ? stepOf(rec, el.dataset.step) : null;
         return st ? { id: st.id, kind: st.kind, mode: st.mode, mondai: st.mondai, renshu: Boolean(st.renshu), ichibun: el.textContent.trim() } : null;
       });
-      const gameNoBasho = async () => union([await shikaku(page, '#riyuu'), await shikaku(page, '#mondai')]);
-      const gameKiru = async (name) => kiru(page, name, await gameNoBasho(), {}, { ue: 6 }, { moji: await mojiNoOokisa(page, '#mondai .honbun, #mondai .toi, #mondai') });
+      // 聞く版は本文が無いので、「次は 👂 聞く」と「▶ 聞く」のボタンに寄る（27便 Y5：空に見えないように）
+      const gameNoBasho = async (mode) => union([await shikaku(page, '#riyuu'), await shikaku(page, mode === 'kiku' ? '#mondai .btns' : '#mondai')]);
+      const gameKiru = async (name, mode) => kiru(page, name, await gameNoBasho(mode), {}, { ue: 6 }, { moji: await mojiNoOokisa(page, mode === 'kiku' ? '#riyuu' : '#mondai .honbun, #mondai .toi, #mondai') });
       const A = { yomu: {}, kiku: {} };
       let dTsugi = false;
       const KO_MAX = 8; // 子ごとにゲームの順が入れかわるので、同じ文章の読む版と聞く版がそろうまで、架空の子を足して通す
@@ -397,27 +407,35 @@ async function gamenWoUtsusu() {
               mae = step;
               await page.waitForTimeout(250);
               const st = await stepNoNakami();
-              if (!semai && ko === 1 && !G.game_1) await zen(page, 'game_1');
-              if (semai && st.kind === 'A' && !st.renshu) {
+              if (!kiriDasu && ko === 1 && !G.game_1) await zen(page, 'game_1');
+              if (kiriDasu && st.kind === 'A' && !st.renshu) {
                 const futsuu = !st.ichibun.includes('新しい');
                 const kago = A[st.mode];
                 if (!kago[st.mondai] || (futsuu && !kago[st.mondai].futsuu)) {
                   const name = `${st.mode}_${st.mondai}`;
-                  await gameKiru(name);
+                  await gameKiru(name, st.mode);
                   kago[st.mondai] = { name, futsuu };
                 }
               }
-              if (!semai && st.kind === 'A' && !st.renshu && st.mode === 'kiku' && !st.ichibun.includes('新しい') && !G.kiku_zen) {
-                // 深さ-1：「次は 👂 聞く」の一文（帯の左の部分と、その下の ▶ 聞く）に寄る
+              if (!kiriDasu && st.kind === 'A' && !st.renshu && st.mode === 'kiku' && !st.ichibun.includes('新しい') && !G.kiku_zen) {
+                // 深さ-1：「次は 👂 聞く」の一文と、その下の ▶ 聞く に寄る
                 const r = await shikaku(page, '#riyuu');
                 const b = await shikaku(page, '#mondai .btns');
                 await zen(page, 'kiku_zen');
-                await kiru(page, 'kiku_ichibun', { x: r.x, y: r.y, width: 330, height: b.y + b.height - r.y }, {}, 12, { moji: await mojiNoOokisa(page, '#riyuu') });
+                await kiru(page, 'kiku_ichibun', { x: r.x, y: r.y, width: Math.min(r.width, 420), height: b.y + b.height - r.y }, {}, 12, { moji: await mojiNoOokisa(page, '#riyuu') });
               }
-              if (semai && (st.mode === 'zu' || st.mode === 'kugiri') && !G[st.mode] && (!st.ichibun.includes('新しい') || ko === KO_MAX)) await gameKiru(st.mode);
-              if (!semai && st.kind === 'D' && !dTsugi) {
-                // 選んで答える質問に、1つタップで答える（3つ目の答え）。進み具合「3／22」に枠
-                await zen(page, 'D_mae', { choice: [await shikaku(page, '.choice >> nth=2')], susumi: [await shikaku(page, '.progress-wrap')] });
+              if (kiriDasu && (st.mode === 'zu' || st.mode === 'kugiri') && !G[st.mode] && (!st.ichibun.includes('新しい') || ko === KO_MAX)) {
+                // 図＋2×2（測る問題）だけ 960×540 で写す（27便 Y2 の例外）
+                if (st.mode === 'zu') { await page.setViewportSize({ width: HIROI.w, height: HIROI.h }); await page.waitForTimeout(400); }
+                await gameKiru(st.mode, st.mode);
+                if (st.mode === 'zu') { await page.setViewportSize({ width: HABA.w, height: HABA.h }); await page.waitForTimeout(200); }
+              }
+              if (!kiriDasu && st.kind === 'D' && !dTsugi) {
+                // 選んで答える質問（27便 Y2：上の 4 択まで写して止める）。3 つ目の答えをタップ
+                const toi = await page.locator('#mondai').first().innerText();
+                G.D_toi = toi.split('\n')[0].trim();
+                await kiru(page, 'D_mae', union([await shikaku(page, '#mondai'), await shikaku(page, '.choice >> nth=3')].map((x, i) => (i === 0 ? { ...x, height: 10 } : x))),
+                  { choice: [await shikaku(page, '.choice >> nth=2')] }, { ue: 10, shita: 10, yoko: 14 }, { moji: await mojiNoOokisa(page, '.choice') });
                 await page.locator('.choice').nth(2).click();
                 await page.waitForFunction((x) => document.querySelector('#riyuu[data-step]')?.dataset.step !== x, step);
                 await page.waitForTimeout(250);
@@ -430,48 +448,63 @@ async function gamenWoUtsusu() {
           for (const sel of ['#tsuzukeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(page, sel)) { await page.locator(sel).first().click(); break; }
           await page.waitForTimeout(30);
         }
-        if (!semai && G.game_1 && G.kiku_zen && G.D_mae) return;
-        if (semai) {
+        if (!kiriDasu && G.game_1 && G.kiku_zen && G.D_mae) return;
+        if (kiriDasu) {
           const pair = Object.keys(A.yomu).filter((m) => A.kiku[m]);
           const onaji = pair.find((m) => A.yomu[m].futsuu && A.kiku[m].futsuu) || (ko >= KO_MAX - 1 ? pair[0] : null);
           if (onaji && G.zu && G.kugiri) { G.yomu = G[A.yomu[onaji].name]; G.kiku = G[A.kiku[onaji].name]; G.onajiMondai = onaji; return; }
         }
       }
-      throw new Error(semai ? '読む版と聞く版で同じ文章の画面を写せませんでした' : 'ゲームのはじめ・「次は 聞く」・質問の画面を写せませんでした');
+      throw new Error(kiriDasu ? '読む版と聞く版で同じ文章の画面を写せませんでした' : 'ゲームのはじめ・「次は 聞く」・質問の画面を写せませんでした');
     };
     await asobu(page, false);
     await page.context().close();
-    const pS = await atarashii(SEMAI);
+    const pS = await atarashii();
     await pS.goto(`${BASE}#/hajimeru`);
     await asobu(pS, true);
     await pS.context().close();
 
     // ---- 保存した結果（架空の子・デモ1）。その場の子のいない端末で開く（保存した Claude の文が出る）
+    // 全体はまとめ｜仮説の 2 列が見える 960×540（27便 Y2 の例外）。寄りは 760 幅の画面から切る
+    const pW = await atarashii(HIROI);
+    await pW.goto(`${BASE}#/sensei/ko/${encodeURIComponent('デモ1')}`);
+    await pW.waitForSelector('#kasetsu .label.ai');
+    await zen(pW, 'sensei_d1');
+    await pW.context().close();
     const p2 = await atarashii();
     await p2.goto(`${BASE}#/sensei/ko/${encodeURIComponent('デモ1')}`);
     await p2.waitForSelector('#kasetsu .kasetsu');
     await p2.waitForSelector('#kasetsu .label.ai');
-    await zen(p2, 'sensei_d1');
     await yoi(p2);
     const hyou = await p2.evaluate(() => {
       const h = [...document.querySelectorAll('h3')].find((x) => x.textContent.trim() === '読む／聞く');
       let t = h.nextElementSibling;
       while (t && t.tagName !== 'TABLE' && !t.querySelector('table')) t = t.nextElementSibling;
-      const th = (t.tagName === 'TABLE' ? t : t.querySelector('table')).querySelectorAll('th');
+      const tb = t.tagName === 'TABLE' ? t : t.querySelector('table');
+      const th = tb.querySelectorAll('th');
       const r2 = window.__shikaku(th[1]);
-      const tr = window.__shikaku(t);
-      // 左の 2 列（出し方・正解）まで。かかった時間の列は寄りに入れない（字を大きくするため）
-      // 見出しは字の幅で取る（先生の画面の見出しは下線つきで横いっぱいに広がるため）
-      return [...window.__moji(h, h.textContent.trim()), { ...tr, width: r2.x + r2.width - tr.x }];
+      const tr = window.__shikaku(tb);
+      // 左の 2 列（出し方・正解）だけ（27便 Y3：右端が切れないよう、2 列目の右の線まで）
+      return [...window.__moji(h, h.textContent.trim()), { ...tr, width: r2.x + r2.width - tr.x + 2 }];
     });
     await kiru(p2, 'd1_hyou', union(hyou), {}, { ue: 14, shita: 6, yoko: 14 }, { moji: await mojiNoOokisa(p2, 'td') });
+    // 転B-1「比べた結果と」：まとめの箱（見出し＋3 行の箇条書き）
+    const matome = await p2.evaluate(() => { const b = document.querySelector('.narabi section.box'); return [window.__shikaku(b.querySelector('h2')), window.__shikaku(b.querySelector('ul'))]; });
+    await kiru(p2, 'd1_matome', union(matome), {}, 14, { moji: await mojiNoOokisa(p2, '.narabi section.box ul li') });
+    // 転B-1「本人が選んだ答えが並び」：授業の手がかりの「選んだ答え」の箇条書き（→ の 4 行）
+    const tegakari = await p2.evaluate(() => { const h = [...document.querySelectorAll('h3')].find((x) => x.textContent.trim() === '選んだ答え'); const ul = h.parentElement.querySelector('ul'); return { r: [window.__shikaku(h), window.__shikaku(ul)], n: ul.querySelectorAll('li').length, ya: [...ul.querySelectorAll('li')].every((li) => li.textContent.includes('→')) }; });
+    if (tegakari.n !== 4 || !tegakari.ya) throw new Error(`選んだ答えの箇条書きが 4 行の「→」ではありません（${tegakari.n} 行）`);
+    await kiru(p2, 'd1_tegakari', union(tegakari.r), {}, 14, { moji: await mojiNoOokisa(p2, 'h3 + p + ul li, section ul li') });
     const kp = await p2.evaluate(() => [...document.querySelectorAll('#kasetsu > *')].map((el) => ({ tag: el.tagName, r: window.__shikaku(el), t: el.textContent.slice(0, 20) })));
     // #kasetsu の中：0 札・1 仮説・2 次に試すなら・3 確かめた回数・4 見出し・5 理由の一覧・6 参考程度・7 保存の印
     const ul = kp.findIndex((x) => x.tag === 'UL');
-    const shirushiEl = kp.findIndex((x) => x.t.startsWith('Claude（AI）が 2026'));
-    if (ul < 0 || shirushiEl < 0) throw new Error('先生の画面の仮説の欄の形が、思っていたものと違います');
-    await kiru(p2, 'd1_shirushi', union([kp[shirushiEl].r]), { waku: await moji(p2, `#kasetsu > :nth-child(${shirushiEl + 1})`, 'Claude（AI）が 2026-11-04 に書いた下書き（保存したもの）') }, 14, { moji: await mojiNoOokisa(p2, `#kasetsu > :nth-child(${shirushiEl + 1})`) });
-    await kiru(p2, 'd1_kakunin', union(kp.slice(1, 4).map((x) => x.r)), { waku: [kp[3].r] }, { ue: 8, shita: 10, yoko: 14 }, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(4)') });
+    if (ul < 0 || !kp[1].t.startsWith('仮説') || !kp[3].t.startsWith('確かめた回数')) throw new Error('先生の画面の仮説の欄の形が、思っていたものと違います');
+    // 転B-1「Claude が仮説と、懇談の下書きを書きます」：札（Claude が書いた下書き）・仮説・確かめた回数。仮説の 1 行と確かめた回数に枠
+    await kiru(p2, 'd1_kakunin', union(kp.slice(0, 4).map((x) => x.r)), { waku: [kp[1].r, kp[3].r] }, { ue: 8, shita: 10, yoko: 14 }, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(2)') });
+    // 深さ-3 の左：仮説の箱の「耳で聞いて答えるとき、力が出ているかも。」（760 幅で切り出す）
+    const kasetsuMoji = await p2.locator('#kasetsu > :nth-child(2)').first().evaluate((el) => window.__moji(el, el.textContent.trim()));
+    await moji(p2, '#kasetsu > :nth-child(2)', '耳で聞いて答えるとき、力が出ているかも。');
+    await kiru(p2, 'd1_kasetsu', union(kasetsuMoji), {}, 16, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(2)') });
     // 深さ-2 の右：Claude の下書きの「次に試すなら」の文。「こちらから個別に声をかけて確かめる」に枠
     await kiru(p2, 'migi_tsugi', kp[2].r, { waku: await moji(p2, '#kasetsu > :nth-child(3)', 'こちらから個別に声をかけて確かめる') }, 16, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(3)') });
 
@@ -480,72 +513,75 @@ async function gamenWoUtsusu() {
     await zen(p2, 'card_d1');
     await kiru(p2, 'card_d1_card', await shikaku(p2, '.switch-card'), { hitokoto: await moji(p2, '.switch-card', '聞いて 考えると、力が 出せるかも'), betsu: await moji(p2, '.switch-card', '別の日は 違うかも。') }, 10, { moji: await mojiNoOokisa(p2, '.switch-card .hitokoto') });
 
-    // ⑤ 伝え方：懇談の下書きの 1 語を、先生が消して打ち直す（「試して」の「試し」を消して「続け」と打つ）。カーソルの点滅込み
+    // ⑤ 伝え方：懇談の下書きの 1 語を、先生が書きかえる（27便 Y4）。欄の中は scrollTop=0 にして、1 文目の頭の 2 行に寄る
     await p2.goto(`${BASE}#/tsutae/${encodeURIComponent('デモ1')}`);
     await p2.waitForSelector('textarea');
     await p2.waitForTimeout(500);
     await zen(p2, 'tsutae_d1');
-    const pT = await atarashii(SEMAI);
-    await pT.goto(`${BASE}#/tsutae/${encodeURIComponent('デモ1')}`);
-    await pT.waitForSelector('textarea');
-    await pT.waitForTimeout(500);
-    const ta = pT.locator('textarea').first();
-    const kmoji = await mojiNoOokisa(pT, 'textarea');
-    // 幅 560 の画面の入力欄（アプリの本物の折り返し）で、ねらう語の行と前後 1 行ずつを写す
-    await yoi(pT);
+    const ta = p2.locator('textarea').first();
+    const kmoji = await mojiNoOokisa(p2, 'textarea');
+    await ta.evaluate((t) => { t.scrollTop = 0; });
+    await yoi(p2);
     const taR = await ta.evaluate((t) => window.__shikaku(t));
     const lh = await ta.evaluate((t) => parseFloat(getComputedStyle(t).lineHeight));
-    const mawari = (r, haba = taR.width) => {
-      const cx = r.x + r.width / 2;
-      const x = Math.min(Math.max(taR.x, cx - haba / 2), taR.x + taR.width - haba);
-      const y = Math.max(taR.y, r.y - lh * 1.15);
-      return { x, y, width: haba, height: Math.min(taR.y + taR.height - y, lh * 3.1) };
-    };
-    // 欄の中がスクロールするときは、ねらう語の行が欄の上から 2 行目あたりに来るまで、欄の中をスクロールしてから測る
-    const miseru = async (sub) => {
-      await ta.evaluate((t, x) => { t.scrollTop = 0; }, sub);
-      await yoi(pT);
-      const r0 = await ta.evaluate((t, x) => window.__taMoji(t, x), sub);
-      if (!r0.length) return r0;
-      await ta.evaluate((t, dy) => { t.scrollTop = Math.max(0, dy); }, r0[0].y - taR.y - lh * 1.2);
-      await yoi(pT);
-      return ta.evaluate((t, x) => window.__taMoji(t, x), sub);
-    };
-    const tameshi = await miseru('試して');
-    if (!tameshi.length) throw new Error('懇談の下書きに「試して」がありません');
-    const konClip = mawari(tameshi[0]);
-    const at = await ta.evaluate((t) => t.value.indexOf('試して'));
-    if (at < 0) throw new Error('懇談の下書きに「試して」がありません');
-    const sukuro = await ta.evaluate((t) => t.scrollTop);
-    await ta.evaluate((t, [a, y]) => { t.focus(); t.setSelectionRange(a + 2, a + 2); t.scrollTop = y; }, [at, sukuro]);
-    // カーソルが写った絵と、写っていない絵を、点滅の向きを見て撮り分ける
-    const utsusuKaret = async (name) => {
-      await shashin(pT, `${name}_kesu`, konClip, {}, { moji: kmoji, caret: 'hide' });
+    const pt = await ta.evaluate((t) => parseFloat(getComputedStyle(t).paddingTop) + parseFloat(getComputedStyle(t).borderTopWidth));
+    const ichibun = await ta.evaluate((t) => t.value.split('。')[0] + '。');
+    // 書きかえる語：「ご家庭で」→「おうちで」。1 文目に無いときは、1 文目の「今回」→「この日」（投げ文 34 Y4 の決まり）
+    const KAE = ichibun.includes('ご家庭で') ? ['ご家庭で', 'おうちで'] : ichibun.includes('今回') ? ['今回', 'この日'] : null;
+    if (!KAE) throw new Error(`懇談の下書きの 1 文目に、書きかえる語がありません：${ichibun}`);
+    G.kakikae = { mae: KAE[0], ato: KAE[1], ichibun };
+    // 2 行ぶんだけ（3 行目の頭が映らないよう、行の下の余白の半分で切る）
+    const nigyou = { x: taR.x, y: taR.y, width: taR.width, height: pt + lh * 2 - lh * 0.12 };
+    const kaeAt = await ta.evaluate((t, w) => t.value.indexOf(w), KAE[0]);
+    const kaeR = async (w) => { await ta.evaluate((t) => { t.scrollTop = 0; }); await yoi(p2); return ta.evaluate((t, x) => window.__taMoji(t, x), w); };
+    const maeR = await kaeR(KAE[0]);
+    if (!maeR.length || maeR[0].y + maeR[0].height > nigyou.y + nigyou.height) throw new Error('書きかえる語が、欄の上の 2 行に入っていません');
+    const kakiClip = await clipOf(p2, nigyou, { ue: 8, shita: 0, yoko: 10 });
+    // カーソルの写った絵（点滅の向きを見て撮り分ける）
+    const karetTsuki = async (name) => {
+      await shashin(p2, `${name}_kesu`, kakiClip, {}, { moji: kmoji, caret: 'hide' });
       const hide = readFileSync(G[`${name}_kesu`].file);
       for (let i = 0; i < 12; i++) {
-        await shashin(pT, `${name}_tsuku`, konClip, {}, { moji: kmoji, caret: 'initial' });
-        if (!readFileSync(G[`${name}_tsuku`].file).equals(hide)) return;
-        await pT.waitForTimeout(90);
+        await shashin(p2, name, kakiClip, {}, { moji: kmoji, caret: 'initial' });
+        if (!readFileSync(G[name].file).equals(hide)) return;
+        await p2.waitForTimeout(90);
       }
       throw new Error('カーソルの写った絵が撮れませんでした');
     };
-    await utsusuKaret('type_0');
-    await pT.keyboard.press('Backspace');
-    await utsusuKaret('type_1');
-    await pT.keyboard.press('Backspace');
-    await utsusuKaret('type_2');
-    await pT.keyboard.type('続');
-    await utsusuKaret('type_3');
-    await pT.keyboard.type('け');
-    await utsusuKaret('type_4');
-    // 転B-2：直したあとの懇談の欄。「大事な説明や宿題・持ち物を口でも伝える」（Claude の下書き）に下線
+    // before：語に灰の下線
+    await shashin(p2, 'kaki_mae', kakiClip, { sen: maeR }, { moji: kmoji });
+    // 選択：語を選んだ姿
+    await ta.evaluate((t, [a, n]) => { t.focus(); t.setSelectionRange(a, a + n); t.scrollTop = 0; }, [kaeAt, KAE[0].length]);
+    await shashin(p2, 'kaki_sentaku', kakiClip, {}, { moji: kmoji });
+    // 消えて打ち直し：1 字ずつ（カーソル点滅込み）
+    await p2.keyboard.press('Backspace');
+    await ta.evaluate((t) => { t.scrollTop = 0; });
+    await karetTsuki('kaki_k0');
+    for (let i = 0; i < KAE[1].length; i++) {
+      await p2.keyboard.type(KAE[1][i]);
+      await ta.evaluate((t) => { t.scrollTop = 0; });
+      await karetTsuki(`kaki_k${i + 1}`);
+    }
+    G.kakiKazu = KAE[1].length;
+    // after：新しい語に橙の下線
     await ta.evaluate((t) => t.blur());
-    await yoi(pT);
-    const konSen = await miseru('大事な説明や宿題・持ち物を口でも伝える');
-    if (!konSen.length) throw new Error('懇談の下書きに「大事な説明や宿題・持ち物を口でも伝える」がありません');
-    await shashin(pT, 'kon_sen', mawari(union(konSen)), { sen: konSen }, { moji: kmoji });
-
-    await pT.context().close();
+    const atoR = await kaeR(KAE[1]);
+    if (!atoR.length) throw new Error('書きかえた語が見つかりません');
+    await shashin(p2, 'kaki_ato', kakiClip, { sen: atoR }, { moji: kmoji });
+    // 転B-2：『大事な連絡は、口でも伝える』の 1 文だけ（他の行は枠外）。「大事な説明や宿題・持ち物を口でも伝える」に下線
+    const BUN = '授業では、大事な説明や宿題・持ち物を口でも伝える';
+    const sen = '大事な説明や宿題・持ち物を口でも伝える';
+    const bunAt = await ta.evaluate((t, x) => t.value.indexOf(x), BUN);
+    if (bunAt < 0) throw new Error(`懇談の下書きに「${BUN}」がありません`);
+    const bunZen = await ta.evaluate((t, a) => { const v = t.value; const e = v.indexOf('。', a); return v.slice(a, e + 1); }, bunAt);
+    // その文の行が欄の上に来るまで、欄の中をスクロールしてから測る
+    const r0 = await kaeR(bunZen);
+    await ta.evaluate((t, dy) => { t.scrollTop = Math.max(0, dy); }, r0[0].y - taR.y - pt);
+    await yoi(p2);
+    const bunR = await ta.evaluate((t, x) => window.__taMoji(t, x), bunZen);
+    const senR = await ta.evaluate((t, x) => window.__taMoji(t, x), sen);
+    const bu = union(bunR);
+    await shashin(p2, 'kon_sen', await clipOf(p2, { x: taR.x, y: bu.y, width: taR.width, height: bu.height }, { ue: 6, shita: 4, yoko: 10 }), { sen: senR }, { moji: kmoji });
 
     // ⑥ 育てる（朝の練習）：今日の練習・今日のやり方
     await p2.goto(`${BASE}#/sodateru/${encodeURIComponent('デモ1')}`);
@@ -561,10 +597,24 @@ async function gamenWoUtsusu() {
     await kyou('kyou_renshu', '今日の練習：');
     await kyou('kyou_yarikata', '今日の やり方：');
 
-    // 先生の画面：架空の子 8 人の一覧
+    // 先生の画面：架空の子 8 人の一覧（全体と、「保存した結果（架空の子）」の 8 行の寄り）
     await p2.goto(`${BASE}#/sensei`);
     await p2.waitForSelector('#keikaku li');
     await zen(p2, 'sensei_top');
+    await yoi(p2);
+    const ichiran = await p2.evaluate(() => {
+      const h = [...document.querySelectorAll('h2')].find((x) => x.textContent.includes('保存した結果（架空の子）'));
+      const rs = [];
+      let n = h.nextElementSibling;
+      const t = [];
+      while (n && n.tagName === 'P' && n.querySelector('a[href^="#/sensei/ko/"]')) { rs.push(window.__shikaku(n)); t.push(n.textContent.trim()); n = n.nextElementSibling; }
+      return { rs, t, moji: parseFloat(getComputedStyle(h.nextElementSibling).fontSize) };
+    });
+    if (ichiran.t.length !== 8 || !ichiran.t.some((x) => x.includes('差が出なかった子'))) throw new Error(`保存した結果の一覧が 8 行ではありません：${ichiran.t.join('／')}`);
+    // 8 行だけ（見出しは入れない）。字の幅で切る（行は横いっぱいに広がるため）
+    const ichiranMoji = await p2.evaluate(() => { const h = [...document.querySelectorAll('h2')].find((x) => x.textContent.includes('保存した結果（架空の子）')); const out = []; let n = h.nextElementSibling; while (n && n.tagName === 'P' && n.querySelector('a[href^="#/sensei/ko/"]')) { out.push(...window.__moji(n, n.textContent.trim())); n = n.nextElementSibling; } return out; });
+    await kiru(p2, 'ichiran_8', union(ichiranMoji), {}, { ue: 6, shita: 6, yoko: 14 }, { moji: ichiran.moji });
+    G.ichiranGyou = ichiran.t;
 
     await p2.context().close();
 
@@ -586,24 +636,11 @@ async function gamenWoUtsusu() {
     const sono3 = { id: 'その場3', kai: 1, kekka: demo['デモ1'].kai[0].kekka, owari: true, erabi: kiroku.erabi, junban: kiroku.junban, hi: kiroku.hi, dankai: kiroku.dankai };
     const d7 = demo['デモ7'];
     const sono7 = { id: 'その場7', kai: [{ ...d7.kai[0], id: 'その場7', kai: 1 }], renshu: d7.renshu.slice(0, 8) };
-    const p4 = await atarashii();
-    await p4.goto(`${BASE}#/`);
-    await p4.waitForSelector('a[href="#/annai/ko"]');
-    await oboeniIreru(p4, [{ id: 'その場3', kai: [sono3] }, sono7]);
-    await p4.goto(`${BASE}#/sensei/ko/${encodeURIComponent('その場3')}`);
-    const sum = p4.locator('summary', { hasText: '次を選んだ理由の記録' });
-    await sum.waitFor();
-    await sum.click();
-    await p4.waitForTimeout(300);
-    await yoi(p4);
-    const gyou = await sum.evaluate((x) => [...x.closest('details').querySelectorAll('li')].map((li) => ({ t: li.textContent.replace(/\s+/g, ' ').trim(), r: window.__shikaku(li) })));
     const mitai = kiroku.erabi.map((e) => `${e.step}：${e.riyuu} （${e.dare === 'claude' ? 'Claude' : '決まった順'}）`.replace(/\s+/g, ' '));
-    if (gyou.length !== mitai.length || gyou.some((g, i) => g.t !== mitai[i])) throw new Error(`記録の欄の行が、資料 31 の文と違います：\n${gyou.map((g) => g.t).join('\n')}`);
-    // （Claude）の付いた 3 行に寄る（22 行は映さない）：5〜7 行目
+    // （Claude）の付いた 3 行（5〜7 行目）を、1 行ずつ写す（27便 Y3：3 行同時ではなく 1 行ずつ。行末の「（Claude）」に枠）
     const SAN = [4, 5, 6];
     if (SAN.some((i) => kiroku.erabi[i].dare !== 'claude')) throw new Error('記録の 5〜7 行目が Claude の行ではありません');
-    // 3 行は、行末の「（Claude）」まで入れて字を大きくするため、幅 560 で開いた同じ画面（アプリの本物の折り返し）から写す
-    const p5 = await atarashii(SEMAI);
+    const p5 = await atarashii();
     await p5.goto(`${BASE}#/`);
     await p5.waitForSelector('a[href="#/annai/ko"]');
     await oboeniIreru(p5, [{ id: 'その場3', kai: [sono3] }]);
@@ -614,26 +651,35 @@ async function gamenWoUtsusu() {
     await p5.waitForTimeout(300);
     await yoi(p5);
     const g5 = await sum5.evaluate((x) => [...x.closest('details').querySelectorAll('li')].map((li) => ({ t: li.textContent.replace(/\s+/g, ' ').trim(), r: window.__shikaku(li) })));
-    if (SAN.some((i) => g5[i].t !== mitai[i])) throw new Error('幅 520 の記録の欄の行が、資料 31 の文と違います');
-    const waku = await sum5.evaluate((x) => window.__shikaku(x.closest('details')));
-    const san = union(SAN.map((i) => g5[i].r));
-    await kiru(p5, 'kiroku_3gyou', { ...san, x: waku.x, width: waku.width }, {}, { ue: 6, shita: 6, yoko: 0 }, { moji: await p5.locator('details li').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize)) });
+    if (g5.length !== mitai.length || g5.some((g, i) => g.t !== mitai[i])) throw new Error(`記録の欄の行が、資料 31 の文と違います：\n${g5.map((g) => g.t).join('\n')}`);
+    const liMoji = await p5.locator('details li').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    const olR = await p5.locator('details ol').first().evaluate((el) => window.__shikaku(el));
+    for (const [k, i] of SAN.entries()) {
+      const sel = `details ol > li:nth-child(${i + 1})`;
+      // 行の番号（「5.」）まで入れる。上下は、となりの行が映らないよう詰める
+      const lr = g5[i].r;
+      await kiru(p5, `kiroku_${k + 1}`, { x: olR.x, y: lr.y, width: lr.x + lr.width - olR.x, height: lr.height }, { waku: await moji(p5, sel, '（Claude）') }, { ue: 2, shita: 2, yoko: 6 }, { moji: liMoji });
+    }
     await p5.context().close();
-    G.kirokuGyou = { zen: gyou.length, claude: kiroku.erabi.filter((e) => e.dare === 'claude').length, utsushita: SAN.map((i) => mitai[i]) };
-    await p4.context().close();
+    G.kirokuGyou = { zen: g5.length, claude: kiroku.erabi.filter((e) => e.dare === 'claude').length, utsushita: SAN.map((i) => mitai[i]) };
     const sodateCard = async (pg, name) => {
       await yoi(pg);
       const r = await pg.evaluate(() => {
         const h = [...document.querySelectorAll('h2')].find((x) => x.textContent.includes('育てているカード'));
         let c = h && h.nextElementSibling;
         while (c && !c.classList.contains('switch-card')) c = c.nextElementSibling;
-        return c ? window.__shikaku(c) : null;
+        if (!c) return null;
+        const lv = c.querySelector('.level');
+        return { card: window.__shikaku(c), level: (() => { const rs = window.__moji(lv, lv.textContent.trim()); const x = Math.min(...rs.map((q) => q.x)), y = Math.min(...rs.map((q) => q.y)); return { x, y, width: Math.max(...rs.map((q) => q.x + q.width)) - x, height: Math.max(...rs.map((q) => q.y + q.height)) - y }; })(), moji: parseFloat(getComputedStyle(lv).fontSize), t: lv.textContent.trim() };
       });
       if (!r) throw new Error(`${name}：育てているカードが見つかりません`);
-      await kiru(pg, name, r, {}, 10, { moji: await mojiNoOokisa(pg, '.switch-card .hitokoto') });
+      await kiru(pg, name, r.card, {}, 10, { moji: await mojiNoOokisa(pg, '.switch-card .hitokoto') });
+      // 転C-3：レベルの行（●の数と「育て中→一人前」）だけ
+      await kiru(pg, `${name}_level`, r.level, {}, { ue: 8, shita: 8, yoko: 12 }, { moji: r.moji });
+      G[`${name}_levelBun`] = r.t;
     };
-    // 育てたカード（デモ7）の前後 2 枚：幅 560 の画面で。いま（12 回目の練習のあと）と、8 回目の練習のあと（撮るときだけ端末の覚えに入れた「その場7」）
-    const p6 = await atarashii(SEMAI);
+    // 育てたカード（デモ7）の前後 2 枚：いま（12 回目の練習のあと）と、8 回目の練習のあと（撮るときだけ端末の覚えに入れた「その場7」）
+    const p6 = await atarashii();
     await p6.goto(`${BASE}#/card/${encodeURIComponent('デモ7')}`);
     await p6.waitForSelector('.switch-card');
     await sodateCard(p6, 'sodate_ato');
@@ -650,9 +696,12 @@ async function gamenWoUtsusu() {
 }
 
 // ---- 3. 一コマずつ組む（Playwright で 1920×1080 の HTML を写す）
-// 画面の枠 P。札の行は枠の上（上端から 18px）。字幕の帯は枠の下（画面に重ねない・枠と同じ幅）
-const P = { x: 198, y: 92, w: 1524, h: 857 };
-const OBI = P.y + P.h; // 字幕の帯の上端
+// 画面の枠 P。札の行は枠の上（上端から 18px）。
+// 27便 Y1：枠の下に、字幕・小の帯（暗い地・2 行まで）、その下に字幕の帯。どちらもアプリの枠に重ねない
+const P = { x: 198, y: 86, w: 1524, h: 793 };
+const CHUUI_UE = P.y + P.h + 6; // 字幕・小の帯の上端
+const CHUUI_TAKASA = 85; // 28px・行の高さ 1.3・2 行＋上下 6px
+const OBI = 1080 - 8 - 96; // 字幕の帯の上端（1 行の帯の高さ 96）
 const KUMI_HTML = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><style>
 html,body{margin:0;width:1920px;height:1080px;overflow:hidden;font-family:"BIZ UDPGothic","Noto Sans JP",sans-serif;}
 #f{position:absolute;inset:0;background:#1E2228;}
@@ -661,10 +710,11 @@ html,body{margin:0;width:1920px;height:1080px;overflow:hidden;font-family:"BIZ U
 #ue{position:absolute;left:${P.x}px;top:18px;height:58px;display:flex;align-items:center;gap:22px;}
 #fuda{height:58px;line-height:58px;padding:0 22px;border-radius:12px;background:#2E6F93;color:#fff;font-size:40px;font-weight:700;}
 #kukan{font-size:40px;font-weight:700;color:#F2EFE8;}
-#jimaku{position:absolute;left:${P.x}px;width:${P.w}px;top:${OBI}px;box-sizing:border-box;padding:14px 24px;background:rgba(0,0,0,.75);color:#fff;font-size:52px;line-height:1.3;font-weight:700;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.9);}
-#shita{position:absolute;left:${P.x}px;width:${P.w}px;top:${OBI + 100}px;text-align:center;font-size:20px;color:#B8BDC4;}
-#chuui{position:absolute;left:${P.x}px;width:${P.w}px;top:${OBI}px;transform:translateY(calc(-100% - 16px));display:flex;justify-content:center;}
-#chuui > div{max-width:${P.w - 80}px;box-sizing:border-box;padding:8px 20px;background:rgba(0,0,0,.45);color:#D8D3C7;font-size:28px;font-weight:400;line-height:1.45;text-align:center;border-radius:6px;}
+#jimaku{position:absolute;left:${P.x}px;width:${P.w}px;top:${OBI}px;height:96px;box-sizing:border-box;padding:14px 24px;background:rgba(0,0,0,.75);color:#fff;font-size:52px;line-height:1.3;font-weight:700;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.9);}
+#shita{position:absolute;left:${P.x}px;width:${P.w}px;top:${P.y + P.h - 40}px;text-align:center;font-size:22px;color:#B8BDC4;}
+#chuui{position:absolute;left:40px;width:1840px;top:${CHUUI_UE}px;height:${CHUUI_TAKASA}px;box-sizing:border-box;padding:6px 20px;background:rgba(20,20,20,.92);color:#D8D3C7;font-size:28px;font-weight:400;line-height:1.3;text-align:center;border-radius:6px;display:flex;flex-direction:column;justify-content:center;}
+#chuui:empty{display:none;}
+#chuui > div{white-space:nowrap;}
 #hayaokuri{position:absolute;right:${1920 - P.x - P.w + 16}px;top:${P.y + 14}px;font-size:24px;color:#1E2228;background:#E9C46A;padding:4px 14px;border-radius:14px;font-weight:700;}
 #kakuu{position:absolute;right:${1920 - P.x - P.w + 20}px;top:${P.y + P.h - 46}px;font-size:22px;color:#6B6760;}
 #zenmen{position:absolute;inset:0;display:none;}
@@ -673,6 +723,7 @@ html,body{margin:0;width:1920px;height:1080px;overflow:hidden;font-family:"BIZ U
 .waku-img img{width:100%;height:100%;display:block;}
 .mk-waku{position:absolute;border:5px solid #F2A33A;border-radius:10px;}
 .mk-sen{position:absolute;height:8px;background:#F2A33A;border-radius:4px;}
+.fuda-k{position:absolute;font-size:44px;font-weight:700;background:#fff;color:#23262b;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.4);padding:18px 28px;white-space:nowrap;}
 .mk-tap{position:absolute;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:7px solid #F2A33A;background:rgba(242,163,58,.25);}
 .label-w{color:#fff;font-weight:700;}
 </style></head><body><div id="f"><div id="p"></div><div id="yori"></div><div id="ue"><div id="fuda"></div><div id="kukan"></div></div><div id="chuui"></div><div id="jimaku"></div><div id="shita"></div><div id="hayaokuri"></div><div id="kakuu"></div><div id="zenmen"></div></div>
@@ -700,6 +751,7 @@ function gazou(parent, g, box, o = {}) {
   }
   for (const r of (o.sen || [])) {
     const m = document.createElement('div'); m.className = 'mk-sen';
+    if (o.senIro) m.style.background = o.senIro;
     Object.assign(m.style, { left: r.x * sc + 'px', top: (r.y + r.h) * sc - 1 + 'px', width: r.w * sc + 'px' });
     d.appendChild(m);
   }
@@ -711,7 +763,7 @@ function gazou(parent, g, box, o = {}) {
   if (o.ue) {
     const l = document.createElement('div');
     l.className = 'label-w';
-    Object.assign(l.style, { position: 'absolute', left: '0', right: '0', top: '-50px', textAlign: 'center', fontSize: '28px' });
+    Object.assign(l.style, { position: 'absolute', left: '-200px', right: '-200px', top: '-50px', textAlign: 'center', fontSize: '28px', color: o.ueIro || '#fff' });
     l.textContent = o.ue;
     d.appendChild(l);
   }
@@ -729,9 +781,10 @@ window.kaku = async (s) => {
   nose($('kukan'), s.kukan);
   $('jimaku').innerHTML = (s.jimaku || []).map((l) => '<div>' + esc(l) + '</div>').join('');
   $('jimaku').classList.toggle('hide', !(s.jimaku || []).length);
-  // 2 行の札は、帯が画面の下からはみ出さないよう上へ（2 行は読点で切れないときだけ）
-  $('jimaku').style.top = ((s.jimaku || []).length > 1 ? ${OBI} - 68 : ${OBI}) + 'px';
-  $('chuui').innerHTML = (s.chuui || []).length ? '<div>' + s.chuui.map(esc).join('<br>') + '</div>' : '';
+  // 字幕・小：1 項目 1 行。3 項目以上は 2 行目に続けて並べる（2 行まで）
+  const cl = s.chuui || [];
+  const gyou = cl.length > 2 ? [cl[0], cl.slice(1).join('　')] : cl;
+  $('chuui').innerHTML = gyou.map((l) => '<div>' + esc(l) + '</div>').join('');
   nose($('hayaokuri'), s.hayaokuri);
   nose($('shita'), s.shita);
   nose($('kakuu'), s.kakuu);
@@ -741,35 +794,50 @@ window.kaku = async (s) => {
   $('zenmen').style.display = 'none';
   const e = s.pic;
   const all = { x: 0, y: 0, w: ${P.w}, h: ${P.h} };
-  // 字幕・小があるときは、寄りをその上に置く
-  const chuuiH = (s.chuui || []).length ? $('chuui').firstChild.getBoundingClientRect().height + 16 : 0;
+  // 27便 Y1：字幕・小は枠の外（枠の下）なので、寄りはずらさない
+  const chuuiH = 0;
   let sc = null;
   const waits = [];
   if (e.k === 'zen') waits.push(gazou(p, e.g, all, e.o));
   if (e.k === 'kiri') {
-    if (e.haikei) {
+    if (e.haikeiHtml) {
+      const d = document.createElement('div'); d.innerHTML = e.haikeiHtml; p.appendChild(d);
+      const dim = document.createElement('div');
+      Object.assign(dim.style, { position: 'absolute', inset: 0, background: 'rgba(14,15,18,.66)' });
+      p.appendChild(dim);
+    } else if (e.haikei) {
       waits.push(gazou(p, e.haikei, all));
       const dim = document.createElement('div');
       Object.assign(dim.style, { position: 'absolute', inset: 0, background: 'rgba(14,15,18,.66)' });
       p.appendChild(dim);
     } else p.style.background = '#3A3F47';
     const ueH = e.o && e.o.ue ? 60 : 0;
-    const box = e.zenhaba
+    const box = e.box ? { x: ${P.x} + e.box.x, y: ${P.y} + e.box.y + ueH, w: e.box.w, h: e.box.h - ueH }
+      : e.zenhaba
       ? { x: 40, y: ${P.y} + 20 + ueH, w: 1840, h: ${P.h} - 40 - ueH - chuuiH }
       : { x: ${P.x} + 50, y: ${P.y} + 26 + ueH, w: ${P.w} - 100, h: ${P.h} - 52 - ueH - chuuiH };
     waits.push(gazou(yori, e.g, box, { ...e.o, max: e.max || 1.5, takasa: e.takasa, fuchi: e.fuchi || '#F2A33A' }).then((x) => { sc = x; }));
+    // 27便 Y5：転A-5 の工夫の札（右に 2 枚まで）
+    (e.fudaK || []).forEach((t, i) => {
+      const f = document.createElement('div'); f.className = 'fuda-k'; f.textContent = t;
+      Object.assign(f.style, { left: ${P.x} + ${P.w} * 0.6 + 'px', top: ${P.y} + 230 + i * 150 + 'px' });
+      yori.appendChild(f);
+    });
   }
   if (e.k === 'narabe') {
     p.style.background = '#2A2F36';
+    // 27便：2 枚並べは横いっぱい（1840 幅）に置いて字を大きくする
+    const host = yori, ox = 40, oy = ${P.y}, ww = 1840;
     const n = e.items.length, gap = 28;
-    const cw = (${P.w} - gap * (n + 1)) / n;
+    const cw = (ww - gap * (n + 1)) / n;
     e.items.forEach((it, i) => {
-      const x = gap + i * (cw + gap);
+      const x = ox + gap + i * (cw + gap);
       const lb = document.createElement('div'); lb.className = 'label-w';
-      Object.assign(lb.style, { position: 'absolute', left: x + 'px', top: '18px', width: cw + 'px', textAlign: 'center', fontSize: '32px', lineHeight: '1.3' });
+      Object.assign(lb.style, { position: 'absolute', left: x + 'px', top: oy + 18 + 'px', width: cw + 'px', textAlign: 'center', fontSize: (e.labelPx || 32) + 'px', lineHeight: '1.3' });
       lb.innerHTML = esc(it.label) + (it.soe ? '<div style="font-size:24px;font-weight:400;color:#C9CDD2">' + esc(it.soe) + '</div>' : '');
-      p.appendChild(lb);
-      waits.push(gazou(p, it.g, { x, y: 100, w: cw, h: ${P.h} - 100 - 20 - chuuiH }, { ...it.o, fuchi: null }));
+      host.appendChild(lb);
+      const hh = ${P.h} - 100 - 20 - chuuiH;
+      waits.push(gazou(host, it.g, { x, y: oy + 100, w: cw, h: hh }, { ...it.o, fuchi: it.fuchi || null, takasa: it.takasa ? hh * it.takasa : undefined }));
     });
   }
   if (e.k === 'html') {
@@ -787,7 +855,13 @@ window.kaku = async (s) => {
   }
   await Promise.all(waits);
   await document.fonts.ready;
-  return sc;
+  // 27便 Y1：字幕・小と字幕の帯が、アプリの枠に重なっていないか・字幕・小がはみ出していないか
+  const pr = $('p').getBoundingClientRect();
+  const ch = $('chuui');
+  const kasanari = ch.childElementCount ? ch.getBoundingClientRect().top < pr.bottom : false;
+  const hamidashi = [...ch.children].some((d) => d.scrollWidth > ch.clientWidth - 40);
+  const obiKasanari = !$('jimaku').classList.contains('hide') && $('jimaku').getBoundingClientRect().top < (ch.childElementCount ? ch.getBoundingClientRect().bottom : pr.bottom);
+  return { sc, kasanari, hamidashi, obiKasanari };
 };
 </script></body></html>`;
 
@@ -806,10 +880,12 @@ async function komaWoKumu(specs) {
       const key = keyOf(s);
       if (files.has(key)) continue;
       const file = path.join(KOMA, `${key}.png`);
-      const sc = await page.evaluate((x) => window.kaku(x), s);
+      const kk = await page.evaluate((x) => window.kaku(x), s);
+      if (kk.kasanari || kk.obiKasanari) throw new Error(`字幕・小か字幕の帯が、アプリの枠に重なりました（${key}）`);
+      if (kk.hamidashi) throw new Error(`字幕・小が 1 行に入りません：${(s.chuui || []).join('／')}`);
       await page.screenshot({ path: file });
       files.set(key, file);
-      bairitsu.set(key, sc);
+      bairitsu.set(key, kk.sc);
     }
   } finally {
     await browser.close();
@@ -841,7 +917,8 @@ function kyoushitsu({ x0, y0 = 150, tomoru = 0, cards = 0, iro = { seki: HAI, ko
   for (let r = 1; r <= 5; r++) for (let c = 1; c <= 7; c++) {
     const { x, y } = sekiNoBasho(x0, y0, r, c);
     parts.push(`<rect x="${x}" y="${y}" width="${SEKI.w}" height="${SEKI.h}" rx="8" fill="${lit.includes(`${r}-${c}`) ? iro.tomo : iro.seki}"/>`);
-    if (n < cards) parts.push(`<rect x="${x + SEKI.w / 2 - 12}" y="${y + SEKI.h / 2 - 8}" width="24" height="16" rx="3" fill="#FFFFFF"/>`);
+    // 27便 Y5：席のカードは 44×26・白・上に 4px の帯 #2f6f8f・角丸 4
+    if (n < cards) parts.push(`<rect x="${x + SEKI.w / 2 - 22}" y="${y + SEKI.h / 2 - 13}" width="44" height="26" rx="4" fill="#FFFFFF"/><path d="M${x + SEKI.w / 2 - 18} ${y + SEKI.h / 2 - 13}h36a4 4 0 0 1 4 4v0h-44v0a4 4 0 0 1 4-4z" fill="#2f6f8f"/>`);
     n++;
   }
   if (migi) {
@@ -870,6 +947,8 @@ function shoNoE({ p = 0, gyou = 0, fade = 1 }) {
   const to = { x: 120, y: 340, w: SEKI.w * 3, h: SEKI.h * 3 };
   const lerp = (a, b) => a + (b - a) * q;
   parts.push(`<rect x="${lerp(s.x, to.x)}" y="${lerp(s.y, to.y)}" width="${lerp(SEKI.w, to.w)}" height="${lerp(SEKI.h, to.h)}" rx="${lerp(8, 20)}" fill="${ORANGE}"/>`);
+  // 27便 Y5：文ごとに席の中の小さな絵（線画・1 色・文字なし）
+  if (q >= 1 && gyou > 0) parts.push(sekiNoE(Math.min(gyou, 4), to));
   for (let i = 0; i < gyou; i++) {
     const ima = i === gyou - 1;
     const a = ima ? fade : 1;
@@ -877,6 +956,17 @@ function shoNoE({ p = 0, gyou = 0, fade = 1 }) {
     parts.push(`<text x="460" y="${y}" font-size="${ima ? 48 : 40}" font-weight="${ima ? 700 : 400}" fill="${ima ? '#23262B' : '#7A7468'}" opacity="${a.toFixed(3)}">${KASANE.sho[i]}</text>`);
   }
   return svg(parts.join(''), '#F3EFE6');
+}
+
+// 承の席の中の絵（線画・1 色 #23262B・文字なし）。1：白いノート（空欄）／2：本と時計／3：「？」の吹き出し／4：「！」の吹き出し
+function sekiNoE(n, b) {
+  const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+  const st = 'fill="none" stroke="#23262B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"';
+  const fuki = `<path d="M${cx - 62} ${cy - 50}h124a14 14 0 0 1 14 14v62a14 14 0 0 1-14 14h-70l-26 22v-22h-28a14 14 0 0 1-14-14v-62a14 14 0 0 1 14-14z" ${st} fill="#FFFFFF"/>`;
+  if (n === 1) return `<rect x="${cx - 46}" y="${cy - 58}" width="92" height="116" rx="6" fill="#FFFFFF" stroke="#23262B" stroke-width="5"/><path d="M${cx - 30} ${cy - 58}v116" ${st}/>`;
+  if (n === 2) return `<path d="M${cx - 96} ${cy - 30}q36-16 60 0v74q-24-16-60 0z M${cx - 36} ${cy - 30}q24-16 60 0v74q-36-16-60 0z" ${st} fill="#FFFFFF"/><circle cx="${cx + 62}" cy="${cy + 4}" r="36" ${st} fill="#FFFFFF"/><path d="M${cx + 62} ${cy - 18}v22l16 12" ${st}/>`;
+  if (n === 3) return fuki + `<path d="M${cx - 16} ${cy - 22}a16 16 0 1 1 22 15q-6 3-6 10v6" ${st}/><circle cx="${cx}" cy="${cy + 26}" r="4" fill="#23262B"/>`;
+  return fuki + `<path d="M${cx} ${cy - 32}v40" ${st}/><circle cx="${cx}" cy="${cy + 26}" r="4" fill="#23262B"/>`;
 }
 
 // ---- 区間ごとの絵の並び（台本 §1 の「画面」）。cue：s 文の番号（0 から）・at 文の中のかけら（その頭から）・plus 秒・pic 絵（seq は [絵, 秒] の並び）
@@ -889,6 +979,8 @@ function eNoNarabi(G) {
   const mk = (name, kinds) => Object.fromEntries(Object.entries(kinds).map(([k, m]) => [k, G[name].marks[m]]));
   const zen = (name, o = {}) => ({ k: 'zen', g: g(name), o });
   const kiri = (name, haikei, o = {}, x = {}) => ({ k: 'kiri', g: g(name), haikei: haikei ? g(haikei) : null, o, ...x });
+  // 27便：760 幅の寄りは、横いっぱい（1840 幅）に置いて字を大きくする（枠の下の帯には重ねない）
+  const kiriH = (name, haikei, o = {}, x = {}) => kiri(name, haikei, o, { zenhaba: true, max: 99, ...x });
   const html = (h, pbg, max = 1) => ({ k: 'html', html: h, pbg, max });
   const S = (s) => ({ k: 'html', html: s, pbg: 'transparent', max: 1 });
   const md = readFileSync(path.join(ROOT, 'docs', '線の比べ_6便.md'), 'utf8').split('\n');
@@ -899,7 +991,7 @@ function eNoNarabi(G) {
       <div style="font-size:${yori ? 34 : 28}px;font-weight:700;margin-bottom:14px">${KASANE.senDai}</div>
       <table style="border-collapse:collapse;width:100%">
       <tr>${midashiGyou.map((c) => `<th style="background:#E5E0D5;border:1px solid #9a9484;padding:6px 10px;text-align:left">${c}</th>`).join('')}</tr>
-      ${(yori ? gyou.slice(0, 3) : gyou).map((r, i) => `<tr style="${i === 0 && yori ? `outline:6px solid ${ORANGE};outline-offset:-3px;background:#FFF4E2` : 'background:#fff'}">${r.map((c) => `<td style="border:1px solid #9a9484;padding:6px 10px;vertical-align:top">${c}</td>`).join('')}</tr>`).join('')}
+      ${(yori ? gyou.filter((x) => x[0] === '5便の線').slice(0, 1) : gyou).map((r, i) => `<tr style="${i === 0 && yori ? `outline:6px solid ${ORANGE};outline-offset:-3px;background:#FFF4E2` : 'background:#fff'}">${r.map((c) => `<td style="border:1px solid #9a9484;padding:6px 10px;vertical-align:top">${c}</td>`).join('')}</tr>`).join('')}
       </table></div>`, '#F5F3EE', 1);
   const saigo = {
     k: 'zenmen',
@@ -911,8 +1003,25 @@ function eNoNarabi(G) {
       <div style="position:absolute;left:0;right:0;bottom:44px;font-size:20px;color:#8E949C">${KASANE.koeHyouji}</div></div>`,
   };
   const KO = KASANE.fuda.ko, SEN = KASANE.fuda.sensei;
+  // 1 語の書きかえ：before 1.0 秒（灰の下線）→ 選択 0.3 秒 → 消えて打ち直し 0.7 秒（1 字ずつ・カーソル点滅）→ after 1.5 秒（橙の下線）
+  const kakikaeSeq = () => {
+    const o = { ue: KASANE.kakinaosu };
+    const k = (n, x = {}) => kiriH(n, 'tsutae_d1', { ...o, ...x });
+    const n = G.kakiKazu;
+    const uchi = [];
+    for (let i = 0; i <= n; i++) uchi.push([`kaki_k${i}`, 0.7 / (n + 1) / 2], [`kaki_k${i}_kesu`, 0.7 / (n + 1) / 2]);
+    return [
+      [k('kaki_mae', { sen: G.kaki_mae.marks.sen, senIro: '#8E949C' }), 1.0],
+      [k('kaki_sentaku'), 0.3],
+      ...uchi.map(([nm, d]) => [k(nm), d]),
+      [k('kaki_ato', { sen: G.kaki_ato.marks.sen }), 1.5],
+    ];
+  };
   const card = (o) => kiri('card_d1_card', 'card_d1', o, { takasa: Math.round(1080 * 0.7), zenhaba: true, max: 99 });
   const kyouSeq = (n0) => Array.from({ length: 8 }, (_, i) => [S(kyoushitsu({ x0: 110, tomoru: n0 + i > 7 ? 7 : i, migi: true })), 0.12]);
+  // 27便 Y5：転A-5 のカード（左 55%）と工夫の札。転A-6 で札を消し、カードを中央へ（250ms）
+  const cardBox = (t) => { const w0 = P.w*0.55, w = w0 + (P.w - w0) * t; return { x: (P.w - w) / 2 * t, y: 20, w, h: P.h - 40 }; };
+  const cardHidari = (fudaK, t = 0, o = {}) => kiri('card_d1_card', 'card_d1', o, { box: cardBox(t), max: 99, fudaK });
   const fadeSeq = (gyou) => Array.from({ length: 6 }, (_, i) => [S(shoNoE({ p: 1, gyou, fade: (i + 1) / 6 })), i < 5 ? 0.05 : 0]);
   return {
     ki: [
@@ -929,48 +1038,62 @@ function eNoNarabi(G) {
       { s: 3, seq: fadeSeq(3) },
       { s: 4, seq: fadeSeq(4) },
       { s: 4, at: 'でも、', seq: fadeSeq(5) },
+      // 27便 Y5：「こちらから具体的にたずねると」の頭で、ゲームの質問画面に寄る（承の教室は背景に暗く残す）
+      { s: 4, at: 'こちらから具体的にたずねると、', fuda: KO, pic: { k: 'kiri', g: g('D_mae'), haikeiHtml: shoNoE({ p: 1, gyou: 5 }), o: {} } },
       { s: 5, pic: kiri('home_dai', 'home') },
     ],
     tenA: [
-      { s: 0, pic: zen('home') },
-      { s: 0, plus: 0.5, pic: zen('home', mk('home', { tap: 'sonoba' })) },
-      { s: 0, plus: 1.1, fuda: KO, pic: zen('game_1') },
-      { s: 0, at: '読むか、', fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.yomu, g: g('yomu') }, { label: KASANE.kiku, soe: KASANE.kikuSoe, g: g('kiku') }] } },
-      { s: 0, at: '読むか、', plus: 3.0, fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.zu, g: g('zu') }, { label: KASANE.kugiri, g: g('kugiri') }] } },
-      { s: 1, fuda: KO, hayaokuri: true, pic: zen('D_mae', { waku: G.D_mae.marks.susumi }) },
-      { s: 1, at: '途中に、', fuda: KO, hayaokuri: true, pic: zen('D_mae', mk('D_mae', { tap: 'choice' })) },
-      { s: 1, at: '途中に、', plus: 0.7, fuda: KO, hayaokuri: true, pic: zen('D_ato') },
+      // 27便 Y3：「同じ問題を、出し方だけ変えて解きます」は 2-up「読む｜聞く」。「読むか、…」で 2-up「図｜区切って」
+      { s: 0, fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.yomu, g: g('yomu') }, { label: KASANE.kiku, soe: KASANE.kikuSoe, g: g('kiku') }] } },
+      { s: 0, at: '読むか、', fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.zu, g: g('zu') }, { label: KASANE.kugiri, g: g('kugiri') }] } },
+      // ゲームの全体（760 幅）2 秒：「四十五分で、二十二問」
+      { s: 1, fuda: KO, hayaokuri: true, pic: zen('game_1') },
+      { s: 1, at: '途中に、', fuda: KO, hayaokuri: true, pic: kiri('D_mae', null, mk('D_mae', { tap: 'choice' })) },
+      { s: 1, at: '途中に、', plus: 2.5, fuda: KO, hayaokuri: true, pic: zen('D_ato') },
       { s: 2, fuda: SEN, pic: kiri('d1_hyou', 'sensei_d1') },
       { s: 3, fuda: KO, pic: card({ sen: G.card_d1_card.marks.hitokoto }) },
-      { s: 4, fuda: KO, pic: card({ sen: G.card_d1_card.marks.betsu }) },
+      // 転A-5：カードを左に寄せ、右に工夫の札 2 枚（声に合わせて。2 枚目は 1.8 秒後）
+      { s: 4, fuda: KO, pic: cardHidari([], 0, { sen: G.card_d1_card.marks.betsu }) },
+      { s: 4, at: '声に出して読む。', fuda: KO, pic: cardHidari([KASANE.kufuu[0]], 0, { sen: G.card_d1_card.marks.betsu }) },
+      { s: 4, at: '声に出して読む。', plus: 1.8, fuda: KO, pic: cardHidari(KASANE.kufuu, 0, { sen: G.card_d1_card.marks.betsu }) },
+      // 転A-6：札を消し、カードを中央へ（250ms）
+      { s: 5, fuda: KO, seq: Array.from({ length: 6 }, (_, i) => [cardHidari([], (i + 1) / 6), i < 5 ? 0.05 : 0]) },
     ],
     tenB: [
+      // 27便 Y3：全体は 1 秒。声の名詞と同じ所に、2.5 秒ずつ寄る
       { s: 0, fuda: SEN, pic: zen('sensei_d1') },
-      { s: 0, plus: 1.2, fuda: SEN, pic: kiri('d1_shirushi', 'sensei_d1', { waku: G.d1_shirushi.marks.waku }) },
-      { s: 0, plus: 3.7, fuda: SEN, pic: kiri('d1_kakunin', 'sensei_d1', { waku: G.d1_kakunin.marks.waku }) },
-      // 「決めるのは先生です」の頭で、懇談の欄に寄って 1 語を消して打ち直す（カーソルの点滅込み・打ち終えて 2.5 秒止める）
-      { s: 0, at: '決めるのは先生です。', fuda: SEN, seq: [
-        ['type_0_tsuku', 0.4], ['type_0_kesu', 0.3], ['type_1_tsuku', 0.3], ['type_2_tsuku', 0.35], ['type_3_tsuku', 0.3],
-        ['type_4_tsuku', 0.5], ['type_4_kesu', 0.5], ['type_4_tsuku', 0.5], ['type_4_kesu', 0.5], ['type_4_tsuku', 0.5], ['type_4_kesu', 0],
-      ].map(([n, d]) => [kiri(n, 'tsutae_d1'), d]) },
-      { s: 1, at: '授業の小さな工夫が、', fuda: SEN, pic: kiri('kon_sen', 'tsutae_d1', { sen: G.kon_sen.marks.sen }) },
-      { s: 2, fuda: SEN, pic: zen('sensei_top') },
+      { s: 0, at: '比べた結果と、', ato: 1.0, fuda: SEN, pic: kiriH('d1_matome', 'sensei_d1') },
+      { s: 0, at: '本人が選んだ答えが並び、', ato: 2.5, fuda: SEN, pic: kiriH('d1_tegakari', 'sensei_d1') },
+      { s: 0, at: 'クロードが仮説と、', ato: 2.5, fuda: SEN, pic: kiriH('d1_kakunin', 'sensei_d1', { waku: G.d1_kakunin.marks.waku }) },
+      // 27便 Y4：「決めるのは先生です」の頭で、1 語の書きかえ（before 1.0 → 選択 0.3 → 打ち直し 0.7 → after 1.5）
+      { s: 0, at: '決めるのは先生です。', fuda: SEN, seq: kakikaeSeq() },
+      // 書きかえ（3.5 秒）が終わってから
+      { s: 1, ato: 3.5, fuda: SEN, pic: kiriH('kon_sen', 'tsutae_d1', { sen: G.kon_sen.marks.sen }) },
+      // 「クラス全員がやるから」：保存した結果（架空の子）の 8 行。転B-4 は全体
+      { s: 2, fuda: SEN, pic: kiriH('ichiran_8', 'sensei_top') },
+      { s: 3, fuda: SEN, pic: zen('sensei_top') },
     ],
     tenC: [
       { s: 0, fuda: KO, pic: zen('sodateru_d1') },
-      { s: 1, fuda: KO, pic: kiri('kyou_renshu', 'sodateru_d1') },
-      { s: 1, plus: 2.5, fuda: KO, pic: kiri('kyou_yarikata', 'sodateru_d1') },
+      { s: 1, fuda: KO, pic: kiri('kyou_renshu', 'sodateru_d1', { ue: KASANE.nerai, ueIro: '#D8D3C7' }) },
+      { s: 1, plus: 2.5, fuda: KO, pic: kiri('kyou_yarikata', 'sodateru_d1', { ue: KASANE.sasae, ueIro: '#D8D3C7' }) },
       { s: 2, at: '明日は、', fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.sodateMae, g: g('sodate_mae') }, { label: KASANE.sodateAto, g: g('sodate_ato') }] } },
+      // 27便 Y3：「できた、を自分で積んでいきます」は、レベルの行だけを 2 枚並べる
+      { s: 2, at: 'できた、', fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.sodateMae, g: g('sodate_mae_level') }, { label: KASANE.sodateAto, g: g('sodate_ato_level') }] } },
     ],
     fukasa: [
       { s: 0, fuda: KO, pic: kiri('kiku_ichibun', 'kiku_zen') },
-      { s: 0, plus: 2.5, fuda: SEN, shita: KASANE.kirokuNoHi, pic: kiri('kiroku_3gyou', null) },
-      { s: 1, fuda: SEN, pic: kiri('hidari_li', 'sensei_d1', { waku: G.hidari_li.marks.waku, wakuIro: '#9A9484', ue: KASANE.kimatta }, { fuchi: '#9A9484' }) },
-      { s: 1, plus: 1.5, fuda: SEN, pic: kiri('migi_tsugi', 'sensei_d1', { waku: G.migi_tsugi.marks.waku, ue: KASANE.claude }) },
+      // 27便 Y3：記録の Claude の 3 行を 1 行ずつ。行末の「（Claude）」に枠
+      ...[1, 2, 3].map((n) => ({ s: 0, plus: 2.5 + (n - 1) * 2, fuda: SEN, shita: KASANE.kirokuNoHi, pic: kiriH(`kiroku_${n}`, null, { waku: G[`kiroku_${n}`].marks.waku }) })),
+      // 3 行目も 2 秒見せてから（左右の比べは少し後ろへ）
+      { s: 1, ato: 2.0, fuda: SEN, pic: kiriH('hidari_li', 'sensei_d1', { waku: G.hidari_li.marks.waku, wakuIro: '#9A9484', ue: KASANE.kimatta }, { fuchi: '#9A9484' }) },
+      { s: 1, plus: 1.5, ato: 2.5, fuda: SEN, pic: kiriH('migi_tsugi', 'sensei_d1', { waku: G.migi_tsugi.marks.waku, ue: KASANE.claude }) },
       { s: 2, fuda: SEN, pic: zen('sensei_d1') },
-      { s: 2, at: '本人にも、', fuda: KO, pic: card({ sen: G.card_d1_card.marks.hitokoto }) },
+      // 27便 Y3：「本人にも、周りにも見える」は 2-up：左＝仮説の箱（灰の枠）｜右＝カード（高さ 60%）
+      { s: 2, at: '本人にも、', pic: { k: 'narabe', labelPx: 28, items: [{ label: KASANE.mieru[0], g: g('d1_kasetsu'), fuchi: '#9A9484' }, { label: KASANE.mieru[1], g: g('card_d1_card'), takasa: 0.6 }] } },
+      // 線の表：全体 1.5 秒 → 「5便の線」の行だけ
       { s: 3, pic: senHyou(false) },
-      { s: 3, at: '十二通りを比べ、', pic: senHyou(true) },
+      { s: 3, plus: 1.5, pic: senHyou(true) },
     ],
     ketsu: [
       { s: 0, pic: S(kyoushitsu({ x0: (W - KW) / 2 })) },
@@ -1044,9 +1167,12 @@ function jikanwari(koe, sensei, cues) {
       }
       return t + (c.plus || 0);
     };
+    let maeT = 0;
     for (const c of cues[sec.id]) {
       const notes = { fuda: c.fuda || '', kukan: sec.kukan || '', hayaokuri: c.hayaokuri ? KASANE.hayaokuri : '', shita: c.shita || '', kakuu: sec.id === 'sho' ? KASANE.kakuu : '', chuui: sec.chuui || [], waku: sec.waku };
-      let tt = tOf(c);
+      // 27便：ato＝前の絵から少なくともこの秒は置く（寄りの最短 2.5 秒を守るため、声の名詞より少し遅れることがある）
+      let tt = c.ato ? Math.max(tOf(c), maeT + c.ato) : tOf(c);
+      maeT = tt;
       if (c.seq) for (const [pic, d] of c.seq) { e.push({ f: fr(tt), pic, notes }); tt += d; }
       else e.push({ f: fr(tt), pic: c.pic, notes });
     }
@@ -1169,6 +1295,12 @@ async function main() {
     寄りの短いもの: yori.filter((y) => y.byou < KIRI_MIN).map((y) => `${y.kukan} ${y.name} ${y.byou} 秒`),
     寄りの字の小さいもの: yori.filter((y) => y.moji && y.moji < KIRI_MOJI).map((y) => `${y.kukan} ${y.name} ${y.moji}px`),
     同じ文章の読む版と聞く版: G.onajiMondai,
+    選んで答える質問: G.D_toi,
+    一語の書きかえ: `「${G.kakikae.mae}」→「${G.kakikae.ato}」（1 文目：${G.kakikae.ichibun}）`,
+    保存した結果の一覧: G.ichiranGyou,
+    レベルの行: [G.sodate_mae_levelBun, G.sodate_ato_levelBun],
+    撮る幅: '760×428（2.5 倍）。図＋2×2 と先生の画面のデモ1 の全体だけ 960×540',
+    字幕・小と枠の重なり: '0 コマ（一コマずつ確かめた）',
     次を選んだ理由の記録: `資料 31 の ${G.kirokuGyou.zen} 行（うち Claude ${G.kirokuGyou.claude} 行）。映したのは ${G.kirokuGyou.utsushita.length} 行`,
     字幕の点検: '避ける言葉 0 件',
   };
