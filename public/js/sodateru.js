@@ -96,14 +96,18 @@ export function yobiKyou(kouho, renshu) {
 }
 
 // 今日の練習の理由（子どもの画面に出す・12便 P2 で20字ほどに短くした。「段」と言わない）
-export function kyouNoRiyuuWoKaku(hi, tsuzuki, dan) {
-  if (hi === 0) return 'はじめての 練習。';
+// 21便 U2：hi は練習した日数（renshuNoHi）。kyouAri は、今日の練習がもう記録にあるか（同じ日の2回目）。
+// 「〇日目」は今日を含めて練習した日数にする（今日がもう記録にあれば足さない）
+export function kyouNoRiyuuWoKaku(hi, tsuzuki, dan, kyouAri = false) {
+  const nanNichime = kyouAri ? hi : hi + 1;
+  if (nanNichime <= 1) return 'はじめての 練習。';
   if (tsuzuki === 1 && dan < DAN_JOUGEN) return '前回は 正解が多かった。もう一回。';
-  return `${hi + 1}日目の 練習。`;
+  return `${nanNichime}日目の 練習。`;
 }
-export function kyouNoRiyuu(mode, renshu) {
+export function kyouNoRiyuu(mode, renshu, kyou) {
   const { dan, tsuzuki } = danWoDasu(renshu, mode);
-  return kyouNoRiyuuWoKaku(renshuNoHi(renshu, mode).length, tsuzuki, dan);
+  const hi = renshuNoHi(renshu, mode);
+  return kyouNoRiyuuWoKaku(hi.length, tsuzuki, dan, hi.includes(kyou));
 }
 
 // 段が進んだときの理由（決まった文。Claude ではなく、練習の中の事実だけ）

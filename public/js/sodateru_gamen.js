@@ -4,7 +4,7 @@ import { esc, api, data } from './util.js';
 import { getKid, saveRenshu, isDemo, hiduke, claudeNoOboe, claudeWoOboeru, motoNoKey } from './kiroku.js';
 import { cardNoFukudai, levelNoNamae } from './kurabe.js';
 import {
-  sodateKouho, jibunDeErabu, danWoDasu, renshuNoDankai, hitotsuNoKazu, yobiKyou, kyouNoRiyuu, agariNoRiyuu,
+  sodateKouho, jibunDeErabu, danWoDasu, renshuNoHi, renshuNoDankai, hitotsuNoKazu, yobiKyou, kyouNoRiyuu, agariNoRiyuu,
   erabuMondai, sodateCards, sodateCardNoBun, SODATE_MODES, SODATE_MEI, DAN_NO_DASHIKATA, DAN_JOUGEN, TANA_OF,
   sawaruTaishou, sawaruNoMasu, sawaruNoKekka,
 } from './sodateru.js';
@@ -84,12 +84,12 @@ export async function sodateruGamen(el, id) {
     let r = claudeNoOboe(id, 'sodate', key);
     if (!r) {
       try {
-        r = claudeWoOboeru(id, 'sodate', key, await api('sodate', { kouho, jokyou: kouho.map((m) => ({ mode: m, ...danWoDasu(renshu, m), hi: [...new Set(renshu.filter((x) => (x.hitotsu || []).some((h) => h.mode === m)).map((x) => x.hi))].length })) }, 15000));
+        r = claudeWoOboeru(id, 'sodate', key, await api('sodate', { kouho, jokyou: kouho.map((m) => ({ mode: m, ...danWoDasu(renshu, m), hi: renshuNoHi(renshu, m).length, kyouAri: renshuNoHi(renshu, m).includes(hiduke()) })) }, 15000));
       } catch { r = null; }
     }
     if (!r || !kouho.includes(r.mode)) {
       const m = yobiKyou(kouho, renshu);
-      r = { mode: m, riyuu: kyouNoRiyuu(m, renshu), dare: 'yobi' };
+      r = { mode: m, riyuu: kyouNoRiyuu(m, renshu, hiduke()), dare: 'yobi' };
     }
     const mode = r.mode;
     const { dan } = danWoDasu(renshu, mode);

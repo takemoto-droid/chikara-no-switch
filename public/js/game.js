@@ -45,7 +45,9 @@ export async function gameScreen(el, id) {
     saveRecord(rec);
     hakaru(false);
     el.innerHTML = `<h1>ひと休み中</h1><p>続きは、後で できます。</p>
-        <div class="btns"><a class="btn" href="#/game/${encodeURIComponent(rec.id)}">続きから</a><a class="btn sub" href="#/">はじめの画面</a></div>`;
+        <div class="btns"><a class="btn" id="tsuzukikara" href="#/game/${encodeURIComponent(rec.id)}">続きから</a><a class="btn sub" href="#/">はじめの画面</a></div>`;
+    // 21便 U1：いまのアドレスと同じなので、アドレスは変えずに、その場でゲームの画面を描き直す（はじめの画面から再開したときと同じ）
+    el.querySelector('#tsuzukikara').onclick = (e) => { e.preventDefault(); gameScreen(el, rec.id); };
   };
 
   const owariGamen = () => {

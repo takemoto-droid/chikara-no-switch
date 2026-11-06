@@ -187,9 +187,17 @@ try {
   const r1 = await susumu(5);
   tashika(r1 === 'tochuu', 'ゲームを5問まで進めた');
   tashika((await page.locator('#tomeru').innerText()) === 'ひと休み' && !(await page.locator('#app').innerText()).includes('止める'), '問題の画面の右下は「ひと休み」（「止める」は無い）');
+  const kazuMae = await page.locator('.progress-kazu').innerText();
   await page.click('#tomeru');
   await page.waitForSelector('text=ひと休み中');
   await mieru('ゲーム_止めた');
+  // 21便 U1：ひと休みの画面の「続きから」で、ひと休みした問題から再開する（アドレスが同じでも画面が変わる）
+  await page.click('#tsuzukikara');
+  await page.waitForSelector('#tomeru', { timeout: 10000 }).catch(() => {});
+  const kazuAto = (await vis('.progress-kazu')) ? await page.locator('.progress-kazu').innerText() : '';
+  tashika(kazuAto === kazuMae && !(await page.locator('#app').innerText()).includes('ひと休み中'), `ゲーム中に「ひと休み」→「続きから」を押すと、ひと休みした問題から再開する（${kazuMae} → ${kazuAto || 'なし'}）`);
+  await page.click('#tomeru');
+  await page.waitForSelector('text=ひと休み中');
   await page.goto(`${BASE}#/`);
   await page.reload();
   await page.waitForSelector('text=ひと休み中のゲーム');

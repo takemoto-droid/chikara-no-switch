@@ -9,6 +9,7 @@ import { askClaude, niseNoClaude } from '../lib/claude.mjs';
 import { motoNoKey } from '../public/js/kiroku.js';
 import { keikakuNoKo, yobiKeikaku, kikanNoHi, shitaKoto } from '../public/js/keikaku.js';
 import { keikakuNoZairyou, keikakuNoMondai } from '../lib/api.mjs';
+import { kyouNoRiyuu, kyouNoRiyuuWoKaku } from '../public/js/sodateru.js';
 import { sawaruTaishou, sawaruNoMasu, sawaruNoKekka, doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
 import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
@@ -1169,6 +1170,29 @@ await ok('13便のもと：棚 B の8題と練習 B の6題は、図から解き
   const ichi = [0, 0, 0, 0];
   for (const q of Object.values(tana.B.問題)) for (const x of q.問い) ichi[x.答え]++;
   assert.ok(ichi.every((c) => c >= 2), `答えの位置のかたより：${ichi.join('・')}`);
+});
+
+// ---- 21便
+await ok('21便 U2：「〇日目」は今日を含めて練習した日数。同じ日の2回目では足さない（予備の yobiSodate も同じ）', async () => {
+  const KYOU = '2026-11-06';
+  const hiOf = (n, kyou) => [...Array.from({ length: n }, (_, i) => `2026-10-0${i + 1}`), ...(kyou ? [KYOU] : [])]
+    .map((hi, i) => ({ no: i, hi, hitotsu: [{ mode: 'kiku', dan: 1, seikai: 1, kazu: 4 }] }));
+  const hyou = [
+    [0, false, 'はじめての 練習。'],
+    [0, true, 'はじめての 練習。'],
+    [1, false, '2日目の 練習。'],
+    [1, true, '2日目の 練習。'],
+    [2, true, '3日目の 練習。'],
+  ];
+  for (const [mae, kyou, kitai] of hyou) {
+    const renshu = hiOf(mae, kyou);
+    const hi = mae + (kyou ? 1 : 0);
+    assert.equal(kyouNoRiyuuWoKaku(hi, 0, 1, kyou), kitai, `決まった文：前に${mae}日・今日${kyou ? 'あり' : 'まだ'}`);
+    assert.equal(kyouNoRiyuu('kiku', renshu, KYOU), kitai, `子どもの画面の予備：前に${mae}日・今日${kyou ? 'あり' : 'まだ'}`);
+    const [st, r] = await handle('sodate', 'POST', { kouho: ['kiku'], jokyou: [{ mode: 'kiku', dan: 1, hi, tsuzuki: 0, kyouAri: kyou }] }, {});
+    assert.equal(st, 200);
+    assert.equal(r.riyuu, kitai, `サーバーの予備（yobiSodate）：前に${mae}日・今日${kyou ? 'あり' : 'まだ'}`);
+  }
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);
