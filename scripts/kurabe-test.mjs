@@ -345,7 +345,7 @@ await ok('7：概要の下書きは、1文目が「誰の・何の困りごと�
 await ok('8：動画素材の画面写しがそろっている（npm run douga で作る）', () => {
   const { readdirSync } = require_fs();
   const f = readdirSync(path.join(ROOT, 'docs/動画素材'));
-  for (const w of ['次を選んだ理由', 'スイッチカードを受け取る', 'まとめと仮説', '回ごとの表', 'デモ5_差が出なかった子のカード']) {
+  for (const w of ['ゲーム_つぎの一文', 'スイッチカードを受け取る', 'まとめと仮説', '回ごとの表', 'デモ5_差が出なかった子のカード']) {
     assert.ok(f.some((x) => x.includes(w) && x.endsWith('.png')), w);
   }
 });

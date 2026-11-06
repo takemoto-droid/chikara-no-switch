@@ -1,6 +1,7 @@
 // 動画用の画面の素材を作る（画面写し 1920×1080・字が読めるよう 150% に拡大／音なしの画面録画）
 // 使い方：npm run douga（Playwright と Chromium が要る）→ docs/動画素材/ に置く
-// キーが無いあいだは「予備の動き（決まった順・決まった文）」の画面になる。キーが来たら、キーを入れて撮り直す。
+// 20便：PC 幅（1920×1080）の、いまの画面の写し。撮影そのものは先生が公開デモで行い、これは字幕の見本や予備に使う。
+// 制作の環境には鍵が無いので、ゲームと練習の理由は「予備の動き（決まった文）」になる（DOUGA_KEY_ARI=1 で鍵を使う）。
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -53,7 +54,7 @@ try {
     if (!utsushita && (await vis('#riyuu[data-step]'))) {
       const step = await page.locator('#riyuu[data-step]').first().getAttribute('data-step');
       if (step !== mae) { mae = step; mondai++; }
-      if (mondai === 3) { await utsusu('ゲーム_つぎの一文', 'ゲームの問題の上に「つぎは 〇〇」の一文が出る（理由の全文は先生の画面に残る）', '#riyuu'); utsushita = true; }
+      if (mondai === 3) { await utsusu('ゲーム_つぎの一文', 'ゲームの問題の上に「次は 〇〇」の一文が出る（理由の全文は先生の画面に残る）', '#riyuu'); utsushita = true; }
     }
     for (const sel of ['#tsuzukeru', '#next', '#play', '.marubatsu button', '.choice']) if (await vis(sel)) { await page.locator(sel).first().click(); break; }
     await page.waitForTimeout(40);
@@ -110,8 +111,9 @@ rmSync(tmpVideo, { recursive: true, force: true });
 writeFileSync(path.join(OUT, 'README.md'), [
   '# 動画素材（画面写し）',
   '',
-  '> `npm run douga`（scripts/douga_sozai.mjs）で作りました。1920×1080、画面を 150% に拡大して写しています。',
-  '> キーが無いあいだの画面なので、ゲームの理由・仮説・伝え方は「予備の動き（決まった文）」です。キーが来たら、キーを入れて撮り直します（`DOUGA_KEY_ARI=1 npm run douga`）。',
+  '> `npm run douga`（scripts/douga_sozai.mjs）で作りました。PC 幅（1280×720 の画面を 150% に拡大して 1920×1080）の、12便以降のいまの画面です（20便で作り直し）。',
+  '> 撮影そのものは、先生が PC 幅の公開デモで行います。この画像は、字幕の見本や予備に使います。',
+  '> 制作の環境には鍵が無いので、ゲームの「次は 〇〇」と朝の練習の理由は、決まった文の「予備の動き」です。架空の子の仮説は、公開デモで Claude が書いて保存した文（11便）です。',
   '> デモの子は、すべて架空の子です。',
   '',
   '| ファイル | 場面 |',
