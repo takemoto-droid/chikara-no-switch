@@ -123,7 +123,7 @@ const KASANE = {
   kakuu: 'この動画の子は、架空の子です',
   hayaokuri: '早送り',
   kirokuNoHi: '2026-11-06 に公開デモで Claude が書いた記録',
-  ki: { ue: 'PISA 2025　国際学力調査', hito: ['100 人に', '人'], kyoushitsu: ['35 人に', '6〜7 人', 'およそ 20 万人'] },
+  ki: { ue: 'PISA 2025　国際学力調査', hito: ['100 人に', '人'], otona: ['10 人に', '1', '人'], kyoushitsu: ['35 人に', '6〜7 人', 'およそ 20 万人'] },
   sho: ['解けているのに、ノートは白紙。', '読むのが遅くて、置いていかれる。', 'サボっている、と思われてしまう。', '『困ったら言ってね』では届かない。', 'こちらからたずねると、答えてくれる。'],
   yomu: '📖 読む', kiku: '👂 聞く', kikuSoe: '左と同じ文章を、声で',
   zu: '🗺️ 図で見る', kugiri: '✂️ 一文ずつ読む',
@@ -949,49 +949,72 @@ const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" heig
 const ORANGE = IRO.shirushi;
 // 灯る点の順（散らす。決まった順で、毎回同じ）
 const TEN_JUN = (() => { const a = Array.from({ length: 100 }, (_, i) => i); let x = 7; for (let i = 99; i > 0; i--) { x = (x * 1103515245 + 12345) % 2147483648; const j = x % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; })();
-// 100 人の点（10×10）。iro：灯る点の数。kazu：右の数（null で出さない）。ue：上の「PISA 2025　国際学力調査」
-function hyakuNin({ iro = 0, kazu = null, ue = true }) {
+// 31便：絵の区間も中身の領域（1760×758）いっぱいに。絵と字をひとかたまりにして領域の中央に置く。
+// ゆっくり 1.03 倍に寄っても中身の領域から出ないよう、上下 12px の内側に収める
+const TEN = { d: 48, gap: 16 }; // 点の直径・間（1 辺 624px）
+const TEN_HEN = 10 * TEN.d + 9 * TEN.gap;
+const KI_SUUJI_W = 640; // 右の数字の列のおよその幅（「100 人に 19 人」240px／64px）
+// 100 人の点（10×10）。iro：灯る点の数。kazu：右の数（null で出さない）。ue：上の「PISA 2025　国際学力調査」（0 秒から出す）。otona：3 文目の「10 人に 1 人」
+function hyakuNin({ iro = 0, kazu = null, ue = true, otona = false }) {
   const lit = new Set(TEN_JUN.slice(0, iro));
-  const x0 = 250, y0 = 150; // 数が出ても点の位置は動かさない
+  const gw = TEN_HEN + 120 + KI_SUUJI_W;
+  const x0 = (W - gw) / 2;
+  const labelH = 44 + 24;
+  const y0 = (H - (TEN_HEN + labelH)) / 2 + labelH;
   const dots = [];
-  for (let i = 0; i < 100; i++) dots.push(`<circle cx="${x0 + 20 + (i % 10) * 56}" cy="${y0 + 20 + Math.floor(i / 10) * 56}" r="20" fill="${lit.has(i) ? ORANGE : IRO.ten}"/>`);
-  const u = ue ? `<text x="${x0 + 272}" y="${y0 - 44}" text-anchor="middle" font-size="36" fill="${IRO.label}">${KASANE.ki.ue}</text>` : '';
-  const k = kazu == null ? '' : `<text x="${x0 + 544 + 110}" y="${y0 + 340}" font-size="56" fill="${IRO.midashi}">${KASANE.ki.hito[0]} <tspan font-size="220" font-weight="700" fill="${IRO.suuji}">${kazu}</tspan> ${KASANE.ki.hito[1]}</text>`;
+  for (let i = 0; i < 100; i++) dots.push(`<circle cx="${x0 + TEN.d / 2 + (i % 10) * (TEN.d + TEN.gap)}" cy="${y0 + TEN.d / 2 + Math.floor(i / 10) * (TEN.d + TEN.gap)}" r="${TEN.d / 2}" fill="${lit.has(i) ? ORANGE : IRO.ten}"/>`);
+  const u = ue ? `<text x="${x0}" y="${y0 - 24 - 8}" font-size="44" font-weight="700" fill="${IRO.midashi}">${KASANE.ki.ue}</text>` : '';
+  const tx = x0 + TEN_HEN + 120, ty = y0 + TEN_HEN / 2 + 80;
+  const suuji = (mae, kazu2, ato) => `<text x="${tx}" y="${ty}" font-size="64" fill="${IRO.midashi}">${mae} <tspan font-size="240" font-weight="700" fill="${IRO.suuji}">${kazu2}</tspan> ${ato}</text>`;
+  const k = kazu != null ? suuji(KASANE.ki.hito[0], kazu, KASANE.ki.hito[1]) : otona ? suuji(KASANE.ki.otona[0], KASANE.ki.otona[1], KASANE.ki.otona[2]) : '';
   return svg(u + dots.join('') + k);
 }
-// 教室（黒板 1 本・5 行×7 列＝35 席）。灯す 7 席は散らす（台本 §1）
+// 教室（黒板 1 本・5 行×7 列＝35 席）。灯す 7 席は散らす（台本 §1）。31便：1 席 136×88・間 20（幅 1072・高さ 520）・黒板 560×24（席の上 40px）
 const NANA = [[1, 2], [2, 5], [3, 1], [3, 6], [4, 3], [5, 4], [5, 7]];
-const SEKI = { w: 80, h: 56, gx: 18, gy: 30 };
+const SEKI = { w: 136, h: 88, gx: 20, gy: 20 };
 const KW = 7 * SEKI.w + 6 * SEKI.gx;
+const KH = 5 * SEKI.h + 4 * SEKI.gy;
+const KOKU = { w: 560, h: 24, aida: 40 };
+const KYOU_Y0 = (H - (KOKU.h + KOKU.aida + KH)) / 2 + KOKU.h + KOKU.aida; // 席の上端（黒板と席のかたまりを上下の中央に）
+const KYOU_SUUJI_W = 470; // 右の数字の列のおよその幅（128px／72px）
+const KYOU_X_MIGI = (W - (KW + 100 + KYOU_SUUJI_W)) / 2; // 教室＋右の数字のかたまりを中央に
+const KYOU_X_NAKA = (W - KW) / 2; // 教室だけを中央に
 const sekiNoBasho = (x0, y0, r, c) => ({ x: x0 + (c - 1) * (SEKI.w + SEKI.gx), y: y0 + (r - 1) * (SEKI.h + SEKI.gy) });
-const sekiRect = (x, y, lit) => `<rect x="${x}" y="${y}" width="${SEKI.w}" height="${SEKI.h}" rx="8" fill="${lit ? ORANGE : '#FFFFFF'}" stroke="${lit ? ORANGE : IRO.sen}" stroke-width="2"/>`;
-function kyoushitsu({ x0, y0 = 230, tomoru = 0, cards = 0, migi = false }) {
+const sekiRect = (x, y, lit, w = SEKI.w, h = SEKI.h, rx = 10) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${lit ? ORANGE : '#FFFFFF'}" stroke="${lit ? ORANGE : IRO.sen}" stroke-width="2"/>`;
+const kokuban = (x0, y0) => `<rect x="${x0 + (KW - KOKU.w) / 2}" y="${y0 - KOKU.aida - KOKU.h}" width="${KOKU.w}" height="${KOKU.h}" rx="5" fill="${IRO.label}"/>`;
+function kyoushitsu({ x0, y0 = KYOU_Y0, tomoru = 0, cards = 0, migi = false }) {
   const lit = NANA.slice(0, tomoru).map(([r, c]) => `${r}-${c}`);
-  const parts = [`<rect x="${x0 + KW * 0.2}" y="${y0 - 76}" width="${KW * 0.6}" height="18" rx="4" fill="${IRO.label}"/>`];
+  const parts = [kokuban(x0, y0)];
   let n = 0;
   for (let r = 1; r <= 5; r++) for (let c = 1; c <= 7; c++) {
     const { x, y } = sekiNoBasho(x0, y0, r, c);
     parts.push(sekiRect(x, y, lit.includes(`${r}-${c}`)));
-    // 30便：結のカードは白い板 72×44（席いっぱい）・上に 6px の帯 #2F6F8F・線 1.5px #55606B
-    if (n < cards) parts.push(`<rect x="${x + 4}" y="${y + 6}" width="72" height="44" rx="5" fill="#FFFFFF" stroke="${IRO.label}" stroke-width="1.5"/><path d="M${x + 4.75} ${y + 11}a4.25 4.25 0 0 1 4.25-4.25h62a4.25 4.25 0 0 1 4.25 4.25v1h-70.5z" fill="${IRO.ao}"/>`);
+    // 31便：結のカードは席いっぱい 112×68・上に 8px の帯 #2F6F8F・線 1.5px #55606B
+    if (n < cards) {
+      const cx = x + (SEKI.w - 112) / 2, cy = y + (SEKI.h - 68) / 2;
+      parts.push(`<rect x="${cx}" y="${cy}" width="112" height="68" rx="6" fill="#FFFFFF" stroke="${IRO.label}" stroke-width="1.5"/><path d="M${cx + 0.75} ${cy + 6.75}a6 6 0 0 1 6-6h98.5a6 6 0 0 1 6 6v2h-110.5z" fill="${IRO.ao}"/>`);
+    }
     n++;
   }
   if (migi) {
-    const tx = x0 + KW + 110;
-    parts.push(`<text x="${tx}" y="${y0 + 100}" font-size="120" font-weight="700" fill="${IRO.suuji}">${KASANE.ki.kyoushitsu[0]}</text>`);
-    parts.push(`<text x="${tx}" y="${y0 + 240}" font-size="120" font-weight="700" fill="${IRO.suuji}">${KASANE.ki.kyoushitsu[1]}</text>`);
-    parts.push(`<text x="${tx}" y="${y0 + 340}" font-size="64" fill="${IRO.midashi}">${KASANE.ki.kyoushitsu[2]}</text>`);
+    const tx = x0 + KW + 100;
+    parts.push(`<text x="${tx}" y="${y0 + 150}" font-size="128" font-weight="700" fill="${IRO.suuji}">${KASANE.ki.kyoushitsu[0]}</text>`);
+    parts.push(`<text x="${tx}" y="${y0 + 300}" font-size="128" font-weight="700" fill="${IRO.suuji}">${KASANE.ki.kyoushitsu[1]}</text>`);
+    parts.push(`<text x="${tx}" y="${y0 + 410}" font-size="72" fill="${IRO.midashi}">${KASANE.ki.kyoushitsu[2]}</text>`);
   }
   return svg(parts.join(''));
 }
-const KYOU_X_MIGI = (W - (KW + 110 + 560)) / 2; // 教室＋右の字のグループを中央に
 // 承：起の教室の続き。p：1 席が残って大きくなる進み（0〜1）。gyou：出ている行の数。fade：いちばん新しい行の現れ方（0〜1）
+// 31便：席の絵は約 300×200、文の列を右に。席と文をひとかたまりにして、中身の領域の上下・左右の中央に
 const SHO_SEKI = [3, 6];
+const SHO_TO = { w: 300, h: 200 };
+const SHO_BUN_W = 980; // 文の列のおよその幅（いちばん長い行・56px）
+const SHO_X = (W - (SHO_TO.w + 72 + SHO_BUN_W)) / 2;
 function shoNoE({ p = 0, gyou = 0, fade = 1 }) {
-  const x0 = (W - KW) / 2, y0 = 230;
+  const x0 = KYOU_X_NAKA, y0 = KYOU_Y0;
   const e = (t) => 1 - (1 - t) * (1 - t); // なめらかに
   const q = e(p);
-  const parts = [`<g opacity="${(1 - q).toFixed(3)}"><rect x="${x0 + KW * 0.2}" y="${y0 - 76}" width="${KW * 0.6}" height="18" rx="4" fill="${IRO.label}"/>`];
+  const parts = [`<g opacity="${(1 - q).toFixed(3)}">${kokuban(x0, y0)}`];
   for (let r = 1; r <= 5; r++) for (let c = 1; c <= 7; c++) {
     if (r === SHO_SEKI[0] && c === SHO_SEKI[1]) continue;
     const { x, y } = sekiNoBasho(x0, y0, r, c);
@@ -999,17 +1022,22 @@ function shoNoE({ p = 0, gyou = 0, fade = 1 }) {
   }
   parts.push('</g>');
   const s = sekiNoBasho(x0, y0, ...SHO_SEKI);
-  const to = { x: 300, y: (H - SEKI.h * 3) / 2, w: SEKI.w * 3, h: SEKI.h * 3 };
+  const to = { x: SHO_X, y: (H - SHO_TO.h) / 2, w: SHO_TO.w, h: SHO_TO.h };
   const lerp = (a, b) => a + (b - a) * q;
-  parts.push(`<rect x="${lerp(s.x, to.x)}" y="${lerp(s.y, to.y)}" width="${lerp(SEKI.w, to.w)}" height="${lerp(SEKI.h, to.h)}" rx="${lerp(8, 20)}" fill="${ORANGE}"/>`);
+  parts.push(`<rect x="${lerp(s.x, to.x)}" y="${lerp(s.y, to.y)}" width="${lerp(SEKI.w, to.w)}" height="${lerp(SEKI.h, to.h)}" rx="${lerp(10, 24)}" fill="${ORANGE}"/>`);
   // 文ごとに席の中の小さな絵（線画・1 色・文字なし）
-  if (q >= 1 && gyou > 0) parts.push(sekiNoE(Math.min(gyou, 4), to));
-  const tx = to.x + to.w + 90, ty0 = H / 2 - 2 * 92 + 16;
+  if (q >= 1 && gyou > 0) parts.push(`<g transform="translate(${to.x + to.w / 2} ${to.y + to.h / 2}) scale(1.3) translate(${-(to.x + to.w / 2)} ${-(to.y + to.h / 2)})">${sekiNoE(Math.min(gyou, 4), to)}</g>`);
+  // 文：現在行 56px 太・過去行 44px・行の間 28px。5 行のかたまりを上下の中央に
+  const tx = to.x + to.w + 72;
+  const gyouH = (i) => (i === gyou - 1 ? 56 : 44);
+  const zenH = Array.from({ length: Math.max(gyou, 1) }, (_, i) => gyouH(i)).reduce((a, b) => a + b, 0) + 28 * Math.max(gyou - 1, 0);
+  let y = (H - Math.max(zenH, 5 * 44 + 4 * 28)) / 2;
   for (let i = 0; i < gyou; i++) {
     const ima = i === gyou - 1;
     const a = ima ? fade : 1;
-    const y = ty0 + i * 92 + (ima ? 12 * (1 - a) : 0);
-    parts.push(`<text x="${tx}" y="${y}" font-size="${ima ? 52 : 44}" font-weight="${ima ? 700 : 400}" fill="${ima ? IRO.midashi : IRO.label}" opacity="${a.toFixed(3)}">${KASANE.sho[i]}</text>`);
+    y += gyouH(i);
+    parts.push(`<text x="${tx}" y="${y + (ima ? 12 * (1 - a) : 0)}" font-size="${ima ? 56 : 44}" font-weight="${ima ? 700 : 400}" fill="${ima ? IRO.midashi : IRO.label}" opacity="${a.toFixed(3)}">${KASANE.sho[i]}</text>`);
+    y += 28;
   }
   return svg(parts.join(''));
 }
@@ -1064,10 +1092,10 @@ function eNoNarabi(G) {
   const saigo = {
     k: 'zenmen',
     html: `<div style="position:relative;width:1920px;height:1080px;background:${JI};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center">
-      <div style="font-size:80px;font-weight:700;color:${IRO.midashi}">${KASANE.saigo[0]}</div>
-      <div style="font-size:36px;color:${IRO.fudaJi}">${KASANE.saigo[1]}</div>
-      <div style="font-size:28px;color:${IRO.label};margin-top:36px">${KASANE.saigo[2]}</div>
-      <div style="font-size:32px;font-weight:700;color:${IRO.ao}">${KASANE.saigo[3]}</div>
+      <div style="font-size:112px;font-weight:700;color:${IRO.midashi}">${KASANE.saigo[0]}</div>
+      <div style="font-size:48px;color:${IRO.fudaJi}">${KASANE.saigo[1]}</div>
+      <div style="font-size:36px;color:${IRO.label};margin-top:44px">${KASANE.saigo[2]}</div>
+      <div style="font-size:40px;font-weight:700;color:${IRO.ao}">${KASANE.saigo[3]}</div>
       <div style="position:absolute;left:0;right:0;bottom:44px;font-size:22px;color:${IRO.label}">${KASANE.koeHyouji}</div></div>`,
   };
   const KO = KASANE.fuda.ko, SEN = KASANE.fuda.sensei;
@@ -1097,7 +1125,8 @@ function eNoNarabi(G) {
       { s: 0, pic: S(hyakuNin({ iro: 0 })) },
       { s: 0, at: '百人に十九人。', seq: Array.from({ length: 20 }, (_, i) => [S(hyakuNin({ iro: i, kazu: i })), i < 19 ? 0.06 : 0]) },
       { s: 1, seq: kyouSeq(0) },
-      { s: 2, seq: Array.from({ length: 11 }, (_, i) => [S(hyakuNin({ iro: i, ue: false })), i < 10 ? 0.06 : 0]) },
+      // 3 文目「大人になっても、十人に一人います」：灯り終わったら「10 人に 1 人」（起の 19 と同じ大きさ）
+      { s: 2, seq: Array.from({ length: 11 }, (_, i) => [S(hyakuNin({ iro: i, ue: false, otona: i === 10 })), i < 10 ? 0.06 : 0]) },
     ],
     sho: [
       { s: 0, pic: S(shoNoE({ p: 0 })) },
@@ -1164,8 +1193,8 @@ function eNoNarabi(G) {
       { s: 3, plus: 1.5, pic: senGyou() },
     ],
     ketsu: [
-      { s: 0, pic: S(kyoushitsu({ x0: (W - KW) / 2 })) },
-      { s: 0, at: 'クラス全員が使えます。', seq: Array.from({ length: 36 }, (_, i) => [S(kyoushitsu({ x0: (W - KW) / 2, cards: i })), i < 35 ? 0.05 : 0]) },
+      { s: 0, pic: S(kyoushitsu({ x0: KYOU_X_NAKA })) },
+      { s: 0, at: 'クラス全員が使えます。', seq: Array.from({ length: 36 }, (_, i) => [S(kyoushitsu({ x0: KYOU_X_NAKA, cards: i })), i < 35 ? 0.05 : 0]) },
       { s: 1, fuda: KO, pic: zen('card_d1_card') },
     ],
     saigo: [{ s: null, pic: saigo }],
