@@ -506,6 +506,8 @@ async function gamenWoUtsusu() {
     await p2.goto(`${BASE}#/sensei/ko/${encodeURIComponent('デモ1')}`);
     await p2.waitForSelector('#kasetsu .kasetsu');
     await p2.waitForSelector('#kasetsu .label.ai');
+    // 39便：37便から、表は「くわしく：数字の表と、数え方」の折りたたみの中。開いてから測る
+    await p2.locator('summary', { hasText: '数字の表と、数え方' }).click();
     await yoi(p2);
     const hyou = await p2.evaluate(() => {
       const h = [...document.querySelectorAll('h3')].find((x) => x.textContent.trim() === '読む／聞く');
@@ -528,17 +530,17 @@ async function gamenWoUtsusu() {
     if (tegakari.n !== 4 || !tegakari.ya) throw new Error(`選んだ答えの箇条書きが 4 行の「→」ではありません（${tegakari.n} 行）`);
     await kiru(p2, 'd1_tegakari', union(tegakari.r), {}, 14, { moji: await mojiNoOokisa(p2, 'h3 + p + ul li, section ul li') });
     const kp = await p2.evaluate(() => [...document.querySelectorAll('#kasetsu > *')].map((el) => ({ tag: el.tagName, r: window.__shikaku(el), t: el.textContent.slice(0, 20) })));
-    // #kasetsu の中：0 札・1 仮説・2 次に試すなら・3 確かめた回数・4 見出し・5 理由の一覧・6 参考程度・7 保存の印
-    const ul = kp.findIndex((x) => x.tag === 'UL');
-    if (ul < 0 || !kp[1].t.startsWith('仮説') || !kp[3].t.startsWith('確かめた回数')) throw new Error('先生の画面の仮説の欄の形が、思っていたものと違います');
+    // #kasetsu の中：0 札・1 仮説・2 次に試すなら・3 確かめた回数・4 参考程度・5 くわしく（そう考えた理由。37便で折りたたみ）・6 保存の印
+    const riyuu = kp.findIndex((x) => x.tag === 'UL' || (x.tag === 'DETAILS' && x.t.includes('そう考えた理由')));
+    if (riyuu < 0 || !kp[1].t.startsWith('仮説') || !kp[3].t.startsWith('確かめた回数')) throw new Error('先生の画面の仮説の欄の形が、思っていたものと違います');
     // 転B-1「Claude が仮説と、懇談の下書きを書きます」：札（Claude が書いた下書き）・仮説・確かめた回数。仮説の 1 行と確かめた回数に枠
     await kiru(p2, 'd1_kakunin', union(kp.slice(0, 4).map((x) => x.r)), { waku: [kp[1].r, kp[3].r] }, { ue: 8, shita: 10, yoko: 14 }, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(2)') });
     // 深さ-3 の左：仮説の箱の「耳で聞いて答えるとき、力が出ているかも。」（760 幅で切り出す）
     const kasetsuMoji = await p2.locator('#kasetsu > :nth-child(2)').first().evaluate((el) => window.__moji(el, el.textContent.trim()));
     await moji(p2, '#kasetsu > :nth-child(2)', '耳で聞いて答えるとき、力が出ているかも。');
     await kiru(p2, 'd1_kasetsu', union(kasetsuMoji), {}, 16, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(2)') });
-    // 深さ-2 の右：Claude の下書きの「次に試すなら」の文。「こちらから個別に声をかけて確かめる」に枠
-    await kiru(p2, 'migi_tsugi', kp[2].r, { waku: await moji(p2, '#kasetsu > :nth-child(3)', 'こちらから個別に声をかけて確かめる') }, 16, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(3)') });
+    // 深さ-2 の右：Claude の下書きの「次に試すなら」の文。「こちらから〜声をかけて〜」の句に枠（39便：保存した文を取り直したので、句は保存した文から選ぶ）
+    await kiru(p2, 'migi_tsugi', kp[2].r, { waku: await moji(p2, '#kasetsu > :nth-child(3)', kobetsuNoKu(await p2.locator('#kasetsu > :nth-child(3)').first().textContent())) }, 16, { moji: await mojiNoOokisa(p2, '#kasetsu > :nth-child(3)') });
 
     await p2.goto(`${BASE}#/card/${encodeURIComponent('デモ1')}`);
     await p2.waitForSelector('.switch-card');
@@ -575,7 +577,8 @@ async function gamenWoUtsusu() {
     const pt = await ta.evaluate((t) => parseFloat(getComputedStyle(t).paddingTop) + parseFloat(getComputedStyle(t).borderTopWidth));
     const ichibun = await ta.evaluate((t) => t.value.split('。')[0] + '。');
     // 書きかえる語：「ご家庭で」→「おうちで」。1 文目に無いときは、1 文目の「今回」→「この日」（投げ文 34 Y4 の決まり）
-    const KAE = ichibun.includes('ご家庭で') ? ['ご家庭で', 'おうちで'] : ichibun.includes('今回') ? ['今回', 'この日'] : null;
+    // 39便：取り直した保存文の 1 文目は「この前のゲームでは、…」なので、どちらも無いときは「この前」→「先週」（台本の決め直しは先生と司令塔）
+    const KAE = ichibun.includes('ご家庭で') ? ['ご家庭で', 'おうちで'] : ichibun.includes('今回') ? ['今回', 'この日'] : ichibun.includes('この前') ? ['この前', '先週'] : null;
     if (!KAE) throw new Error(`懇談の下書きの 1 文目に、書きかえる語がありません：${ichibun}`);
     G.kakikae = { mae: KAE[0], ato: KAE[1], ichibun };
     // 2 行ぶんだけ（3 行目の頭が映らないよう、行の下の余白の半分で切る）
@@ -617,8 +620,10 @@ async function gamenWoUtsusu() {
     if (!atoR.length) throw new Error('書きかえた語が見つかりません');
     await shashin(p2, 'kaki_ato', kakiClip, { sen: atoR }, { moji: kmoji });
     // 転B-2：『大事な連絡は、口でも伝える』の 1 文だけ（他の行は枠外）。「大事な説明や宿題・持ち物を口でも伝える」に下線
-    const BUN = '授業では、大事な説明や宿題・持ち物を口でも伝える';
-    const sen = '大事な説明や宿題・持ち物を口でも伝える';
+    // 39便：取り直した保存文では「大事な説明や宿題を口でも伝える」。どちらの文でも動くように、ある方を使う
+    const KOUHO_SEN = ['大事な説明や宿題・持ち物を口でも伝える', '大事な説明や宿題を口でも伝える'];
+    const sen = await ta.evaluate((t, ks) => ks.find((k) => t.value.includes(`授業では、${k}`)) || ks[0], KOUHO_SEN);
+    const BUN = `授業では、${sen}`;
     const bunAt = await ta.evaluate((t, x) => t.value.indexOf(x), BUN);
     if (bunAt < 0) throw new Error(`懇談の下書きに「${BUN}」がありません`);
     const bunZen = await ta.evaluate((t, a) => { const v = t.value; const e = v.indexOf('。', a); return v.slice(a, e + 1); }, bunAt);
@@ -696,17 +701,19 @@ async function gamenWoUtsusu() {
     await p5.waitForSelector('a[href="#/annai/ko"]');
     await oboeniIreru(p5, [{ id: 'その場3', kai: [sono3] }]);
     await p5.goto(`${BASE}#/sensei/ko/${encodeURIComponent('その場3')}`);
-    const sum5 = p5.locator('summary', { hasText: '次を選んだ理由の記録' });
+    // 39便：37便から、記録は「くわしく：ゲームで Claude が次を選んだ理由」の折りたたみの中。開いて、その中だけを測る
+    const sum5 = p5.locator('summary', { hasText: 'Claude が次を選んだ理由' });
     await sum5.waitFor();
     await sum5.click();
+    await sum5.evaluate((x) => x.closest('details').setAttribute('data-douga', 'kiroku'));
     await p5.waitForTimeout(300);
     await yoi(p5);
     const g5 = await sum5.evaluate((x) => [...x.closest('details').querySelectorAll('li')].map((li) => ({ t: li.textContent.replace(/\s+/g, ' ').trim(), r: window.__shikaku(li) })));
     if (g5.length !== mitai.length || g5.some((g, i) => g.t !== mitai[i])) throw new Error(`記録の欄の行が、資料 31 の文と違います：\n${g5.map((g) => g.t).join('\n')}`);
-    const liMoji = await p5.locator('details li').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
-    const olR = await p5.locator('details ol').first().evaluate((el) => window.__shikaku(el));
+    const liMoji = await p5.locator('[data-douga="kiroku"] li').first().evaluate((el) => parseFloat(getComputedStyle(el).fontSize));
+    const olR = await p5.locator('[data-douga="kiroku"] ol').first().evaluate((el) => window.__shikaku(el));
     for (const [k, i] of SAN.entries()) {
-      const sel = `details ol > li:nth-child(${i + 1})`;
+      const sel = `[data-douga="kiroku"] ol > li:nth-child(${i + 1})`;
       // 行の番号（「5.」）まで入れる。上下は、となりの行が映らないよう詰める
       const lr = g5[i].r;
       await kiru(p5, `kiroku_${k + 1}`, { x: olR.x, y: lr.y, width: lr.x + lr.width - olR.x, height: lr.height }, { waku: await moji(p5, sel, '（Claude）') }, { ue: 2, shita: 2, yoko: 6 }, { moji: liMoji });
@@ -1091,8 +1098,7 @@ function honmono() {
   const kirokuBun = kiroku.erabi.filter((e) => e.dare === 'claude').map((e) => e.riyuu).find((r) => r.startsWith('さっきは聞いて答えたので'));
   if (!kirokuBun) throw new Error('資料 31 に「さっきは聞いて答えたので…」の Claude の行がありません');
   const tsugi = k1.kasetsu.tsugi;
-  const kobetsu = 'こちらから個別に声をかけて確かめる';
-  if (!tsugi.includes(kobetsu)) throw new Error('保存した文に「こちらから個別に声をかけて確かめる」がありません');
+  const kobetsu = kobetsuNoKu(tsugi);
   const ichibun = k1.tsutae.kondan.split('。')[0] + '。';
   const kaisu = kotae.find((d) => d.id === 'D4')?.kotae;
   const mA = matome({ ...demo.結果['デモ1'].kai[0], kai: 1 }, 'A');
@@ -1112,6 +1118,14 @@ function honmono() {
       return { namae: k.名前, card: cn.名前[c], iro: cards.カード[c]?.色 || IRO.ao };
     }),
   };
+}
+
+// 深さ-2 の右の句：保存した「次に試すなら」の文から、こちらから声をかける句を選ぶ（39便：11/4 の文と 11/8 に取り直した文の両方）
+function kobetsuNoKu(tsugi) {
+  const KOUHO = ['こちらから個別に声をかけて確かめる', 'こちらから声をかけて口で答えてもらう'];
+  const k = KOUHO.find((x) => tsugi.includes(x));
+  if (!k) throw new Error(`保存した「次に試すなら」に、こちらから声をかける句がありません：${tsugi}`);
+  return k;
 }
 
 // 質問の板（本物：tana.json の D1 の問いと答え 4 つ）。erabu：橙の枠を付ける答え

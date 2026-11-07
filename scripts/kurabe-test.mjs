@@ -1,6 +1,6 @@
 // 比べ方・カード・Claude の書き直しの流れを確かめる（キーは使わない）
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync, writeFileSync, unlinkSync } from 'node:fs';
 import * as fsAll from 'node:fs';
 const require_fs = () => fsAll;
 import path from 'node:path';
@@ -1027,7 +1027,7 @@ await ok('11便 N3：保存した Claude の本物の文（デモの子8人・�
     assert.ok(k.kakunin && Number.isInteger(k.kakunin.回), `${id}：確かめた回数`);
     assert.equal(k.sankou, '参考程度・決めるのは先生', `${id}：参考程度・決めるのは先生`);
     assert.equal(t.sankou, '参考程度・決めるのは先生', id);
-    assert.equal(k.kaitaHi, '2026-11-04');
+    assert.equal(k.kaitaHi, '2026-11-08');
     for (const f of ['kondan', 'hogosha', 'hitokoto', 'hr', 'cardMei']) assert.ok(t[f], `${id}：伝え方の ${f}`);
     // 確かめた回数は、記録の回の数と同じ
     assert.equal(k.kakunin.回, demo.結果[id].kai.length, `${id}：確かめた回数が記録と合う`);
@@ -1035,7 +1035,7 @@ await ok('11便 N3：保存した Claude の本物の文（デモの子8人・�
   const kk = h.文.__クラス__.keikaku;
   assert.deepEqual(kk.ko.map((x) => x.label), ['子1', '子2', '子3', '子4', '子5', '子6', '子7', '子8'], '計画は子1〜子8');
   assert.equal(kk.sankou, '参考程度・決めるのは先生');
-  assert.match(h.印, /2026-11-04 に書いた下書き（保存したもの）/);
+  assert.match(h.印, /2026-11-08 に書いた下書き（保存したもの）/);
   assert.deepEqual(keikakuNoMondai(kk, kodomoNoKeikaku()), [], '保存した計画は、10便の取り違えの点検にも通る');
 });
 
@@ -1121,8 +1121,9 @@ await ok('12便のあと：カードの名前を漢字にした（先生の決�
   assert.equal(imaNoNamae(cs, 'きいてスイッチ'), '聞いてスイッチ');
   assert.equal(imaNoNamae(cs, 'ずでスイッチ'), '図でスイッチ');
   assert.equal(imaNoNamae(cs, 'どれでもスイッチ'), 'どれでもスイッチ', '変えていない名前はそのまま');
+  // 39便：保存した文は 2026-11-08 に取り直したので、本文に前の名前は残っていない（残っていても、見出しは今の名前で出す作りはそのまま）
   const hozon = JSON.stringify(j('public/data/demo_claude.json'));
-  assert.ok(/「ずでスイッチ」は/.test(hozon), '保存した本文は前の名前のまま（手を入れない）');
+  for (const mae of Object.keys(cs.前の名前 || {}).filter((k) => k !== '説明')) assert.ok(!hozon.includes(`「${mae}」`), `保存した本文に前の名前「${mae}」が無い`);
 });
 
 // ---- 13便のもと：棚 B と練習 B を、先生の基準で機械でも確かめる
@@ -1236,6 +1237,21 @@ await ok('36便：短い体験は、棚 A・B・C の 1組目の2つずつ（6�
   assert.ok(k.owatta(rec));
   // 2つだけでは、どの棚も候補を言い切らない（まだ比べていない）
   for (const t of ['A', 'B', 'C']) assert.ok(!['kiku', 'yomu', 'zu', 'bun', 'ikki', 'kugiri'].includes(k.matome(rec, t).kekka), t);
+});
+
+// ---- 39便：38便で足した docs の文書（制作の過程）は、リンクが切れていない。避ける言葉は scripts/tenken.mjs で見る
+export const DOCS_KATEI = ['README.md', '制作の流れ.md', '検収のしかた.md', '先生の判断の記録.md', '調べたこと.md', '専門家の意見について.md'];
+export function linkGire(file) {
+  const t = readFileSync(file, 'utf8');
+  return [...t.matchAll(/\]\(([^)#\s]+)(#[^)]*)?\)/g)].map((m) => m[1]).filter((u) => !/^[a-z]+:/i.test(u))
+    .filter((u) => !existsSync(path.resolve(path.dirname(file), decodeURI(u))));
+}
+await ok('39便：docs の制作の過程の文書（入口・流れ・検収・先生の判断・調べたこと・専門家の意見について）と README に、切れたリンクが無い', () => {
+  for (const f of [...DOCS_KATEI.map((x) => path.join(ROOT, 'docs', x)), path.join(ROOT, 'README.md')]) assert.deepEqual(linkGire(f), [], f);
+  // 切れたリンクを見つけられること（わざと切れたリンクを書いた文で確かめる）
+  const tmp = path.join(ROOT, 'docs', '.linkgire_tameshi.md');
+  writeFileSync(tmp, '[無い](無いファイル.md)');
+  try { assert.deepEqual(linkGire(tmp), ['無いファイル.md']); } finally { unlinkSync(tmp); }
 });
 
 console.log(`\n${n} 件の確かめが通りました。`);

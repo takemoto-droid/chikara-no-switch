@@ -462,7 +462,7 @@ async function senseiKo(id) {
       <a class="btn sub" href="#/card/${enc(id)}">カードを見る</a>
     </div>
 
-    <h2 class="kugiri-midashi">授業の手がかり</h2>
+    ${taiken ? '' : `<h2 class="kugiri-midashi">授業の手がかり</h2>
     <div class="narabi">
       <section>
         <h3>選んだ答え</h3>
@@ -473,7 +473,7 @@ async function senseiKo(id) {
         ${atehamaru.length ? `<ul>${atehamaru.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>` : '<p class="muted">まだありません。</p>'}
         <p class="muted small">点数にはしません。<a href="#/check">チェック項目を選ぶ</a></p>
       </section>
-    </div>
+    </div>`}
 
     ${kuwashiku('数字の表と、数え方', `
       <p class="small">どの組も、2つの出し方を、順番を入れかえて2回ずつ試しました。同じ出し方でも、回によって1問くらいは変わります（たまたまの違い）。それより大きい違いが2回とも同じほうに出たときだけ、「多く合っていました」と書きます。読む・聞くの最初の練習と、選んで答える質問は、合った数に入れていません。</p>

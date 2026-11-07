@@ -445,6 +445,7 @@ try {
   tashika(/仮の結果です/.test(tTaiken) && kekka3.every(Boolean), '短い体験：「仮の結果」と分かる言葉つきで、3つの比べそれぞれに事実（何問中何問）が出る');
   tashika(/見本/.test(tTaiken) && (await page.locator(`#kasetsu a[href="#/sensei/ko/${encodeURIComponent('デモ1')}"]`).count()) === 1, '短い体験：Claude の見本（架空の子の保存した文）と、保存した結果へのリンクがある');
   tashika(!/回ごとの結果/.test(await zentai()), '短い体験：回ごとの結果の表は出さない');
+  tashika(!/選んだ答え|まだ答えていない|授業の手がかり/.test(await zentai()), '39便：短い体験の先生の画面に「選んだ答え」「（まだ答えていない）」を出さない（本番の記録では出る）');
   tashika(await page.locator('#sensei-chui').isVisible(), '短い体験：先生に気をつけてほしいことが、見えるところにある');
   await page.goto(`${BASE}#/tsutae/${encodeURIComponent(tid)}`);
   await page.waitForSelector('#tsutae .label');
@@ -470,7 +471,7 @@ try {
       });
     }
     const hiraku = async (hash, sel) => { await p2.goto(`${BASE}${hash}`); await p2.waitForSelector(sel, { timeout: 60000 }); await p2.waitForTimeout(150); return p2.evaluate(() => document.body.innerText); };
-    const HOZON = /2026-11-04 に書いた下書き（保存したもの）/;
+    const HOZON = /2026-11-08 に書いた下書き（保存したもの）/;
     const hozon = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文;
     // 11便 N2・N5：デモの子8人は、開いただけでは呼ばない（保存した本物の文と、その印が出る）
     let zenbu = true;
