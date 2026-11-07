@@ -14,7 +14,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, wri
 import { pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { ROOT, tenken } from '../lib/kotoba.mjs';
-import { kotaeD } from '../public/js/kurabe.js';
+import { kotaeD, matome } from '../public/js/kurabe.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -92,7 +92,7 @@ const DAIHON = [
       'クロードには、測る問題を作らせません。問題を変えると、何の差なのか分からなくなるからです。',
       'クロードがするのは、次の出し方を理由つきで選ぶこと。本人の答えを読み合わせ、次の一手につなげることです。',
       'よく気づく先生にしか見えなかったことが、本人にも、周りにも見える。クロードは、そのきっかけを作ります。',
-      'いちばん難しかったのは、一回で決めつけない線を引くこと。十二通りを比べ、最初の線のままにしました。',
+      'いちばん難しかったのは、一回や二回の結果で、決めつけないこと。',
     ] },
   { id: 'ketsu', koe: '07_ketsu', na: '結', waku: '#1E2228', kaname: [1],
     chuui: ['学校ごとの設定で、次の年にも引き継げます。', '学力への効果は確かめていません。言えるのは、ゲームの中で、支えが少なくてもできた、という事実までです。'],
@@ -111,7 +111,6 @@ const JIMAKU_KAE = [
   ['国際学力調査、', '国際学力調査 '], ['ピザの', 'PISA の'], ['大事な連絡は、', '『大事な連絡は、'], ['口でも伝える。', '口でも伝える』。'],
   ['クロード', 'Claude'], ['十五歳', '15 歳'], ['百人に十九人', '100 人に 19 人'], ['二十万人', '20 万人'], ['三十五人', '35 人'],
   ['六人か七人', '6 人か 7 人'], ['十人に一人', '10 人に 1 人'], ['四十五分', '45 分'], ['二十二問', '22 問'], ['朝の十分', '朝の 10 分'],
-  ['一回で', '1 回で'], ['十二通り', '12 通り'],
 ];
 const yomiOf = (s) => YOMI_NAOSHI.reduce((a, [x, y]) => a.replaceAll(x, y), s);
 const jimakuOf = (s) => JIMAKU_KAE.reduce((a, [x, y]) => a.replaceAll(x, y), s)
@@ -130,7 +129,6 @@ const KASANE = {
   zu: '🗺️ 図で見る', kugiri: '✂️ 一文ずつ読む',
   sodateMae: '8 回目の練習のあと', sodateAto: '12 回目の練習のあと',
   kimatta: 'Claude を使わないとき', claude: 'Claude の下書き',
-  senDai: '線の比べ（docs/線の比べ_6便.md）',
   saigo: ['チカラのスイッチ', '言葉にできなくても、力のスイッチを見つけて育てる', 'github.com/takemoto-droid/chikara-no-switch', 'Built with Claude Code'],
   // 声 “Mei” は CC BY 3.0。docs/権利と出典.md の決まり（動画にも同じ表示を入れる）で、最後の一枚の下に小さく出す
   // 27便 Y3〜Y5：寄りの上の札・転A-5 の工夫の札・深さ-3 の 2 枚の見出し
@@ -139,7 +137,7 @@ const KASANE = {
   mieru: ['先生に見える', '本人に見える'],
   nerai: 'ねらい', sasae: 'きょうの支え',
   // 32便：絵の区間に出す言葉（声の文の言葉）。言葉の正本で点検する
-  e32: ['同じ問題', '読む', '聞く', '文', '図', '一気に', '区切って', '分', '問', '比べた結果', '本人が選んだ答え', 'Claude（AI）が書いた', '仮説', '根拠つき', '大事な連絡は、口でも伝える', '一人一人に', '支援が行き渡る', 'そのきっかけ', '測る問題', '問題 A', '問題 B', '問題 C', '何の差？', '通り', '最初の線のまま', 'Claude'],
+  e32: ['同じ問題', '読む', '聞く', '文', '図', '一気に', '区切って', '分', '問', '比べた結果', '本人が選んだ答え', 'Claude（AI）が書いた', '仮説', '根拠つき', '大事な連絡は、口でも伝える', '一人一人に', '支援が行き渡る', 'そのきっかけ', '測る問題', '問題 A', '問題 B', '問題 C', '何の差？', '一回や二回で、決めつけない', 'Claude'],
   koeHyouji: 'ナレーションの音声：Open JTalk で作成。声 “Mei” © 2009-2013 Nagoya Institute of Technology（CC BY 3.0）',
 };
 
@@ -880,20 +878,6 @@ window.kaku = async (s) => {
     });
     sc = r.sc;
   }
-  if (e.k === 'hyou') {
-    // 表（線の比べ）：HTML を板に入れ、板を置く領域に contain
-    const ueH = e.ue ? LABEL_H + 12 : 0;
-    const d = document.createElement('div'); d.className = 'ita';
-    const n = document.createElement('div'); n.className = 'naiyou'; n.innerHTML = e.html;
-    d.appendChild(n); naka.appendChild(d);
-    const w = n.scrollWidth, h = n.scrollHeight;
-    const s2 = Math.min(CI.w / w, (CI.h - ueH) / h, e.max || 1);
-    const x = CI.x + (CI.w - w * s2) / 2, y = CI.y + (CI.h - ueH - h * s2) / 2 + ueH;
-    n.style.transform = 'scale(' + s2 + ')';
-    Object.assign(d.style, { left: x + 'px', top: y + 'px', width: w * s2 + 'px', height: h * s2 + 'px', overflow: 'hidden' });
-    if (e.ue) label(naka, e.ue, CI.x, y - LABEL_H - 12, CI.w);
-    sc = s2;
-  }
   if (e.k === 'svg') {
     // 起・承・結の絵：中身の領域に、地と同じ色で描く（板にしない）
     const d = document.createElement('div');
@@ -1111,7 +1095,10 @@ function honmono() {
   if (!tsugi.includes(kobetsu)) throw new Error('保存した文に「こちらから個別に声をかけて確かめる」がありません');
   const ichibun = k1.tsutae.kondan.split('。')[0] + '。';
   const kaisu = kotae.find((d) => d.id === 'D4')?.kotae;
+  const mA = matome({ ...demo.結果['デモ1'].kai[0], kai: 1 }, 'A');
+  if (!mA.yomu.length || !mA.kiku.length) throw new Error('デモ1 の 1 回目の読む／聞くの結果が読めません');
   return {
+    ikkaime: [['読む', `${mA.yomu[0]}／${mA.kazu}`], ['聞く', `${mA.kiku[0]}／${mA.kazu}`]],
     kasetsu: k1.kasetsu.kasetsu,
     kotae: kotae.filter((d) => ['D1', 'D2'].includes(d.id)).map((d) => d.kotae),
     sonomama: kaisu,
@@ -1217,8 +1204,13 @@ function hitoriHitori(n, fade = 1) {
 function hakaruMondai(t, kawaru = 0) {
   const ita = (i) => `<div style="${BAN}width:440px;height:200px;display:flex;align-items:center;justify-content:center;font-size:64px;font-weight:700;position:relative">
     <span style="position:absolute;${op(1 - kawaru)}">測る問題</span><span style="position:absolute;${op(kawaru)}">問題 ${'ABC'[i]}</span></div>`;
-  const L = 160 * t;
-  const batsu = `<svg width="200" height="200" viewBox="0 0 200 200" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)"><path d="M20 20l160 160" stroke="${IRO.shirushi}" stroke-width="8" stroke-linecap="round" stroke-dasharray="227" stroke-dashoffset="${(227 - Math.min(L * 2, 227)).toFixed(1)}"/><path d="M180 20l-160 160" stroke="${IRO.shirushi}" stroke-width="8" stroke-linecap="round" stroke-dasharray="227" stroke-dashoffset="${(227 - Math.max(0, Math.min(L * 2 - 227, 227))).toFixed(1)}"/></svg>`;
+  // 34便：✕は 1 本目（左上→右下）を引き切ってから、2 本目（右上→左下）も端まで引く。t＝0〜1 で 2 本ぶん（170×2）を進める。
+  // 枠は 150px（札の高さ約 117px の 1.6 倍以内）
+  const IPPON = 170; // 120√2 ≒ 169.7
+  const L = 2 * IPPON * Math.min(1, Math.max(0, t));
+  const sen1 = IPPON - Math.min(L, IPPON);
+  const sen2 = IPPON - Math.max(0, Math.min(L - IPPON, IPPON));
+  const batsu = `<svg width="150" height="150" viewBox="0 0 150 150" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%)"><path d="M15 15l120 120" stroke="${IRO.shirushi}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${IPPON}" stroke-dashoffset="${sen1.toFixed(1)}"/><path d="M135 15l-120 120" stroke="${IRO.shirushi}" stroke-width="8" stroke-linecap="round" stroke-dasharray="${IPPON}" stroke-dashoffset="${sen2.toFixed(1)}"/></svg>`;
   const claude = `<div style="position:relative;display:inline-block;margin-bottom:56px;${op(1 - kawaru)}"><div style="background:${IRO.ao};color:#fff;font-size:64px;font-weight:700;border-radius:14px;padding:20px 56px">Claude</div>${batsu}</div>`;
   const hatena = kawaru > 0 ? `<div style="${op(kawaru)}display:flex;flex-direction:column;align-items:center;margin-left:60px"><div style="font-size:240px;font-weight:700;color:${IRO.suuji};line-height:1">？</div><div style="font-size:72px;font-weight:700">何の差？</div></div>` : '';
   return naka(`${claude}<div style="display:flex;align-items:center"><div style="display:flex;gap:40px">${[0, 1, 2].map(ita).join('')}</div>${hatena}</div>`);
@@ -1236,13 +1228,12 @@ function mieru2(G, H0) {
     <div style="width:840px"><div style="font-size:44px;font-weight:700;margin-bottom:16px">${KASANE.mieru[0]}</div><div style="${BAN}padding:36px 44px"><div style="margin-bottom:18px">${fuda('Claude（AI）が書いた')}</div><div data-gyou="2" style="font-size:56px;font-weight:700;line-height:1.4">${esc(H0.kasetsu)}</div></div></div>
     <div style="width:840px"><div style="font-size:44px;font-weight:700;margin-bottom:16px">${KASANE.mieru[1]}</div><div style="${BAN}width:${g.w * sc}px;height:${g.h * sc}px;overflow:hidden"><img src="${pathToFileURL(g.file).href}" style="width:100%;height:100%;display:block;border-radius:14px"></div></div></div>`);
 }
-// 深さ：s3 12 本の線（n：出ている本数）。owari：11 本が灰になり、1 本目だけ橙・「最初の線のまま」
-function juuniHon(n, owari = false) {
-  const lines = Array.from({ length: 12 }, (_, i) => `<div style="width:12px;height:200px;border-radius:6px;background:${i < n ? (owari && i > 0 ? IRO.ten : ORANGE) : 'transparent'}"></div>`).join('');
-  return naka(`<div style="display:flex;align-items:flex-end;gap:80px">
-    <div><div style="display:flex;justify-content:space-between;width:1200px;padding:0 20px;box-sizing:border-box">${lines}</div><div style="width:1200px;height:8px;border-radius:4px;background:${IRO.fudaJi};margin-top:8px"></div></div>
-    <div style="${n >= 12 ? '' : 'visibility:hidden;'}white-space:nowrap"><span style="font-size:240px;font-weight:700;color:${IRO.suuji};line-height:1">12</span><span style="font-size:64px;margin-left:12px">通り</span></div></div>
-    <div style="font-size:72px;font-weight:700;margin-top:56px;${owari ? '' : 'visibility:hidden;'}">最初の線のまま</div>`);
+// 深さ：s3（34便）デモ1 の 1 回目の実物の数字：左「読む」｜右「聞く」の板（数字 160px）→「一回や二回で、決めつけない」（96px・印 1 つ）。
+// ita：板の現れ方（0〜1）・gyou：1 行の現れ方（0〜1。0 なら出さない）
+function ichiNiKai(H0, ita, gyou = 0) {
+  const ban = ([na, chi]) => `<div style="${BAN}width:600px;padding:36px 40px;text-align:center"><div style="font-size:64px;font-weight:700;line-height:1.3">${na}</div><div style="font-size:160px;font-weight:700;line-height:1.1;color:${IRO.suuji}">${esc(chi)}</div></div>`;
+  return naka(`<div style="display:flex;gap:120px;${op(ita)}">${H0.ikkaime.map(ban).join('')}</div>
+    <div data-gyou="1" style="margin-top:64px;font-size:96px;font-weight:700;line-height:1.3;padding:6px 28px;${WAKU_S}${gyou > 0 ? op(gyou) : 'visibility:hidden;'}">一回や二回で、決めつけない</div>`);
 }
 
 // ---- 区間ごとの絵の並び（台本 §1 の「画面」）。cue：s 文の番号（0 から）・at 文の中のかけら（その頭から）・plus 秒・pic 絵（seq は [絵, 秒] の並び）
@@ -1257,30 +1248,6 @@ function eNoNarabi(G) {
   const zen = (name, o = {}) => ({ k: 'ita', g: g(name), o });
   const kiri = (name, o = {}) => ({ k: 'ita', g: g(name), o, ue: o.ue || '', ueHidari: Boolean(o.ueHidari) });
   const S = (s) => ({ k: 'svg', html: s });
-  const md = readFileSync(path.join(ROOT, 'docs', '線の比べ_6便.md'), 'utf8').split('\n');
-  const hyouGyou = [];
-  for (const l of md.slice(md.findIndex((x) => x.startsWith('| 線 |')))) { if (!l.startsWith('|')) break; hyouGyou.push(l.split('|').slice(1, -1).map((c) => c.trim())); }
-  const [midashiGyou, , ...gyou] = hyouGyou;
-  // 線の表（全体）：12 通りの表を板に
-  const senHyou = () => {
-    const td = 'border-bottom:1px solid #D5DBE1;padding:8px 12px;vertical-align:top';
-    return { k: 'hyou', ue: KASANE.senDai, max: 1, html: `<div style="width:1760px;box-sizing:border-box;padding:18px 24px;font-size:21px;line-height:1.4;color:${IRO.midashi}">
-      <table style="border-collapse:collapse;width:100%">
-      <tr>${midashiGyou.map((c) => `<th style="${td};text-align:left;color:${IRO.label};font-weight:400;background:#F3F5F7">${c}</th>`).join('')}</tr>
-      ${gyou.map((r) => `<tr>${r.map((c) => `<td style="${td}">${c}</td>`).join('')}</tr>`).join('')}
-      </table></div>` };
-  };
-  // 「5便の線」の行だけ：4 列（線・中身・決めつけなかった割合（3日分）・1日の空ぶり）。印は行頭の 8px の橙の縦線
-  const senGyou = () => {
-    const row = gyou.find((x) => x[0] === '5便の線');
-    const th = `padding:16px 22px;text-align:left;color:${IRO.label};font-weight:400;font-size:32px;background:#F3F5F7;border-bottom:1px solid #D5DBE1;vertical-align:bottom`;
-    const td = 'padding:22px 22px;vertical-align:top';
-    return { k: 'hyou', ue: KASANE.senDai, max: 1, html: `<div style="width:1760px;box-sizing:border-box;font-size:44px;line-height:1.4;color:${IRO.midashi}">
-      <table style="border-collapse:collapse;width:100%">
-      <tr>${midashiGyou.slice(0, 4).map((c, i) => `<th style="${th}${i >= 2 ? ';text-align:right' : ''}">${c}</th>`).join('')}</tr>
-      <tr>${row.slice(0, 4).map((c, i) => `<td style="${td}${i === 0 ? `;box-shadow:inset 8px 0 0 ${IRO.shirushi};font-weight:700;white-space:nowrap` : ''}${i >= 2 ? ';text-align:right;font-weight:700;white-space:nowrap' : ''}">${c}</td>`).join('')}</tr>
-      </table></div>` };
-  };
   const saigo = {
     k: 'zenmen',
     html: `<div style="position:relative;width:1920px;height:1080px;background:${JI};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center">
@@ -1398,9 +1365,9 @@ function eNoNarabi(G) {
       { s: 1, at: '本人の答えを読み合わせ、', plus: 0.01, ato: 2.5, fuda: SEN, pic: B32('深さ-2 使わないとき｜下書き', hidariMigi(H0, 2)) },
       // s2：左「先生に見える」仮説｜右「本人に見える」カード
       { s: 2, ato: 2.5, pic: B32('深さ-3 先生に｜本人に', mieru2(G, H0)) },
-      // s3：12 本の線が 0.15 秒刻みで → 11 本が灰に、1 本目だけ橙・「最初の線のまま」
-      { s: 3, ato: 2.5, seq: Array.from({ length: 13 }, (_, i) => [B32('深さ-4 12 本の線', juuniHon(i)), i < 12 ? 0.15 : 0]) },
-      { s: 3, at: '最初の線のままにしました。', fuda: '', pic: B32('深さ-4 12 本の線', juuniHon(12, true)) },
+      // s3（34便）：文の頭で「読む｜聞く」の板 2 枚（デモ1 の 1 回目の実物の数字）→「一回や二回の」で「一回や二回で、決めつけない」
+      { s: 3, ato: 2.5, seq: fadeKoma((f) => B32('深さ-4 一回や二回', ichiNiKai(H0, f))) },
+      { s: 3, at: '一回や二回の結果で、', seq: fadeKoma((f) => B32('深さ-4 一回や二回', ichiNiKai(H0, 1, f))) },
     ],
     ketsu: [
       { s: 0, pic: S(kyoushitsu({ x0: KYOU_X_NAKA })) },
