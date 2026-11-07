@@ -1254,4 +1254,39 @@ await ok('39便：docs の制作の過程の文書（入口・流れ・検収・
   try { assert.deepEqual(linkGire(tmp), ['無いファイル.md']); } finally { unlinkSync(tmp); }
 });
 
+await ok('40便：「はじめからやり直す」は、途中の回だけを消してはじめからにする。終わった回は消さない・変えない。短いゲームと体験の種類はそのまま', async () => {
+  const kr = await import('../public/js/kiroku.js');
+  const id = kr.newKid('その場');
+  const st = kr.load();
+  const r1 = st.kids[id].kai[0];
+  r1.kekka = { 'A-1': { seikai: 3, kazu: 4 } };
+  r1.owari = true;
+  kr.saveRecord(r1);
+  const owattaMae = JSON.stringify(kr.load().kids[id].kai[0]);
+  assert.equal(kr.yarinaoshi(id), false, '終わった回は、やり直しで消さない');
+  assert.equal(kr.tochuNoGame(id), false);
+  assert.ok(kr.newKai(id, 'mijikai'));
+  const r2 = kr.load().kids[id].kai[1];
+  r2.kekka = { 'A-1': { seikai: 1, kazu: 4 } };
+  kr.saveRecord(r2);
+  assert.equal(kr.tochuNoGame(id), true);
+  assert.ok(kr.yarinaoshi(id));
+  const ato = kr.load().kids[id];
+  assert.equal(ato.kai.length, 2, '回の数は変わらない');
+  assert.deepEqual(ato.kai[1].kekka, {}, '途中までの答えは消える');
+  assert.equal(ato.kai[1].kai, 2);
+  assert.equal(ato.kai[1].shurui, 'mijikai', '短いゲームのまま');
+  assert.equal(JSON.stringify(ato.kai[0]), owattaMae, '終わった回は変わらない');
+  const t = kr.newTaiken();
+  const rt = kr.load().kids[t].kai[0];
+  rt.kekka = { 'A-1': { seikai: 2, kazu: 4 } };
+  kr.saveRecord(rt);
+  assert.ok(kr.yarinaoshi(t));
+  const rt2 = kr.load().kids[t].kai[0];
+  assert.equal(rt2.shurui, 'taiken');
+  assert.deepEqual(rt2.kekka, {});
+  assert.equal(rt2.dankai.A.dankai, 2, '体験の段階は「ふつう」のまま');
+  assert.equal(kr.yarinaoshi('デモ1'), false, '架空の子の記録は変えない');
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);

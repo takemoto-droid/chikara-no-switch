@@ -1,6 +1,6 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方（②見つける＝game.js、⑥育てる＝sodateru.js）
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
-import { getRecord, getKid, owattaKai, newKai, isDemo, namaeOf, isOtona, isTaiken, newTaiken, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
+import { getRecord, getKid, owattaKai, newKai, isDemo, namaeOf, isOtona, isTaiken, newTaiken, newKid, yarinaoshi, tochuNoGame, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
 import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei, bamenNoGamen, gameWoHanareru } from './game.js';
@@ -20,7 +20,9 @@ let should = {};
 let joutai = { ai: false, soudan: '', soudanKo: '', soudanOtona: '' };
 
 // 道すじ（ナビ）。12便 P1：子どもの画面では「いま：②」の1語だけ（④⑤ は出さない）。先生・保護者の画面は7つを並べる
+// 40便：先生・保護者・大人の画面では、その子にもうある画面だけを押せるリンクにする（いまの画面と、まだ無い画面は押せない）
 let michiNoIma = null;
+let michiNoHref = {};
 function michiWoKaku() {
   const nav = document.getElementById('michi');
   const ima = michiNoIma;
@@ -29,7 +31,9 @@ function michiWoKaku() {
     nav.innerHTML = [3, 4].includes(ima) ? '' : `<span class="ima ichigo">いま：${esc(MICHI[ima].split(' ')[0])}</span>`;
     return;
   }
-  nav.innerHTML = MICHI.map((m, i) => `<span class="${i === ima ? 'ima' : ''}">${esc(m)}</span>`).join('');
+  nav.innerHTML = MICHI.map((m, i) => (i !== ima && michiNoHref[i]
+    ? `<a href="${michiNoHref[i]}">${esc(m)}</a>`
+    : `<span class="${i === ima ? 'ima' : 'mada'}"${i === ima ? ' aria-current="page"' : ''}>${esc(m)}</span>`)).join('');
 }
 function michi(ima) {
   michiNoIma = ima;
@@ -62,6 +66,27 @@ function soudanHtml(otona = false, kind = '') {
 }
 const enc = encodeURIComponent;
 
+// 40便：その子に、もうある画面（③〜⑦ と、まだ終わっていないゲーム）。見直しは読むだけで、記録は変えない
+async function gamenNoAru(id) {
+  if (!id) return { 0: '#/annai/hogo', 3: '#/sensei' };
+  const rec = await getRecord(id);
+  const owatta = (await owattaKai(id)).length > 0;
+  const h = { 0: '#/annai/hogo' };
+  if (rec && !rec.owari && !isDemo(id)) h[1] = `#/game/${enc(id)}`;
+  if (owatta) Object.assign(h, { 2: `#/card/${enc(id)}`, 3: `#/sensei/ko/${enc(id)}`, 4: `#/tsutae/${enc(id)}`, 5: `#/sodateru/${enc(id)}`, 6: `#/mata/${enc(id)}` });
+  return h;
+}
+// 40便：「ひとつ前へ／次へ」（③ ⇄ ④ ⇄ ⑤ ⇄ ⑥ ⇄ ⑦ の順。先生・保護者・大人の画面と体験）
+function maeTsugiHtml(id, ima) {
+  const jun = [2, 3, 4, 5, 6].filter((i) => michiNoHref[i]);
+  const k = jun.indexOf(ima);
+  if (k < 0) return '';
+  const mei = (i) => (i === 5 && isTaiken(id) ? '⑥ 朝の練習を 1回だけ試す' : MICHI[i]);
+  const mae = jun[k - 1], tsugi = jun[k + 1];
+  if (mae == null && tsugi == null) return '';
+  return `<nav class="btns mae-tsugi" aria-label="ひとつ前へ・次へ">${mae != null ? `<a class="btn sub" href="${michiNoHref[mae]}">← ひとつ前へ（${esc(mei(mae))}）</a>` : ''}${tsugi != null ? `<a class="btn${isTaiken(id) ? '' : ' sub'}" href="${michiNoHref[tsugi]}">次へ（${esc(mei(tsugi))}）→</a>` : ''}</nav>`;
+}
+
 // ---- はじめの画面
 async function top() {
   michi(null);
@@ -71,14 +96,34 @@ async function top() {
     <h1>チカラのスイッチ</h1>
     <p>同じ問題を、出し方（読む・聞く・図で見る・一文ずつ区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
     <div class="entrance">
-      <a href="#/hajimeru/taiken"><div class="box"><strong>短い体験（審査員の方へ）</strong><br><span class="muted">数分で、ゲームから先生の画面までを通して見られます。結果は本物の測定ではありません。</span></div></a>
+      <a href="#/hajimeru/taiken"><div class="box"><strong>短い体験（審査員の方へ）</strong><br><span class="muted">数分で、ゲームから ⑦ また見つける までを通して見られます。結果は本物の測定ではありません。</span></div></a>
       <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子の結果を、先生の画面で見ます。1回だけの子（出し方で違いが出た子・どの出し方でも同じくらいだった子）と、3回分の記録がある子がいます。</span></div></a>
       <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②見つける（HR のゲーム）→ ③カード → ④先生の画面 → ⑤伝え方 → ⑥育てる（朝の練習）→ ⑦また見つける、を順に動かします。公開デモでは、AI を呼べる回数に上限があります。上限に達したときは、決まった順・決まった文で最後まで動きます。</span></div></a>
       ${should.otona?.使う ? '<a href="#/annai/otona"><div class="box"><strong>大人が自分で試す</strong><br><span class="muted">中学生向けのゲームを、大人の方も自分で試せます。結果は自分にだけ出ます。</span></div></a>' : ''}
     </div>
-    ${mada.length ? `<div class="box soft"><h3>ひと休み中のゲーム</h3>${mada.map((k) => `<p><a href="#/game/${enc(k.id)}">${esc(k.id)} の続きから始める</a></p>`).join('')}</div>` : ''}
+    ${mada.length ? `<div class="box soft"><h3>ひと休み中のゲーム</h3>${mada.map((k) => `<p><a href="#/game/${enc(k.id)}">${esc(k.id)} の続きから始める</a>　<button type="button" class="sub chiisai" data-yarinaoshi="${esc(k.id)}">はじめからやり直す</button></p>`).join('')}</div>` : ''}
     <h2>案内</h2>
     <p><a href="#/annai/ko">子ども向けの案内</a>　<a href="#/annai/hogo">保護者向けの案内</a></p>`;
+  // 40便：途中までのゲームを、確かめてから消して、はじめからにする（終わった回は消さない）
+  app.querySelectorAll('[data-yarinaoshi]').forEach((b) => {
+    b.onclick = () => kakunin('途中までの記録を消して、はじめからにします。よいですか？', '消して、はじめから', 'やめる', () => {
+      if (yarinaoshi(b.dataset.yarinaoshi)) location.hash = `#/game/${enc(b.dataset.yarinaoshi)}`;
+    });
+  });
+}
+
+// 40便：確かめの小さな箱（画面の上に出す。ブラウザの確認の窓は使わない）
+function kakunin(bun, hai, iie, onHai) {
+  document.getElementById('kakunin')?.remove();
+  const d = document.createElement('div');
+  d.id = 'kakunin';
+  d.className = 'kakunin-haikei';
+  d.innerHTML = `<div class="kakunin box" role="dialog" aria-modal="true" aria-labelledby="kakunin-bun"><p id="kakunin-bun">${esc(bun)}</p><div class="btns"><button type="button" id="kakunin-hai">${esc(hai)}</button><button type="button" class="sub" id="kakunin-iie">${esc(iie)}</button></div></div>`;
+  document.body.appendChild(d);
+  const tojiru = () => d.remove();
+  d.querySelector('#kakunin-iie').onclick = tojiru;
+  d.querySelector('#kakunin-hai').onclick = () => { tojiru(); onHai(); };
+  d.querySelector('#kakunin-iie').focus();
 }
 
 // ---- ① 案内
@@ -158,11 +203,12 @@ async function card(id) {
     ${ushiro.length ? `<h2>持っているカード</h2>${ushiro.map(hyouji).join('')}` : ''}
     ${sodate.length ? `<h2>育てているカード</h2>${sodate.map(sodateHyouji).join('')}` : ''}
     ${rec.owari ? '' : `<div class="box soft"><a class="btn sub" href="#/game/${enc(id)}">つづきから</a></div>`}
-    ${isTaiken(id) ? `<div class="btns"><a class="btn" href="#/sensei/ko/${enc(id)}">先生が見る画面へ</a></div>` : `<div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 朝の練習へ</a></div>`}
+    ${isTaiken(id) ? `<div class="btns"><a class="btn" href="#/sensei/ko/${enc(id)}">先生が見る画面へ</a><a class="btn sub" href="#/sodateru/${enc(id)}">⑥ 朝の練習を 1回だけ試す</a></div>` : `<div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 朝の練習へ</a></div>`}
     ${tsugiNoKai ? `<details class="box soft" id="mata-waku"><summary>⑦ また見つける</summary><p>別の日に、短いゲーム（10分ほど）を もう一度します。前のゲームと あわせて 比べます。もらったカードは、なくならないよ。</p><button class="sub" id="tsugi-kai">はじめる</button></details>` : ''}
     ${renshu.length ? `<details class="box"><summary>練習の記録</summary><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}</details>` : ''}
     <details class="box soudan"><summary>困ったとき</summary>${isOtona(id) ? soudanHtml(true) : soudanHtml(false, 'ko')}</details>
-    ${isTaiken(id) ? '' : `<p class="small"><a href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果（先生の画面と同じもの）' : '先生が見る画面へ'}</a></p>`}`;
+    ${isTaiken(id) ? '' : `<p class="small"><a href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果（先生の画面と同じもの）' : '先生が見る画面へ'}</a></p>`}
+    <p class="small"><a href="#/" data-modoru>ひとつ前へ</a></p>`;
   const b = document.getElementById('tsugi-kai');
   if (b) b.onclick = () => { if (newKai(id, 'mijikai')) location.hash = `#/game/${enc(id)}`; };
 }
@@ -483,7 +529,8 @@ async function senseiKo(id) {
       <p class="muted small">読み上げの声：${esc(koe || '記録なし')}</p>`)}
     ${taiken ? '' : kuwashiku('練習の記録（⑥ 育てる）', renshuSenseiHtml(kidRenshu, kai, cards))}
     ${should.hikitsugi?.使う && kai.length && !taiken ? kuwashiku('引き継ぎの記録', `<p class="small">次の年の担任にも、回ごとの結果を並べて渡せる形で書き出します。</p><div class="btns"><button class="sub" id="hikitsugi">引き継ぎの記録を書き出す</button></div><div id="hikitsugi-box"></div>`) : ''}
-    ${kuwashiku('ゲームで Claude が次を選んだ理由', `<ol class="small">${(rec.erabi || []).map((e) => `<li>${esc(e.step)}：${esc(e.riyuu)} <span class="muted">（${e.dare === 'claude' ? 'Claude' : '決まった順'}）</span></li>`).join('') || '<li>記録なし</li>'}</ol>`)}`;
+    ${kuwashiku('ゲームで Claude が次を選んだ理由', `<ol class="small">${(rec.erabi || []).map((e) => `<li>${esc(e.step)}：${esc(e.riyuu)} <span class="muted">（${e.dare === 'claude' ? 'Claude' : '決まった順'}）</span></li>`).join('') || '<li>記録なし</li>'}</ol>`)}
+    ${maeTsugiHtml(id, 3)}`;
 
   // 引き継ぎの記録の書き出し：Markdown の表にして、ファイルで渡す。書き出す前に言葉を点検する
   const hb = document.getElementById('hikitsugi');
@@ -579,7 +626,7 @@ async function tsutae(id) {
   if (!kai.length) { app.innerHTML = '<h1>伝え方</h1><p>ゲームが終わると、下書きが出ます。</p>'; return; }
   const rec = kai[kai.length - 1];
   const ids = await atehamaruIds(id);
-  app.innerHTML = `<h1>伝え方の下書き（${esc(await namaeOf(id))}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>`;
+  app.innerHTML = `<h1>伝え方の下書き（${esc(await namaeOf(id))}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>${maeTsugiHtml(id, 4)}`;
   const box = document.getElementById('tsutae');
   const key = motoNoKey({ kai, renshu: (await getKid(id))?.renshu || [], atehamaru: ids, settei: keikakuNoSettei(await gakkoSettei()) });
   const cardsData = await data('cards');
@@ -708,6 +755,46 @@ async function mikurabe(id, mode, i) {
     <div class="btns"><a class="btn sub" href="#/sensei">先生の画面へ戻る</a></div>`;
 }
 
+// ---- ⑦ また見つける（40便）。別の日に、もう一度短いゲームをして、前のゲームと並べて比べる入口。
+// 体験は待たずに、架空の子（3回のゲームをした子）の保存した記録を「見本」として見せ、そのあと「体験はここまで」の終わりの画面
+const MATA_MIHON = 'デモ4';
+async function mata(id) {
+  michi(6);
+  dare(isTaiken(id) ? '先生の画面' : isOtona(id) ? '大人が試す画面' : '先生の画面');
+  const kai = await owattaKai(id);
+  if (!kai.length) { app.innerHTML = `<h1>⑦ また見つける</h1><p>先に ② のゲームを終えると、ここから始められます。</p>`; return; }
+  const setsumei = '<p>別の日に、もう一度 短いゲームをして、前のゲームと並べて比べます。前の結果は残ります。もう一度やると、新しい結果が増えます。</p>';
+  if (isTaiken(id)) {
+    const mei = await namaeOf(MATA_MIHON);
+    app.innerHTML = `
+      <h1>⑦ また見つける</h1>
+      ${setsumei}
+      <div class="box soft"><p><span class="label">見本</span>体験では、別の日を待たずに見本で見せます。架空の子（${esc(mei)}）は、3回のゲームをしました。回ごとの結果を並べると、同じ出し方で、くり返し力が出たかが分かります。この体験の結果ではありません。</p>
+        <div class="btns"><a class="btn sub" href="#/sensei/ko/${enc(MATA_MIHON)}">見本：3回分の結果（先生の画面）</a><a class="btn sub" href="#/card/${enc(MATA_MIHON)}">見本：その子のカード</a></div></div>
+      ${maeTsugiHtml(id, 6)}
+      <section class="box owari" id="taiken-owari">
+        <h2>体験はここまでです</h2>
+        <p>ゲーム・カード・先生の画面・伝え方・朝の練習・また見つける、を通しました。</p>
+        <div class="btns"><a class="btn" href="#/hajimeru/taiken">もう一度、体験する</a><a class="btn sub" href="#/">はじめの画面へ</a><a class="btn sub" href="#/annai/ko">本番のゲームを始める</a></div>
+      </section>`;
+    return;
+  }
+  if (isDemo(id)) {
+    app.innerHTML = `<h1>⑦ また見つける（${esc(await namaeOf(id))}）</h1>${setsumei}<p>架空の子の、保存した記録です（${kai.length}回分）。回ごとの結果は、先生の画面の「くわしく」で見られます。</p>${maeTsugiHtml(id, 6)}`;
+    return;
+  }
+  const rec = await getRecord(id);
+  const tochu = rec && !rec.owari;
+  app.innerHTML = `
+    <h1>⑦ また見つける</h1>
+    ${setsumei}
+    <p>いままでに ${kai.length}回 ゲームをしました。</p>
+    <div class="btns">${tochu ? `<a class="btn" href="#/game/${enc(id)}">つづきから</a>` : '<button id="mata-hajimeru">短いゲームを始める</button>'}</div>
+    ${maeTsugiHtml(id, 6)}`;
+  const b = document.getElementById('mata-hajimeru');
+  if (b) b.onclick = () => { if (newKai(id, 'mijikai')) location.hash = `#/game/${enc(id)}`; };
+}
+
 // ---- 画面の切りかえ
 async function route() {
   tomeru();
@@ -716,6 +803,11 @@ async function route() {
   delete document.body.dataset.hakaru;
   const parts = location.hash.replace(/^#\/?/, '').split('/').map((x) => decodeURIComponent(x));
   const [a, b, c2] = parts;
+  // 40便：道すじのリンクと、ゲームの途中でやめるときの確かめに使う
+  const kidId = ['game', 'card', 'sodateru', 'tsutae', 'mata'].includes(a) ? b : a === 'sensei' && b === 'ko' ? c2 : null;
+  try { michiNoHref = await gamenNoAru(kidId); } catch { michiNoHref = {}; }
+  document.body.dataset.basho = a || 'top';
+  document.body.dataset.kid = kidId || '';
   try {
     if (!a) await top();
     else if (a === 'annai') await annai(b);
@@ -728,6 +820,7 @@ async function route() {
     else if (a === 'check') await check();
     else if (a === 'mikurabe') await mikurabe(b, c2, parts[3]);
     else if (a === 'tsutae') await tsutae(b);
+    else if (a === 'mata') await mata(b);
     else if (a === 'anzen') await anzen();
     else await top();
   } catch (e) {
@@ -771,7 +864,16 @@ async function main() {
     await yomu(moji);
     if (yondeiru) modosu();
   };
-  window.addEventListener('hashchange', () => { tomeru(); modosu(); });
+  // 40便：「はじめの画面へ」。ゲームの途中（②）だけは、やめてよいかを聞く（途中までの記録は残り、つづきから始められる）
+  document.addEventListener('click', (e) => {
+    const modoru = e.target.closest('a[data-modoru]');
+    if (modoru) { e.preventDefault(); if (history.length > 1) history.back(); else location.hash = '#/'; return; }
+    const home = e.target.closest('a[href="#/"]');
+    if (!home || document.body.dataset.basho !== 'game' || !tochuNoGame(document.body.dataset.kid)) return;
+    e.preventDefault();
+    kakunin('ここでやめますか？ やめても、つづきから始められます。', 'やめる', 'つづける', () => { location.hash = '#/'; });
+  }, true);
+  window.addEventListener('hashchange', () => { tomeru(); modosu(); document.getElementById('kakunin')?.remove(); });
   window.addEventListener('hashchange', route);
   route();
 }

@@ -45,6 +45,8 @@ function tashika(jouken, setsumei) {
 
 async function mieru(name) {
   await page.waitForTimeout(150);
+  // 40便：はじめの画面のほかは、どの画面の下にも「はじめの画面へもどる」がある
+  if (!/^#?\/?$/.test(new URL(page.url()).hash.replace(/^#\/?$/, '')) && !(await page.locator('.modoru-top a').isVisible())) kiroku.まちがい.push(`${name}：画面の下に「はじめの画面へもどる」が無い`);
   const text = await page.evaluate(() => document.body.innerText + '\n' + [...document.querySelectorAll('textarea')].map((t) => t.value).join('\n'));
   const lines = text.split('\n').filter((s) => s.trim());
   kiroku.画面++;
@@ -95,6 +97,10 @@ async function mieru(name) {
 // 折りたたみ（details）の中も含めた、#app の中身全体の文字
 const zentai = () => page.evaluate(() => document.querySelector('#app').textContent);
 
+// 40便：クラスの一覧に出る子の id（体験の記録が混ざらないかを見る）
+async function classListNoId(pg) {
+  return pg.evaluate(async () => (await import('/js/kiroku.js')).classList().then((l) => l.map((x) => x.id)));
+}
 async function vis(sel) {
   const l = page.locator(sel).first();
   return (await l.count()) > 0 && (await l.isVisible()) && (await l.isEnabled().catch(() => true));
@@ -432,7 +438,8 @@ try {
   // 37便：審査員向けの短い体験。「仮の結果」と分かる言葉つきで、3つの比べそれぞれに事実（何問中何問）が出る。
   // Claude は呼ばず、架空の子の保存した文を「見本」として添え、保存した結果へのリンクがある
   let taikenYobi = 0;
-  const kazoeru = (req) => { if (/\/api\/(kasetsu|tsutae)\b/.test(req.url())) taikenYobi++; };
+  const kazoeru = (req) => { if (/\/api\/(kasetsu|tsutae|sodate|keikaku)\b/.test(req.url())) taikenYobi++; };
+  const taikenHajime = Date.now();
   await page.goto(`${BASE}#/hajimeru/taiken`);
   await page.waitForSelector('#riyuu');
   page.on('request', kazoeru);
@@ -450,8 +457,78 @@ try {
   await page.goto(`${BASE}#/tsutae/${encodeURIComponent(tid)}`);
   await page.waitForSelector('#tsutae .label');
   tashika(/見本/.test(await mieru('体験_伝え方')), '短い体験の伝え方：架空の子の保存した下書きを見本として出す');
+  // 40便：体験を ⑥ → ⑦ → 終わりの画面まで、行き止まりなく通す
+  const eT = encodeURIComponent(tid);
+  tashika(await vis(`.mae-tsugi a[href="#/sodateru/${eT}"]`) && await vis(`.mae-tsugi a[href="#/sensei/ko/${eT}"]`), '40便：体験の ⑤ 伝え方から、⑥ へ進める・④ へ戻れる（行き止まりがない）');
+  await page.click(`.mae-tsugi a[href="#/sodateru/${eT}"]`);
+  await page.waitForSelector('#riyuu, .choice');
+  if (await vis('.choice')) { await page.locator('.choice').first().click(); await page.waitForSelector('#riyuu'); }
+  const tT6 = await mieru('体験_⑥_今日の練習');
+  tashika(/1つ 2〜3分。1つ します。/.test(tT6), '40便：体験の ⑥ は、朝の練習を 1つだけ（本物の動き・Claude を呼ばない）');
+  await page.click('#hajimeru');
+  for (let i = 0; i < 200; i++) {
+    if (await vis('h1:has-text("おつかれさま")')) break;
+    if (await vis('#tsugi')) { await page.click('#tsugi'); continue; }
+    if (await vis('#next')) { await page.click('#next'); continue; }
+    if (await vis('#dekita')) { await page.click('#dekita'); continue; }
+    if (await vis('.marubatsu button')) { await page.locator('.marubatsu button').first().click(); continue; }
+    if (await vis('.choice')) { await page.locator('.choice').first().click(); continue; }
+    await page.waitForTimeout(60);
+  }
+  await page.locator('.choice', { hasText: '同じくらい' }).click();
+  await page.waitForSelector(`a[href="#/mata/${eT}"]`);
+  const tT6o = await mieru('体験_⑥_おわり');
+  tashika(/2回 続くと、次の やり方に 進むよ/.test(tT6o) && /次の やり方：/.test(tT6o), '40便：体験の ⑥ の終わりに、できたことだけで次の やり方に進むことと、次の やり方が出る');
+  await page.click(`a[href="#/mata/${eT}"]`);
+  await page.waitForSelector('#taiken-owari');
+  const tT7 = await mieru('体験_⑦_また見つける');
+  tashika(/見本/.test(tT7) && /前の結果は残ります/.test(tT7) && (await page.locator(`a[href="#/sensei/ko/${encodeURIComponent('デモ4')}"]`).count()) === 1, '40便：体験の ⑦ は、架空の子（3回のゲーム）の見本で見せる');
+  tashika(/体験はここまでです/.test(tT7) && ['もう一度、体験する', 'はじめの画面へ', '本番のゲームを始める'].every((t) => tT7.includes(t)), '40便：終わりの画面に「体験はここまで」と、もう一度・はじめの画面へ・本番のゲームを始める がある');
+  kiroku.taikenByou = Math.round((Date.now() - taikenHajime) / 1000);
   page.off('request', kazoeru);
-  tashika(taikenYobi === 0, '短い体験では、仮説と伝え方で Claude を呼ばない');
+  tashika(taikenYobi === 0, '短い体験では、仮説・伝え方・朝の練習・計画で Claude を呼ばない（40便：⑥ ⑦ も）');
+  tashika(!(await classListNoId(page)).some((x) => x.startsWith('体験')), '40便：体験の記録は、クラスの一覧（チェック項目・計画）に出ない');
+  // 終わった回の記録は、どの操作でも変わらない（あとで比べる）
+  const owattaMae = await page.evaluate((id) => JSON.stringify(JSON.parse(localStorage.getItem('chikara-no-switch.v3')).kids[id].kai), tid);
+  // もう一度、体験する → 途中で「はじめの画面へもどる」→ 確かめ → はじめの画面 → はじめからやり直す → 確かめ → はじめから
+  await page.locator('#taiken-owari a', { hasText: 'もう一度、体験する' }).click();
+  await page.waitForSelector('#riyuu');
+  await susumu(2);
+  const tid2 = decodeURIComponent(new URL(page.url()).hash.replace('#/game/', ''));
+  tashika(tid2 !== tid && tid2.startsWith('体験'), '40便：「もう一度、体験する」で、新しい体験が始まる');
+  tashika(!(await vis('[data-modoru]')) && !(await vis('.mae-tsugi')) && (await page.locator('#michi a').count()) === 0, '40便：ゲームの途中（②）には、前の問いへ戻る入口が無い');
+  await page.click('.modoru-top a');
+  await page.waitForSelector('#kakunin');
+  const tYame = await mieru('途中でやめる確認');
+  tashika(/ここでやめますか？ やめても、つづきから始められます。/.test(tYame), '40便：ゲームの途中で「はじめの画面へ」を押すと、やめてよいかを聞く');
+  const kotaeKazu = async (id) => page.evaluate((x) => { const k = JSON.parse(localStorage.getItem('chikara-no-switch.v3')).kids[x]; return Object.keys(k.kai[k.kai.length - 1].kekka).length; }, id);
+  const tochuKazu = await kotaeKazu(tid2);
+  await page.click('#kakunin-hai');
+  await page.waitForSelector('[data-yarinaoshi]');
+  await page.click(`a[href="#/game/${encodeURIComponent(tid2)}"]`);
+  await page.waitForSelector('#riyuu');
+  tashika(tochuKazu > 0 && (await kotaeKazu(tid2)) === tochuKazu, '40便：やめたあと「続きから」で、途中の続きから始まる');
+  await page.click('.logo');
+  await page.waitForSelector('#kakunin');
+  await page.click('#kakunin-hai');
+  await page.waitForSelector(`[data-yarinaoshi="${tid2}"]`);
+  await page.click(`[data-yarinaoshi="${tid2}"]`);
+  await page.waitForSelector('#kakunin');
+  const tYari = await mieru('はじめからやり直す確認');
+  tashika(/途中までの記録を消して、はじめからにします。よいですか？/.test(tYari), '40便：「はじめからやり直す」は、確かめてから消す');
+  await page.click('#kakunin-hai');
+  await page.waitForSelector('#riyuu');
+  tashika((await kotaeKazu(tid2)) === 0, '40便：はじめからやり直すと、途中までの記録が消えて、はじめからになる');
+  const owattaAto = await page.evaluate((id) => JSON.stringify(JSON.parse(localStorage.getItem('chikara-no-switch.v3')).kids[id].kai), tid);
+  tashika(owattaMae === owattaAto, '40便：終わった回の記録は、やめる・やり直す・見直すのどれでも変わらない');
+  // 先生の画面の ①〜⑦：その子にある画面だけが押せるリンク。いまの画面は押せない
+  await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent('デモ1')}`);
+  await page.waitForSelector('#kasetsu .label');
+  await mieru('先生の画面_道すじのリンク');
+  const michiA = await page.locator('#michi a').evaluateAll((as) => as.map((a) => a.getAttribute('href')));
+  const e1 = encodeURIComponent('デモ1');
+  tashika(['#/card/', '#/tsutae/', '#/sodateru/', '#/mata/'].every((h) => michiA.includes(h + e1)) && !michiA.some((h) => h.startsWith('#/sensei/ko/') || h.startsWith('#/game/')) && (await page.locator('#michi span.ima').innerText()).includes('④'), '40便：先生の画面の ①〜⑦ は、その子にある画面だけが押せるリンク（いまの画面とゲームは押せない）');
+  tashika(await vis(`.mae-tsugi a[href="#/card/${e1}"]`) && await vis(`.mae-tsugi a[href="#/tsutae/${e1}"]`), '40便：先生の画面に「ひとつ前へ／次へ」がある');
 
   // 10便 M2：Claude が書いた文を端末に覚える。開き直しでは呼ばない／押したら呼び直す／記録・設定が変わったら呼び直す／予備の文は覚えない
   // 鍵は使わない。サーバーの予備の返事を、通し確認の中だけ「Claude が書いた」ことにして数える（外へは何も送らない）
@@ -639,6 +716,7 @@ try {
 
 console.log('\n=== 通し確認のまとめ ===');
 console.log(`見た画面：${kiroku.画面}（スマホの幅 375px と PC の幅 1280px）　点検した文の行：${kiroku.点検した文の数}　避ける言葉：${kiroku.避ける言葉.length}件　はみ出し：${kiroku.はみ出し.length}件`);
+console.log(`40便：短い体験を ① から終わりの画面まで、自動で通した時間：${kiroku.taikenByou ?? "記録なし"} 秒（人が読む時間は入っていない）`);
 console.log(`ゲームで出た「次を選んだ理由」：${kiroku.理由.length}回`);
 console.log(`画面に出さない作り手の言葉：${kiroku.作り手の言葉.length}件（保存した Claude の文の中に残るもの：${Object.entries(kiroku.保存文に残る作り手の言葉).map(([w, n]) => `「${w}」${n}`).join('・') || 'なし'}。鍵で作り直すまで残る）`);
 if (kiroku.作り手の言葉.length) console.log(kiroku.作り手の言葉.slice(0, 40));

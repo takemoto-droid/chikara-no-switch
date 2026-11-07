@@ -153,6 +153,36 @@ export function newKai(id, shurui = 'hr') {
   return true;
 }
 
+// 40便：この子のゲームが途中か（すぐに答える。画面を離れるときの確かめに使う）
+export function tochuNoGame(id) {
+  if (!id || isDemo(id)) return false;
+  const k = load().kids[id];
+  return Boolean(k && k.kai.length && !k.kai[k.kai.length - 1].owari);
+}
+
+// 40便：途中までのゲーム（まだ終わっていない、いちばん新しい回）だけを消して、はじめからにする。
+// 終わった回は、比べのもとなので消さない・変えない。種類（短いゲーム・体験）と難しさの段階の決め方は、そのまま
+export function yarinaoshi(id) {
+  if (isDemo(id)) return false;
+  const st = load();
+  const k = st.kids[id];
+  if (!k || !k.kai.length) return false;
+  const mae = k.kai[k.kai.length - 1];
+  if (mae.owari) return false;
+  const r = atarashiiKai(id, mae.kai);
+  if (mae.shurui) r.shurui = mae.shurui;
+  // 段階は、始めたときと同じ決め方で、もう一度決める（途中で切りかえた分は持ちこまない）
+  if (mae.shurui === 'taiken') r.dankai = { A: { dankai: 2 }, B: { dankai: 2 }, C: { dankai: 2 }, erabikata: '短い体験（ふつうの段階で固定）' };
+  if (mae.shurui === 'mijikai' && k.kai.length >= 2) {
+    const owatta = k.kai[k.kai.length - 2];
+    r.dankai = { erabikata: '前の回の段階から' };
+    for (const kind of ['A', 'B', 'C']) r.dankai[kind] = { dankai: matome(owatta, kind).dankai === 1 ? 1 : 2 };
+  }
+  k.kai[k.kai.length - 1] = r;
+  save(st);
+  return true;
+}
+
 export function saveRecord(rec) {
   if (isDemo(rec.id)) return;
   const st = load();

@@ -1,7 +1,7 @@
 // ⑥ 育てる（朝の練習）の画面。得意な出し方を支えにして、もう一方の出し方を、支えを少しずつ減らしながら練習する。
 // 「今日はやらない」を選べる。記録は本人のもの（この端末の中だけ）。子どもの画面に、難しさの段階と「苦手」の言葉は出さない。
 import { esc, api, data } from './util.js';
-import { getKid, saveRenshu, isDemo, hiduke, claudeNoOboe, claudeWoOboeru, motoNoKey } from './kiroku.js';
+import { getKid, saveRenshu, isDemo, isTaiken, hiduke, claudeNoOboe, claudeWoOboeru, motoNoKey } from './kiroku.js';
 import { cardNoFukudai, levelNoNamae } from './kurabe.js';
 import {
   sodateKouho, jibunDeErabu, danWoDasu, renshuNoHi, renshuNoDankai, hitotsuNoKazu, yobiKyou, kyouNoRiyuu, agariNoRiyuu,
@@ -53,6 +53,8 @@ export async function sodateruGamen(el, id) {
   try { should = await data('should'); } catch { should = {}; }
   const yomiageOK = await junbiYomiage();
   const demoNoKo = isDemo(id);
+  // 40便：短い体験でも ⑥ を 1回だけ試せる。Claude は呼ばない（決まった順で選ぶ）・ひとつだけ
+  const taiken = isTaiken(id);
 
   // 育てる出し方：見つけたカードから。無いとき（どれでも・ためした）は本人が選ぶ（本人の好み）
   let kouho = sodateKouho(kai);
@@ -71,7 +73,7 @@ export async function sodateruGamen(el, id) {
       <h1>朝の練習</h1>
       <p>どれを 育てる？（あとで 変えられる）</p>
       <div class="btns tate">${SODATE_MODES.map((m) => `<button class="choice" data-m="${m}">${esc(SODATE_MEI[m])}</button>`).join('')}</div>
-      <p class="small"><a href="#/card/${enc(id)}">カードに戻る</a></p>`;
+      <p class="small"><a href="#/card/${enc(id)}">ひとつ前へ</a></p>`;
     el.querySelectorAll('.choice').forEach((b) => {
       b.onclick = async () => { jibun = b.dataset.m; kouho = [jibun]; await kyouNoGamen(); };
     });
@@ -81,8 +83,8 @@ export async function sodateruGamen(el, id) {
     el.innerHTML = '<h1>朝の練習</h1><p class="muted" aria-live="polite">選んでいます…</p>';
     // 10便 M2：Claude が選んだ理由は端末に覚える。練習の記録か候補が変わったときだけ呼び直す（予備の文は覚えない）
     const key = motoNoKey({ renshu, hoka: kouho });
-    let r = claudeNoOboe(id, 'sodate', key);
-    if (!r) {
+    let r = taiken ? null : claudeNoOboe(id, 'sodate', key);
+    if (!r && !taiken) {
       try {
         r = claudeWoOboeru(id, 'sodate', key, await api('sodate', { kouho, jokyou: kouho.map((m) => ({ mode: m, ...danWoDasu(renshu, m), hi: renshuNoHi(renshu, m).length, kyouAri: renshuNoHi(renshu, m).includes(hiduke()) })) }, 15000));
       } catch { r = null; }
@@ -93,7 +95,7 @@ export async function sodateruGamen(el, id) {
     }
     const mode = r.mode;
     const { dan } = danWoDasu(renshu, mode);
-    const n = hitotsuNoKazu(settei.朝の練習の長さ);
+    const n = taiken ? 1 : hitotsuNoKazu(settei.朝の練習の長さ);
     // 12便 P1：子どもの画面には「予備の動き」「決まった順」を出さない。AI が選んだときだけ、そのことを出す
     const who = r.dare === 'claude' ? 'AI（Claude）が 選んだ理由' : '';
     // 12便 P2：「いまの段」→「きょうの やり方」（段階と区別がつかないため、子どもの画面では「段」と言わない）
@@ -105,12 +107,12 @@ export async function sodateruGamen(el, id) {
       <div class="btns">
         ${demoNoKo ? '' : '<button id="hajimeru">始める</button><button class="sub" id="yasumu">今日はやらない</button>'}
       </div>
-      <p class="small"><a href="#/card/${enc(id)}">カードに戻る</a></p>`;
+      <p class="small"><a href="#/card/${enc(id)}">ひとつ前へ</a></p>`;
     if (demoNoKo) return;
     const entry = { no: Date.now(), hi: hiduke(), jibun: jibun || undefined, hitotsu: [], riyuu: r.riyuu, dare: r.dare };
     el.querySelector('#yasumu').onclick = () => {
       saveRenshu(id, { ...entry, yasumi: true });
-      el.innerHTML = `<h1>今日は お休み。</h1><p>また 別の日に。</p><div class="btns"><a class="btn" href="#/card/${enc(id)}">カードを見る</a></div>`;
+      el.innerHTML = `<h1>今日は お休み。</h1><p>また 別の日に。</p><div class="btns">${taiken ? `<a class="btn" href="#/mata/${enc(id)}">⑦ また見つけるへ</a><a class="btn sub" href="#/card/${enc(id)}">カードを見る</a>` : `<a class="btn" href="#/card/${enc(id)}">カードを見る</a>`}</div>`;
     };
     el.querySelector('#hajimeru').onclick = () => renshuSuru(mode, n, entry);
   }
@@ -159,9 +161,21 @@ export async function sodateruGamen(el, id) {
     entry.raku = raku;
     saveRenshu(id, entry);
     const sc = sodateCards([...kiroku, entry]).find((c) => c.card === mode);
+    const cardNoE = sc ? cardHtml(sodateCardNoBun(cards, sc), { fukudai: cardNoFukudai(cards, sc), level: sc.level, levelMei: levelNoNamae(cards, sc), jougen: DAN_JOUGEN, sodate: true }) : '';
+    if (taiken) {
+      // 40便：体験は 1つだけ。できたことだけで、次の やり方に 進む（2回 続けて 多く 合ったとき）ことを、次の やり方の名前と一緒に見せる
+      const { dan } = danWoDasu([...kiroku, entry], mode);
+      el.innerHTML = `
+        <h1>育てているカード</h1>
+        ${cardNoE}
+        <p>多く 合う日が 2回 続くと、次の やり方に 進むよ。</p>
+        ${dan < DAN_JOUGEN ? `<p>次の やり方：<span data-kazoenai>${esc(DAN_NO_DASHIKATA[mode][dan])}</span></p>` : ''}
+        <div class="btns"><a class="btn" href="#/mata/${enc(id)}">⑦ また見つけるへ</a><a class="btn sub" href="#/card/${enc('デモ7')}">見本：育ったカード</a></div>`;
+      return;
+    }
     el.innerHTML = `
       <h1>育てているカード</h1>
-      ${sc ? cardHtml(sodateCardNoBun(cards, sc), { fukudai: cardNoFukudai(cards, sc), level: sc.level, levelMei: levelNoNamae(cards, sc), jougen: DAN_JOUGEN, sodate: true }) : ''}
+      ${cardNoE}
       <p class="muted">記録は あなたのもの。</p>
       <div class="btns"><a class="btn" href="#/card/${enc(id)}">カードを見る</a></div>`;
   }

@@ -207,3 +207,17 @@ body[data-hakaru="1"] .progress-wrap { margin-top: 4px; }
 /* 26便 Y4：画面の境界だけをはっきりさせる（地色・アクセント・色相は変えない。専門家会議 E1 の UD の計算） */
 #kasetsu { background: #FFF4E2; border-left: 6px solid #F2A33A; }
 body[data-gamen="先生の画面"] h2, body[data-gamen="先生の画面"] h3 { border-bottom: 2px solid var(--line); }
+
+/* 40便：戻る・見直す・やり直す */
+.logo { display: inline-flex; align-items: center; gap: 6px; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
+.logo-ie { font-size: 1.2em; line-height: 1; }
+.michi a { padding: 2px 8px; border-radius: 99px; background: var(--surface); color: var(--accent); border: 1px solid var(--line); text-decoration: underline; }
+.michi span.mada { opacity: .6; }
+.modoru-top { max-width: 680px; margin: 8px auto 0; padding: 0 16px; font-size: .9rem; }
+body[data-basho="top"] .modoru-top { display: none; }
+body[data-gamen="先生の画面"] .modoru-top { max-width: 1040px; }
+.mae-tsugi { justify-content: space-between; border-top: 1px solid var(--line); padding-top: 12px; margin-top: 24px; }
+button.chiisai { padding: 6px 12px; font-size: .9rem; min-height: 0; }
+.kakunin-haikei { position: fixed; inset: 0; background: rgba(20, 20, 20, .45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+.kakunin { max-width: 420px; width: 100%; background: var(--surface); }
+.box.owari { border-width: 2px; border-color: var(--accent); }
