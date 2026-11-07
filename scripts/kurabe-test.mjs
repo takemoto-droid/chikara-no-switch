@@ -12,7 +12,7 @@ import { keikakuNoZairyou, keikakuNoMondai } from '../lib/api.mjs';
 import { kyouNoRiyuu, kyouNoRiyuuWoKaku } from '../public/js/sodateru.js';
 import { sawaruTaishou, sawaruNoMasu, sawaruNoKekka, doreNashiWoTsukeru, ichininmaeNoKai, danWoDasu, ookattaKa, sodateKouho, erabuMondai, sodateCards, sodateCardNoBun, ichininmaeOf, hitotsuNoKazu, jibunDeErabu, SODATE_MODES, DAN_NO_DASHIKATA } from '../public/js/sodateru.js';
 import { handle } from '../lib/api.mjs';
-import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN } from '../public/js/kurabe.js';
+import { setteiWoIreru, maeTonoChigai, dankaiWoSusumeru, stepsOf, matome, matomeA, erabuCard, kouho, makeSteps, yobiNext, makeJunban, zenbuOf, mieruKoumoku, matomeKai, erabuCardKai, cardNoBun, motteiruCards, watasuCards, namaeWoAwaseru, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN, claudeNiOkuru } from '../public/js/kurabe.js';
 
 const j = (p) => JSON.parse(readFileSync(path.join(ROOT, p), 'utf8'));
 const demo = j('public/data/demo.json');
@@ -133,6 +133,23 @@ await ok('避ける言葉が出たら書き直しを頼み、通った文だけ�
   assert.equal(c.okutta[0].fallbacks, 'default');
   assert.deepEqual(c.okutta[0].betas, ['server-side-fallback-2026-07-01']);
   assert.ok(c.okutta[0].system.includes(sakeru), '決まりが Claude に渡っている');
+});
+
+await ok('37便：画面に出さない作り手の言葉（揺れ・棚・〇便 など）が出ても、書き直しを頼む。決まりにも、その一覧と「専門の言葉を使わない」が入る', async () => {
+  const { seisakuNoKotoba } = await import('../lib/kotoba.mjs');
+  const c = nisemono([{ a: '同じ出し方での揺れより大きい差が出た（36便）' }, { a: '聞いて答えるとき、たまたまの違いより大きく、多く合っていました。' }]);
+  const r = await askClaude({ env: {}, yakuwari: 'て', naiyou: {}, schema, client: c });
+  assert.equal(r.ok, true);
+  assert.equal(r.kaisu, 2);
+  assert.match(c.okutta[1].messages[0].content, /「揺れ」が入っていました/);
+  assert.match(c.okutta[1].messages[0].content, /「36便」が入っていました/);
+  assert.ok(c.okutta[0].system.includes('画面に出さない作り手の言葉') && c.okutta[0].system.includes('専門の言葉を使わない'));
+  // URL の中の docs/ や、ふつうの文には当たらない
+  assert.equal(seisakuNoKotoba('https://platform.claude.com/docs/en/build-with-claude').length, 0);
+  assert.equal(seisakuNoKotoba('読むと聞くを、順番を入れかえて2回ずつ試しました。').length, 0);
+  // 画面のもとになるデータの言い方（Claude に渡すまとめ・前の回との違い・決まった文）にも、作り手の言葉が無い
+  const okuru = claudeNiOkuru(demo.結果.デモ4.kai[2], j('public/data/tana.json'), [], demo.結果.デモ4.kai.map((x, i) => ({ ...x, kai: i + 1 })));
+  assert.equal(JSON.stringify(okuru).match(/揺れ|素点|候補|向き/g), null, JSON.stringify(okuru).slice(0, 300));
 });
 
 await ok('書き直しても残るときは使わない（予備の動きへ）', async () => {
@@ -403,7 +420,11 @@ await ok('F4（Should）：引き継ぎの記録の書き出しは、回ごと�
     assert.match(bun, /2026年度/);
   }
   const bun4 = hikitsugiNoBun({ id: 'デモ4', kai: kai('デモ4').map((r, i) => ({ ...r, kai: i + 1 })), cards, tana, atehamaru: [], kakuHi: '2026-11-03' });
-  assert.match(bun4, /「聞く」（別々の日 3日のうち 3日）/);
+  assert.match(bun4, /「聞く」ときのほうが多く合った（別々の日 3日のうち 3日）/);
+  // 37便：引き継ぎの記録に、作り手の言葉（揺れ・候補の言い方・Should など）を出さない
+  const { seisakuNoKotoba } = await import('../lib/kotoba.mjs');
+  assert.equal(seisakuNoKotoba(bun4).length, 0);
+  assert.ok(!/向きなし|その回の候補|くり返し出た候補/.test(bun4));
 });
 
 await ok('F4（Should）：練習問題を Claude が作る道筋。キーが無いと決まった練習問題、形が合えば使い、合わなければ使わない', async () => {
@@ -747,12 +768,12 @@ await ok('H5：⑦ また見つけるは3つの組だけ（練習と質問なし
   // 前の回との違い（事実）
   const chigai = maeTonoChigai([r1, r2]);
   assert.equal(chigai.length, 3);
-  assert.equal(chigai[0].mae, 'その回の候補「聞く」');
+  assert.equal(chigai[0].mae, '「聞く」ときのほうが多い');
   // 3回目：差なしでも、カードは消えず、レベルは下がらない
   const r3 = { ...hrWoSuru(makeJunban('また3'), (st, kazu) => Math.ceil(kazu / 2), { shurui: 'mijikai', dankai }), kai: 3, hi: '2026-12-01', owari: true };
   const c3 = motteiruCards([r1, r2, r3]).cards.find((m) => m.card === 'kiku');
   assert.ok(c3 && c3.level >= 2);
-  assert.equal(maeTonoChigai([r1, r2, r3])[0].ima, '差なし');
+  assert.equal(maeTonoChigai([r1, r2, r3])[0].ima, '同じくらい');
 });
 
 await ok('H5：⑦ の記録もサーバーが受け取れる（短い版の印と段階）', async () => {
@@ -830,7 +851,7 @@ await ok('H6：デモの子7（練習でカードが育った子）と8（やさ
   assert.equal(erabuCard(d8), 'zu');
   const hi = JSON.stringify(demo).match(/2026-\d\d-\d\d/g);
   assert.ok(hi.every((x) => x < '2026-11-08'), '日付は 2026-11-08 より前');
-  assert.ok(demo.クラス.some((k) => /練習でカードが育った子/.test(k.呼び名)) && demo.クラス.some((k) => /やさしい段階で比べた子/.test(k.呼び名)));
+  assert.ok(demo.クラス.some((k) => /練習でカードが育った子/.test(k.呼び名)) && demo.クラス.some((k) => /やさしい問題で比べた子/.test(k.呼び名)));
 });
 
 await ok('8便 K2：段階1の棚 B は問い2つ（1つの出し方あたり4問）。答えは選択肢の中にある', () => {

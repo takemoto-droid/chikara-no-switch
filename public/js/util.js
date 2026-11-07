@@ -39,7 +39,7 @@ export function okuruKiroku(rec) {
 export function whoLabel(dare) {
   if (dare === 'claude') return '<span class="label ai">Claude（AI）が書いた下書き</span>';
   if (dare === 'kimari') return '<span class="label">決まった文</span>';
-  return '<span class="label yobi">予備の動き（決まった文）</span>';
+  return '<span class="label yobi">決まった文（AI を使わないとき）</span>';
 }
 
 export const MICHI = ['① 案内', '② 見つける', '③ スイッチカード', '④ 先生の画面', '⑤ 伝え方', '⑥ 育てる', '⑦ また見つける'];

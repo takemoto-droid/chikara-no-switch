@@ -227,7 +227,7 @@ export function matome(record, kind) {
   out.sa = sa;
   out.kakunin = sa.length; // 確かめた回数（比べた組の数）
   // 比べにくかった組：正解がほとんど無い・ほとんど全部正解（先生にだけ事実で出す）
-  out.kurabenikui = kumiNoRitsu.map((x, i) => (x <= DANKAI_KIJUN.hobo0 ? `${i + 1}組目は正解がほとんど無かった` : x >= DANKAI_KIJUN.zenbu ? `${i + 1}組目は全部正解だった` : null)).filter(Boolean);
+  out.kurabenikui = kumiNoRitsu.map((x, i) => (x <= DANKAI_KIJUN.hobo0 ? `${i + 1}回目の比べは、どちらの出し方も正解がほとんど無かった` : x >= DANKAI_KIJUN.zenbu ? `${i + 1}回目の比べは、どちらの出し方も全部正解だった` : null)).filter(Boolean); // 37便：「組目」と言わない
   out.yure = out[m1].length === 2 && out[m2].length === 2
     ? Math.max(Math.abs(out[m1][0] - out[m1][1]), Math.abs(out[m2][0] - out[m2][1]))
     : null;
@@ -424,9 +424,10 @@ export function kotaeD(record, tana) {
   return D_IDS.filter((id) => ['D1', 'D2', 'D3', 'D4'].includes(id) || record.kekka?.[id]).map((id) => ({ id, toi: tana.D.質問[id].問い, kotae: record.kekka?.[id]?.kotae ?? null }));
 }
 
+// 37便：Claude に渡すまとめも、専門の言葉を使わない（Claude がそのまま写すため）
 const KEKKA_SETSUMEI = {
-  mada: 'まだ2回そろっていない',
-  nashi: '揺れより大きい差は、同じ向きに2回は出なかった（差なし）',
+  mada: 'まだ2回ずつそろっていない',
+  nashi: 'たまたまの違いより大きい違いは、2回とも同じほうには出なかった（どちらの出し方でも同じくらい）',
 };
 function summary(m) {
   const [m1, m2] = m.kumi;
@@ -434,25 +435,25 @@ function summary(m) {
     各回の問いの数: m.kazu,
     [`${DASHIKATA[m1]}の正解`]: m[m1],
     [`${DASHIKATA[m2]}の正解`]: m[m2],
-    同じ出し方での揺れ: m.yure,
-    [`${DASHIKATA[m2]}−${DASHIKATA[m1]}の差_各回`]: m.sa,
+    同じ出し方を2回したときの違い_たまたまの違い: m.yure,
+    [`${DASHIKATA[m2]}と${DASHIKATA[m1]}の正解の数の違い_各回`]: m.sa,
     確かめた回数: m.kakunin,
-    結果: KEKKA_SETSUMEI[m.kekka] || `「${DASHIKATA[m.kekka]}」のほうが、2回とも揺れより大きく正解が多かった（候補）`,
+    結果: KEKKA_SETSUMEI[m.kekka] || `「${DASHIKATA[m.kekka]}」ときのほうが、2回とも、たまたまの違いより大きく多く合っていた`,
   };
 }
 
 function kaiSummary(x) {
   return {
-    回ごと: x.rows.map((r) => ({ 回: r.kai, 差_2組: r.sa, 揺れ: r.yure, 向き: r.muki ? DASHIKATA[r.muki] : 'なし', 揺れより大きいか: r.ookii ? 'はい（その回の候補）' : 'いいえ' })),
-    くり返し出た候補: x.kurikaeshi ? `「${DASHIKATA[x.kurikaeshi]}」（${x.onaji.join('・')}回目で同じ向き。別々の日は${x.onajiHi.length}日）` : 'なし',
-    決まり: '同じ日の回は、くり返しの数では1つの日として数える',
+    回ごと: x.rows.map((r) => ({ 回: r.kai, 正解の数の違い_2回: r.sa, 同じ出し方を2回したときの違い: r.yure, 多く合った出し方: r.muki ? DASHIKATA[r.muki] : '同じくらい', たまたまの違いより大きいか: r.ookii ? 'はい' : 'いいえ' })),
+    別々の日にくり返し多く合った出し方: x.kurikaeshi ? `「${DASHIKATA[x.kurikaeshi]}」（${x.onaji.join('・')}回目。別々の日は${x.onajiHi.length}日）` : 'なし',
+    決まり: '同じ日に2回したときは、1つの日として数える',
   };
 }
 
 // Claude に送るまとめ（名前・仮の番号は入れない）。kaiList があれば、回をまたいだ結果も入れる
 export function claudeNiOkuru(record, tana, atehamaru, kaiList) {
   const mata = kaiList && kaiList.length > 1
-    ? { 回をまたいだ結果: { ゲームの回数: kaiList.length, 決まり: '比べるのは各回の中の出し方の差どうし。素点は回ごとに比べない', 読む聞く: kaiSummary(matomeKai(kaiList, 'A')), 図: kaiSummary(matomeKai(kaiList, 'B')), 一気に区切って: kaiSummary(matomeKai(kaiList, 'C')) } }
+    ? { 回をまたいだ結果: { ゲームの回数: kaiList.length, 決まり: '比べるのは、同じ日の中での出し方ごとの違いだけ。日によって慣れで合う数が増えるので、別の日の正解の数どうしは比べない', 読む聞く: kaiSummary(matomeKai(kaiList, 'A')), 図: kaiSummary(matomeKai(kaiList, 'B')), 一気に区切って: kaiSummary(matomeKai(kaiList, 'C')) } }
     : {};
   return {
     ...mata,
@@ -472,11 +473,11 @@ export function mieruKoumoku(checklist) {
   return [...(checklist.項目 || []), ...(checklist.先生が選ぶ候補 || []).filter((x) => x.先生が選んだ === true)];
 }
 
-// ⑦ また見つける：前の回との違い（事実だけ。棚ごとに、前の回とこの回の結果を並べる）
+// ⑦ また見つける：前の回との違い（事実だけ。読む／聞く などの組ごとに、前の回とこの回の結果を並べる）
 function kekkaNoKotoba(m) {
   if (m.kekka === 'mada') return 'まだ比べていない';
-  if (m.kekka === 'nashi') return '差なし';
-  return `その回の候補「${DASHIKATA[m.kekka]}」`;
+  if (m.kekka === 'nashi') return '同じくらい';
+  return `「${DASHIKATA[m.kekka]}」ときのほうが多い`;
 }
 export function maeTonoChigai(kaiList) {
   const owatta = kaiList.filter((r) => r.owari !== false);

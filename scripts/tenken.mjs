@@ -6,7 +6,7 @@
 // 使い方：npm run tenken
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
-import { ROOT, tenken, seihon, soudanSaki, soudanSakiKo, soudanSakiOtona, mojiretsu } from '../lib/kotoba.mjs';
+import { ROOT, tenken, seihon, seisakuNoKotoba, soudanSaki, soudanSakiKo, soudanSakiOtona, mojiretsu } from '../lib/kotoba.mjs';
 import { yobiKasetsu, yobiTsutae } from '../lib/yobi.mjs';
 import { yobiRiyuu, makeSteps, namaeWoAwaseru } from '../public/js/kurabe.js';
 
@@ -94,6 +94,26 @@ kiroku(`予備の動きの文（結果の組み合わせ ${kumiawase} 通り）`
   kiroku('保存した Claude の文（デモの子8人・計画）', mojiretsu(hozon));
 }
 
+// 2c. 37便：画面に出さない作り手の言葉（言葉の正本の「画面に出さない制作側の言葉」）。
+// 画面に出る文だけを見る：予備の文・引き継ぎの記録・安全のページ・画面のコードの中の文字列（コメントは除く）。README と docs には当てない。
+// 保存した Claude の文は、鍵で作り直すまで残るので、数を出すだけにする（落とさない）
+const seisaku = {};
+function kirokuSeisaku(name, texts, o = {}) {
+  const hits = [];
+  texts.forEach((t, i) => seisakuNoKotoba(t, o).forEach((h) => hits.push({ 場所: `${name}#${i}`, 言葉: h.見つけた文字, 文: t.slice(Math.max(0, h.位置 - 15), h.位置 + 15) })));
+  seisaku[name] = { 点検した文: texts.length, hits, ...o };
+}
+function kodoNoMojiretsu(src) {
+  // コメント（/* */ と、行の頭か空白のあとの //）を外してから、'…' "…" `…` の中の文字を集める
+  const nashi = src.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').map((l) => l.replace(/(^|\s)\/\/.*$/, '')).join('\n');
+  return [...nashi.matchAll(/'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"|`((?:[^`\\]|\\.)*)`/g)].map((m) => m[1] ?? m[2] ?? m[3]).filter((t) => /[\u3040-\u30ff\u4e00-\u9fff]/.test(t));
+}
+kirokuSeisaku('予備の動きの文・引き継ぎの記録', [...new Set(yobiTexts)]);
+kirokuSeisaku('子どもの安全とプライバシーのページ', readFileSync(path.join(ROOT, 'public/anzen.md'), 'utf8').split('\n'));
+kirokuSeisaku('画面のコードの文字列（public/js・lib/api.mjs・lib/yobi.mjs）', [...files(path.join(ROOT, 'public/js')), path.join(ROOT, 'lib/api.mjs'), path.join(ROOT, 'lib/yobi.mjs')]
+  .flatMap((f) => kodoNoMojiretsu(readFileSync(f, 'utf8'))), { kode: true });
+const hozonSeisaku = mojiretsu(JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文).flatMap((t) => seisakuNoKotoba(t).map((h) => h.見つけた文字));
+
 // 3. Claude の出力（9便で広げた：仮説・伝え方（懇談・保護者向け・一言・HR の冒頭）・次を選ぶ理由・今日の練習・計画）
 // 架空のデモの子だけを使う。呼ぶ回数を少なくするため、子ごとに1回ずつ。書き直しを含めた呼び出しの回数を数える
 if (process.env.TENKEN_CLAUDE === '1' && process.env.ANTHROPIC_API_KEY) {
@@ -170,8 +190,17 @@ for (const [name, k] of Object.entries(kekka)) {
   if (!name.startsWith('README')) ng += k.避ける言葉;
 }
 console.log(`- 相談先の文（保護者用・子どもの短い文・大人用）の写しが正本と同じ：${soudanOK ? 'はい' : 'いいえ'}`);
-if (ng > 0 || !soudanOK) {
-  console.log('\n画面・サーバー側・予備の動き・Claude の出力に避ける言葉がありました。書き直してください。');
+console.log('\n=== 画面に出さない作り手の言葉（37便） ===');
+let ngSeisaku = 0;
+for (const [name, k] of Object.entries(seisaku)) {
+  console.log(`- ${name}：点検した文 ${k.点検した文} 件／作り手の言葉 ${k.hits.length} 件`);
+  k.hits.forEach((h) => console.log(`    ${h.場所}「${h.言葉}」…${h.文}…`));
+  ngSeisaku += k.hits.length;
+}
+const hozonKazu = hozonSeisaku.reduce((a, w) => ({ ...a, [w]: (a[w] || 0) + 1 }), {});
+console.log(`- 保存した Claude の文（鍵で作り直すまで残る・落とさない）：${Object.entries(hozonKazu).map(([w, n]) => `「${w}」${n}`).join('・') || 'なし'}`);
+if (ng > 0 || !soudanOK || ngSeisaku > 0) {
+  console.log('\n画面・サーバー側・予備の文・Claude の出力に、避ける言葉か、画面に出さない作り手の言葉がありました。書き直してください。');
   process.exit(1);
 }
 console.log('\n画面・サーバー側・予備の動き・Claude の出力：避ける言葉 0 件');

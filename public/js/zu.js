@@ -165,7 +165,7 @@ function tanaZu(z, waku) {
     r.forEach((n, j) => parts.push(hako(x0 + j * (cw + 6), y, cw, ch, n, { kara: n == null, waku, iro: '#f6ead6', sen: '#8a5a2b' })));
   });
   const H = 36 + z.tana.length * (ch + 12) + 2;
-  return svg(W, H, `${z.mei || '棚'}の図（上から 何つめ・左から 何番め）`, parts);
+  return svg(W, H, `${z.mei || '場面'}の図（上から 何つめ・左から 何番め）`, parts);
 }
 
 // 当番表（13便のもと）：上に曜日、左に係。向きの基準が要らない表

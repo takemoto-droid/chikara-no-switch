@@ -659,7 +659,7 @@ async function gamenWoUtsusu() {
       while (n && n.tagName === 'P') { if (n.querySelector('a[href^="#/sensei/ko/"]')) { rs.push(window.__shikaku(n)); t.push(n.textContent.trim()); } n = n.nextElementSibling; }
       return { rs, t, moji: parseFloat(getComputedStyle(h.nextElementSibling).fontSize) };
     });
-    if (ichiran.t.length !== 8 || !ichiran.t.some((x) => x.includes('差が出なかった子'))) throw new Error(`保存した結果の一覧が 8 行ではありません：${ichiran.t.join('／')}`);
+    if (ichiran.t.length !== 8 || !ichiran.t.some((x) => x.includes('同じくらいだった子'))) throw new Error(`保存した結果の一覧が 8 行ではありません：${ichiran.t.join('／')}`);
     // 8 行だけ（見出しは入れない）。字の幅で切る（行は横いっぱいに広がるため）
     const ichiranMoji = await p2.evaluate(() => { const h = [...document.querySelectorAll('h2')].find((x) => x.textContent.includes('保存した結果（架空の子）')); const out = []; let n = h.nextElementSibling; while (n && n.tagName === 'P') { if (n.querySelector('a[href^="#/sensei/ko/"]')) out.push(...window.__moji(n, n.textContent.trim())); n = n.nextElementSibling; } return out; });
     await kiru(p2, 'ichiran_8', union(ichiranMoji), {}, { ue: 6, shita: 6, yoko: 14 }, { moji: ichiran.moji });

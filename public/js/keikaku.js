@@ -59,7 +59,7 @@ export function yobiKeikaku(settei, kodomo) {
     const ichi = owari.length ? `「${owari.map((x) => SODATE_MEI[x.mode]).join('」「')}」は一人前（段${DAN_JOUGEN}・上限）で、この出し方の練習は終わっています。次に育てる出し方は先生が決めます。` : '';
     const jibun = k.jibun ? '本人が選んだ出し方です（本人の好み）。' : '';
     if (!tsuzuku.length) return { label: k.label, bun: `${shita}${jibun}${ichi}${mata}で、出し方の差をもう一度確かめます。` };
-    const s = tsuzuku.map((x) => `「${SODATE_MEI[x.mode]}」（棚：${TANA_NO_NAMAE[TANA_OF[x.mode]]}）を、いまの段「${DAN_NO_DASHIKATA[x.mode][x.dan - 1]}」から`).join('、');
+    const s = tsuzuku.map((x) => `「${SODATE_MEI[x.mode]}」（${TANA_NO_NAMAE[TANA_OF[x.mode]]}の練習）を、いまの段「${DAN_NO_DASHIKATA[x.mode][x.dan - 1]}」から`).join('、');
     return { label: k.label, bun: `${shita}${jibun}${ichi}朝の練習：${s}。${settei.朝の練習の頻度}・1回${settei.朝の練習の長さ}分（練習のひとつを${n}つ）、次の「また見つける」までに${hi}日ほど。段が進むかどうかは練習の中の事実で決まるので、ここでは決めません。` };
   });
   const zentai = `学校の設定（朝の練習 ${settei.朝の練習の頻度}・1回${settei.朝の練習の長さ}分、また見つける ${settei.また見つけるの間隔}ごと・${settei.また見つけるの長さ}分ほど）から、次の「また見つける」までの計画の案です。練習の日は${hi}日ほどです。「今日はやらない」を選ぶ日もあるので、日数は目安です。「② 見つける」は HR のゲーム、「⑦ また見つける」は間隔をあけてする短いゲームです。`;
