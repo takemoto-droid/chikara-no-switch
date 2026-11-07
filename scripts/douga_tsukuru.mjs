@@ -651,7 +651,9 @@ async function gamenWoUtsusu() {
     await p3.waitForSelector('#kasetsu .label.yobi');
     await p3.waitForTimeout(300);
     const hidariLi = '#kasetsu li:has-text("授業で分からない")';
-    await kiru(p3, 'hidari_li', await shikaku(p3, hidariLi), { waku: await moji(p3, hidariLi, 'そのままにしている') }, { ue: 4, shita: 4, yoko: 14 }, { moji: await mojiNoOokisa(p3, hidariLi) });
+    // 29便：行頭の「・」が切れないよう、左に 16px 足す
+    const hl = await shikaku(p3, hidariLi);
+    await kiru(p3, 'hidari_li', { ...hl, x: hl.x - 16, width: hl.width + 16 }, { waku: await moji(p3, hidariLi, 'そのままにしている') }, { ue: 4, shita: 4, yoko: 14 }, { moji: await mojiNoOokisa(p3, hidariLi) });
     await p3.context().close();
 
     // ---- 撮るときだけ端末の覚えに入れる架空の子：その場3（資料 31 の記録）・その場7（デモ7 の 8 回目までの練習）
@@ -788,7 +790,9 @@ function gazou(parent, g, box, o = {}) {
   if (o.ue) {
     const l = document.createElement('div');
     l.className = 'label-w';
-    Object.assign(l.style, { position: 'absolute', left: '-200px', right: '-200px', top: '-50px', textAlign: 'center', fontSize: '28px', color: o.ueIro || '#fff' });
+    // 29便：ueHidari＝寄りの左端にそろえ、枠の上端の 12px 上に置く
+    if (o.ueHidari) Object.assign(l.style, { position: 'absolute', left: '0', whiteSpace: 'nowrap', bottom: 'calc(100% + 12px)', fontSize: '28px', lineHeight: '1.25', color: o.ueIro || '#fff' });
+    else Object.assign(l.style, { position: 'absolute', left: '-200px', right: '-200px', top: '-50px', textAlign: 'center', fontSize: '28px', color: o.ueIro || '#fff' });
     l.textContent = o.ue;
     d.appendChild(l);
   }
@@ -825,7 +829,9 @@ window.kaku = async (s) => {
   const waits = [];
   if (e.k === 'zen') waits.push(gazou(p, e.g, all, e.o));
   if (e.k === 'kiri') {
-    if (e.haikeiHtml) {
+    // 29便：帯（obi）と転A のカード（abs）を出している間は、アプリの枠の中を区間の枠の色で塗る（元の画面を透かさない）
+    if (e.abs || e.obi) p.style.background = s.waku || '#1E2228';
+    else if (e.haikeiHtml) {
       const d = document.createElement('div'); d.innerHTML = e.haikeiHtml; p.appendChild(d);
       const dim = document.createElement('div');
       Object.assign(dim.style, { position: 'absolute', inset: 0, background: 'rgba(14,15,18,.66)' });
@@ -854,7 +860,8 @@ window.kaku = async (s) => {
   }
   if (e.k === 'narabe' && !e.mukashi) {
     // 28便：2-up は左右の箱（x 60〜960・980〜1880、y 130〜830）に contain・上揃え。見出しは 32px・箱の上端の 12px 上。添え書きは絵の下に 32px
-    p.style.background = '#2A2F36';
+    // 29便：後ろのアプリの枠は区間の枠の色で塗る
+    p.style.background = s.waku || '#1E2228';
     const BOX = [{ x: 60, y: 130, w: 900, h: 700 }, { x: 980, y: 130, w: 900, h: 700 }];
     e.items.forEach((it, i) => {
       const bx = BOX[i];
@@ -892,6 +899,8 @@ window.kaku = async (s) => {
     const d = document.createElement('div');
     d.innerHTML = e.html;
     if (e.obi) {
+      // 29便：帯だけが生成りに見えるよう、後ろのアプリの枠は区間の枠の色で塗る
+      p.style.background = s.waku || '#1E2228';
       // 28便：1 枚の帯の箱（x 40〜1880・y 160〜760）に contain・中央揃え
       yori.appendChild(d);
       d.style.display = 'inline-block';
@@ -1156,8 +1165,8 @@ function eNoNarabi(G) {
       // 27便 Y3：記録の Claude の 3 行を 1 行ずつ。行末の「（Claude）」に枠
       ...[1, 2, 3].map((n) => ({ s: 0, plus: 2.5 + (n - 1) * 2, fuda: SEN, shita: KASANE.kirokuNoHi, pic: kiri(`kiroku_${n}`, null, { waku: G[`kiroku_${n}`].marks.waku }, { obi: true, max: 99 }) })),
       // 3 行目も 2 秒見せてから（左右の比べは少し後ろへ）
-      { s: 1, ato: 2.0, fuda: SEN, pic: kiri('hidari_li', 'sensei_d1', { waku: G.hidari_li.marks.waku, wakuIro: '#9A9484', ue: KASANE.kimatta }, { fuchi: '#9A9484', obi: true, max: 99 }) },
-      { s: 1, plus: 1.5, ato: 2.5, fuda: SEN, pic: kiri('migi_tsugi', 'sensei_d1', { waku: G.migi_tsugi.marks.waku, ue: KASANE.claude }, { obi: true, max: 99 }) },
+      { s: 1, ato: 2.0, fuda: SEN, pic: kiri('hidari_li', 'sensei_d1', { waku: G.hidari_li.marks.waku, wakuIro: '#9A9484', ue: KASANE.kimatta, ueHidari: true }, { fuchi: '#9A9484', obi: true, max: 99 }) },
+      { s: 1, plus: 1.5, ato: 2.5, fuda: SEN, pic: kiri('migi_tsugi', 'sensei_d1', { waku: G.migi_tsugi.marks.waku, ue: KASANE.claude, ueHidari: true }, { obi: true, max: 99 }) },
       { s: 2, fuda: SEN, pic: zen('sensei_d1') },
       // 27便 Y3：「本人にも、周りにも見える」は 2-up：左＝仮説の箱（灰の枠）｜右＝カード（高さ 60%）
       { s: 2, at: '本人にも、', pic: { k: 'narabe', items: [{ label: KASANE.mieru[0], g: g('d1_kasetsu_semai'), fuchi: '#9A9484' }, { label: KASANE.mieru[1], g: g('card_d1_semai') }] } },
