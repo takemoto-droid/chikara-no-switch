@@ -1,6 +1,6 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方（②見つける＝game.js、⑥育てる＝sodateru.js）
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
-import { getRecord, getKid, owattaKai, newKai, isDemo, namaeOf, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
+import { getRecord, getKid, owattaKai, newKai, isDemo, namaeOf, isOtona, isTaiken, newTaiken, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
 import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei, bamenNoGamen, gameWoHanareru } from './game.js';
@@ -71,6 +71,7 @@ async function top() {
     <h1>チカラのスイッチ</h1>
     <p>同じ問題を、出し方（読む・聞く・図で見る・一文ずつ区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
     <div class="entrance">
+      <a href="#/hajimeru/taiken"><div class="box"><strong>短い体験（審査員の方へ）</strong><br><span class="muted">数分で、ゲームから先生の画面までを通して見られます。結果は本物の測定ではありません。</span></div></a>
       <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子の結果を、先生の画面で見ます。1回だけの子（差が出た子・差が出なかった子）と、3回分の記録がある子がいます。</span></div></a>
       <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②見つける（HR のゲーム）→ ③カード → ④先生の画面 → ⑤伝え方 → ⑥育てる（朝の練習）→ ⑦また見つける、を順に動かします。公開デモでは、AI を呼べる回数に上限があります。上限に達したときは、決まった順・決まった文で最後まで動きます。</span></div></a>
       ${should.otona?.使う ? '<a href="#/annai/otona"><div class="box"><strong>大人が自分で試す</strong><br><span class="muted">中学生向けのゲームを、大人の方も自分で試せます。結果は自分にだけ出ます。</span></div></a>' : ''}
@@ -116,6 +117,8 @@ function annaiKo(gamen, i = 0) {
 }
 
 async function hajimeru(dare_) {
+  // 36便：短い体験（6つの問題だけ・Claude を呼ばない）
+  if (dare_ === 'taiken') { location.replace(`#/game/${enc(newTaiken())}`); return; }
   const id = newKid(dare_ === 'otona' ? '大人' : 'その場');
   location.replace(`#/game/${enc(id)}`);
 }
@@ -132,7 +135,7 @@ async function card(id) {
   }
   const cards = await data('cards');
   const { cards: motte, atarashii, agatta } = motteiruCards(kai);
-  const tsugiNoKai = !isDemo(id) && rec.owari;
+  const tsugiNoKai = !isDemo(id) && !isTaiken(id) && rec.owari;
   const hyouji = (m) => cardHtml(cardNoBun(cards.カード[m.card], m.kurikaeshi), {
     atarashii: kai.length > 1 && atarashii.includes(m.card),
     susunda: agatta.includes(m.card),
@@ -155,11 +158,11 @@ async function card(id) {
     ${ushiro.length ? `<h2>持っているカード</h2>${ushiro.map(hyouji).join('')}` : ''}
     ${sodate.length ? `<h2>育てているカード</h2>${sodate.map(sodateHyouji).join('')}` : ''}
     ${rec.owari ? '' : `<div class="box soft"><a class="btn sub" href="#/game/${enc(id)}">つづきから</a></div>`}
-    <div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 朝の練習へ</a></div>
+    ${isTaiken(id) ? `<div class="btns"><a class="btn" href="#/sensei/ko/${enc(id)}">先生が見る画面へ</a></div>` : `<div class="btns"><a class="btn" href="#/sodateru/${enc(id)}">⑥ 朝の練習へ</a></div>`}
     ${tsugiNoKai ? `<details class="box soft" id="mata-waku"><summary>⑦ また見つける</summary><p>別の日に、短いゲーム（10分ほど）を もう一度します。前のゲームと あわせて 比べます。もらったカードは、なくならないよ。</p><button class="sub" id="tsugi-kai">はじめる</button></details>` : ''}
     ${renshu.length ? `<details class="box"><summary>練習の記録</summary><p class="muted small">あなたの記録です。この端末の中にだけ残します。</p>${renshuKirokuHtml(renshu)}</details>` : ''}
     <details class="box soudan"><summary>困ったとき</summary>${isOtona(id) ? soudanHtml(true) : soudanHtml(false, 'ko')}</details>
-    <p class="small"><a href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果（先生の画面と同じもの）' : '先生が見る画面へ'}</a></p>`;
+    ${isTaiken(id) ? '' : `<p class="small"><a href="#/sensei/ko/${enc(id)}">${isOtona(id) ? 'くわしい結果（先生の画面と同じもの）' : '先生が見る画面へ'}</a></p>`}`;
   const b = document.getElementById('tsugi-kai');
   if (b) b.onclick = () => { if (newKai(id, 'mijikai')) location.hash = `#/game/${enc(id)}`; };
 }
@@ -389,6 +392,7 @@ async function senseiKo(id) {
   const namae = await namaeOf(id);
   app.innerHTML = `
     <h1>${esc(namae)}${isDemo(id) ? '（架空の子）' : ''}</h1>
+    ${isTaiken(id) ? '<p class="box chui small">短い体験の結果です（6つの問題だけ）。本物の測定ではありません。1回や2回で決めつけないので、ここでは候補を言い切りません。</p>' : ''}
     ${saishin.owari ? '' : `<div class="box chui">${esc(saishin.kai)}回目のゲームの途中です。<a href="#/game/${enc(id)}">続きから始める</a></div>`}
     <p class="muted small">終わったゲーム：${kai.length}回${kai.length ? `（${kai.map((r) => `${r.kai}回目 ${esc(r.hi || '日付なし')}`).join('・')}）` : ''}</p>
 
@@ -480,6 +484,8 @@ async function senseiKo(id) {
   };
   const key = motoNoKey({ kai, renshu: kidRenshu, atehamaru: ids, settei: keikakuNoSettei(await gakkoSettei()) });
   const yobidasu = async (force) => {
+    // 36便：短い体験では Claude を呼ばない（6つの問題だけでは、仮説の下書きは出さない）
+    if (isTaiken(id)) { box.innerHTML = '<p>短い体験なので、仮説の下書きは出しません。本番のゲーム（約22組）が終わると、Claude が仮説の下書きを書きます。</p>'; return; }
     const cached = !force && claudeNoOboe(id, 'kasetsu', key);
     if (cached) { draw(cached); return; }
     // 11便：デモの子は、チェック項目がはじめのままなら、保存した本物の文を出す（呼ばない）
@@ -570,6 +576,8 @@ async function tsutae(id) {
     };
   };
   const yobidasu = async (force) => {
+    // 36便：短い体験では Claude を呼ばない
+    if (isTaiken(id)) { box.innerHTML = '<p>短い体験なので、伝え方の下書きは出しません。本番のゲームが終わると、Claude が下書きを書きます。</p>'; return; }
     const cached = !force && claudeNoOboe(id, 'tsutae', key);
     if (cached) { draw(cached); return; }
     if (!force && isDemo(id) && JSON.stringify(ids) === JSON.stringify(await hajimeNoChecks(id))) {

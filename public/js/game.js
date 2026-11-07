@@ -1,6 +1,6 @@
 // ② ゲーム。Claude が次の問題を選び、その理由を画面に出す。途中で止めて、続きから始められる。
 import { esc, api, data, okuruKiroku, whoLabel } from './util.js';
-import { getRecord, saveRecord, isDemo, namaeOf } from './kiroku.js';
+import { getRecord, saveRecord, isDemo, namaeOf, isTaiken } from './kiroku.js';
 import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA, zenbuOf, dankaiWoSusumeru } from './kurabe.js';
 import { junbiYomiage, yomu, tomeru, koeNoNamae } from './yomiage.js';
 import { bamenZu } from './zu.js';
@@ -73,7 +73,7 @@ export async function gameScreen(el, id) {
   const tsugi = async () => {
     if (yameta || kono !== imaNoGame) return;
     if (owatta(rec)) { owariGamen(); return; }
-    if (rec.shurui !== 'mijikai' && settei.HRの長さ >= 45 && !rec.yasunda && Object.keys(rec.kekka).length >= Math.floor(zenbuOf(rec) / 2)) {
+    if (rec.shurui !== 'mijikai' && rec.shurui !== 'taiken' && settei.HRの長さ >= 45 && !rec.yasunda && Object.keys(rec.kekka).length >= Math.floor(zenbuOf(rec) / 2)) {
       rec.yasunda = true;
       saveRecord(rec);
       if (!(await yasumiGamen())) return;
@@ -88,10 +88,14 @@ export async function gameScreen(el, id) {
       matsu = setTimeout(() => { if (!el.querySelector('#junbi')) mae.insertAdjacentHTML('afterbegin', '<p class="junbi" id="junbi" aria-live="polite">次を 準備しています…</p>'); }, 2000);
     }
     let r;
-    try {
-      r = await api('tsugi', { record: okuruKiroku(rec) }, 15000);
-    } catch {
-      r = null;
+    // 36便：短い体験では Claude を呼ばない（決まった順で出す。公開デモの呼べる回数を使わない）
+    if (rec.shurui === 'taiken' || isTaiken(rec.id)) r = null;
+    else {
+      try {
+        r = await api('tsugi', { record: okuruKiroku(rec) }, 15000);
+      } catch {
+        r = null;
+      }
     }
     clearTimeout(matsu);
     if (yameta || kono !== imaNoGame) return;

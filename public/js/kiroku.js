@@ -91,6 +91,11 @@ export function isOtona(id) {
   return String(id).startsWith('大人');
 }
 
+// 36便：審査員向けの短い体験の記録（id は「体験」から始まる）
+export function isTaiken(id) {
+  return String(id).startsWith('体験');
+}
+
 export function isDemo(id) {
   return String(id).startsWith('デモ');
 }
@@ -112,6 +117,19 @@ export function newKid(atama = 'その場') {
   st.seq += 1;
   const id = `${atama}${st.seq}`;
   st.kids[id] = { id, kai: [atarashiiKai(id, 1)] };
+  save(st);
+  return id;
+}
+
+// 36便：短い体験を始める。段階は「ふつう」（2）で固定・切りかえなし。本物の測定の代わりにはしない
+export function newTaiken() {
+  const st = load();
+  st.seq += 1;
+  const id = `体験${st.seq}`;
+  const r = atarashiiKai(id, 1);
+  r.shurui = 'taiken';
+  r.dankai = { A: { dankai: 2 }, B: { dankai: 2 }, C: { dankai: 2 }, erabikata: '短い体験（ふつうの段階で固定）' };
+  st.kids[id] = { id, kai: [r] };
   save(st);
   return id;
 }
@@ -152,7 +170,8 @@ export function localKids() {
 export async function classList() {
   const d = await demo();
   // 大人が試した記録は、クラスのチェック項目には出さない
-  return [...d.クラス, ...localKids().filter((k) => !isOtona(k.id)).map((k) => ({ id: k.id, 呼び名: `${k.id}（この端末で動かした子）` }))];
+  // 36便：短い体験の記録も、クラスのチェック項目と計画には出さない
+  return [...d.クラス, ...localKids().filter((k) => !isOtona(k.id) && !isTaiken(k.id)).map((k) => ({ id: k.id, 呼び名: `${k.id}（この端末で動かした子）` }))];
 }
 
 // チェック項目の印（項目 id → 当てはまる子の id の並び）

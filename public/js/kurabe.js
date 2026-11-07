@@ -84,17 +84,19 @@ function tanaNoSteps(kind, j, dankai) {
 }
 
 // shurui：'hr'（② 見つける）／'mijikai'（⑦ また見つける：練習と質問なし・3つの組だけ）
+// 36便：'taiken'（審査員向けの短い体験）：練習と質問なし。棚 A・B・C の 1組目の2つずつ（A-1・A-2 など）だけ・6つ
 export function makeSteps(j, dankai = null, shurui = 'hr') {
-  const hr = shurui !== 'mijikai';
+  const hr = shurui !== 'mijikai' && shurui !== 'taiken';
+  const tana = (k) => (shurui === 'taiken' ? tanaNoSteps(k, j, dankai).slice(0, 2) : tanaNoSteps(k, j, dankai));
   const hoka = j.A.saisho === 'yomu' ? 'kiku' : 'yomu';
   return [
     ...(hr ? [
       { id: 'A-r1', kind: 'A', mode: j.A.saisho, mondai: 'A0a', renshu: true, dankai: 2 },
       { id: 'A-r2', kind: 'A', mode: hoka, mondai: 'A0b', renshu: true, dankai: 2 },
     ] : []),
-    ...tanaNoSteps('A', j, dankai),
-    ...tanaNoSteps('B', j, dankai),
-    ...tanaNoSteps('C', j, dankai),
+    ...tana('A'),
+    ...tana('B'),
+    ...tana('C'),
     ...(hr ? D_IDS.map((id) => ({ id, kind: 'D', mondai: id })) : []),
   ];
 }
@@ -113,6 +115,8 @@ export function zenbuOf(record) {
 
 // 練習が終わったら段階を選ぶ。組の1つ目が終わったら、切りかえを見る。変えたことを返す（先生の画面と理由に使う）
 export function dankaiWoSusumeru(record) {
+  // 36便：短い体験は、段階を「ふつう」（2）で固定し、切りかえない
+  if (record.shurui === 'taiken') return [];
   const henka = [];
   const k = record.kekka || {};
   if (!record.dankai && (record.shurui === 'mijikai' || RENSHU.every((id) => k[id]))) {
@@ -155,7 +159,7 @@ export function kouho(record) {
     if (head) heads.push(head.id);
   }
   // 練習が終わるまでは練習だけ
-  if (record.shurui !== 'mijikai' && RENSHU.some((id) => !done[id])) return heads.filter((id) => id.startsWith('A-r'));
+  if (record.shurui !== 'mijikai' && record.shurui !== 'taiken' && RENSHU.some((id) => !done[id])) return heads.filter((id) => id.startsWith('A-r'));
   return heads;
 }
 

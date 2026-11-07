@@ -1195,4 +1195,26 @@ await ok('21便 U2：「〇日目」は今日を含めて練習した日数。�
   }
 });
 
+// ---- 36便
+await ok('36便：短い体験は、棚 A・B・C の 1組目の2つずつ（6つ）だけ。練習・質問なし・段階は 2 で固定・切りかえなし・候補を言い切らない。本番の並びは変わらない', async () => {
+  const k = await import('../public/js/kurabe.js');
+  const j = k.makeJunban('体験-1');
+  const dankai = { A: { dankai: 2 }, B: { dankai: 2 }, C: { dankai: 2 } };
+  const st = k.makeSteps(j, dankai, 'taiken');
+  assert.deepEqual(st.map((x) => x.id), ['A-1', 'A-2', 'B-1', 'B-2', 'C-1', 'C-2']);
+  assert.ok(st.every((x) => x.dankai === 2 && !x.renshu && x.kind !== 'D'));
+  // 本番（22組）と「また見つける」（12組）は、前と同じ
+  assert.equal(k.makeSteps(j, dankai, 'hr').length, 22);
+  assert.equal(k.makeSteps(j, dankai, 'mijikai').length, 12);
+  // 全部 0 問正解でも段階を変えない。最初に出せるのは A・B・C の頭（練習を待たない）
+  const rec = { id: '体験9', shurui: 'taiken', junban: j, dankai: JSON.parse(JSON.stringify(dankai)), kekka: {} };
+  assert.deepEqual(k.kouho(rec).sort(), ['A-1', 'B-1', 'C-1']);
+  for (const x of st) rec.kekka[x.id] = { seikai: 0, kazu: x.kind === 'B' ? 2 : 4 };
+  assert.deepEqual(k.dankaiWoSusumeru(rec), []);
+  assert.ok(!['A', 'B', 'C'].some((t) => rec.dankai[t].kirikae));
+  assert.ok(k.owatta(rec));
+  // 2つだけでは、どの棚も候補を言い切らない（まだ比べていない）
+  for (const t of ['A', 'B', 'C']) assert.ok(!['kiku', 'yomu', 'zu', 'bun', 'ikki', 'kugiri'].includes(k.matome(rec, t).kekka), t);
+});
+
 console.log(`\n${n} 件の確かめが通りました。`);
