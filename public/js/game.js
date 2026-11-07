@@ -1,6 +1,6 @@
 // ② ゲーム。Claude が次の問題を選び、その理由を画面に出す。途中で止めて、続きから始められる。
 import { esc, api, data, okuruKiroku, whoLabel } from './util.js';
-import { getRecord, saveRecord, isDemo } from './kiroku.js';
+import { getRecord, saveRecord, isDemo, namaeOf } from './kiroku.js';
 import { kouho, owatta, yobiNext, yobiRiyuu, stepOf, DASHIKATA, zenbuOf, dankaiWoSusumeru } from './kurabe.js';
 import { junbiYomiage, yomu, tomeru, koeNoNamae } from './yomiage.js';
 import { bamenZu } from './zu.js';
@@ -20,7 +20,7 @@ export async function gameScreen(el, id) {
     return;
   }
   if (isDemo(id)) {
-    el.innerHTML = `<h1>${esc(id)} の結果は保存してあります</h1><p>架空の子の、保存した結果です。</p><div class="btns"><a class="btn" href="#/card/${encodeURIComponent(id)}">スイッチカードを見る</a></div>`;
+    el.innerHTML = `<h1>${esc(await namaeOf(id))} の結果は保存してあります</h1><p>架空の子の、保存した結果です。</p><div class="btns"><a class="btn" href="#/card/${encodeURIComponent(id)}">スイッチカードを見る</a></div>`;
     return;
   }
   const yomiageOK = await junbiYomiage();

@@ -95,6 +95,13 @@ export function isDemo(id) {
   return String(id).startsWith('デモ');
 }
 
+// 30便：画面に出す名前。架空の子は demo.json の「名前」（名字＋名前・すべて架空）。中の id（デモ1 など）は変えない。Claude には送らない
+export async function namaeOf(id) {
+  if (!isDemo(id)) return id;
+  const k = (await demo()).クラス.find((x) => x.id === id);
+  return k?.名前 || id;
+}
+
 function atarashiiKai(id, n) {
   return { id, kai: n, hi: hiduke(), junban: makeJunban(`${id}-${n}-${Date.now()}`), kekka: {}, erabi: [], owari: false, hajime: Date.now() };
 }

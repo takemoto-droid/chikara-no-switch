@@ -1,6 +1,6 @@
 // 画面の切りかえと、①案内・③カード・④先生の画面・⑤伝え方（②見つける＝game.js、⑥育てる＝sodateru.js）
 import { esc, api, data, okuruKiroku, whoLabel, MICHI } from './util.js';
-import { getRecord, getKid, owattaKai, newKai, isDemo, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
+import { getRecord, getKid, owattaKai, newKai, isDemo, namaeOf, isOtona, newKid, localKids, classList, checkMarks, toggleMark, atehamaruIds, claudeNoOboe, claudeWoOboeru, motoNoKey, demo, hiduke } from './kiroku.js';
 import { hikitsugiNoBun } from './hikitsugi.js';
 import { setteiWoIreru, matome, matomeKai, maeTonoChigai, erabuCardKai, motteiruCards, cardNoBun, cardNoFukudai, levelNoNamae, imaNoNamae, LEVEL_JOUGEN, kotaeD, DASHIKATA, TANA_MEI, mieruKoumoku } from './kurabe.js';
 import { gameScreen, setSettei, bamenNoGamen, gameWoHanareru } from './game.js';
@@ -216,6 +216,7 @@ async function senseiHub() {
     <h1>先生の画面</h1>
     <p>結果は、その子の中で出し方ごとに比べたものです。他の子とは比べません。</p>
     <h2>保存した結果（架空の子）</h2>
+    <p class="muted small">名前も結果も、すべて架空です。実在の子のデータではありません。</p>
     ${Object.keys(d.結果).map((id) => `<p><a href="#/sensei/ko/${enc(id)}">${esc(d.クラス.find((k) => k.id === id).呼び名)}</a></p>`).join('')}
     <h2>この端末で動かした子</h2>
     ${local.length ? local.map((k) => `<p><a href="#/sensei/ko/${enc(k.id)}">${esc(k.id)}</a>（${k.kaisu}回${k.owari ? '' : '・ゲームの途中'}）</p>`).join('') : '<p class="muted">まだありません。</p>'}
@@ -385,8 +386,9 @@ async function senseiKo(id) {
     else bun = `${kai.length > 1 ? `${esc(rec.kai)}回目だけの` : 'この日の'}候補「${esc(DASHIKATA[m.kekka])}」`;
     return `<li>${esc(TANA_MEI[k])}：${bun}</li>`;
   }).join('');
+  const namae = await namaeOf(id);
   app.innerHTML = `
-    <h1>${esc(id)}${isDemo(id) ? '（架空の子）' : ''}</h1>
+    <h1>${esc(namae)}${isDemo(id) ? '（架空の子）' : ''}</h1>
     ${saishin.owari ? '' : `<div class="box chui">${esc(saishin.kai)}回目のゲームの途中です。<a href="#/game/${enc(id)}">続きから始める</a></div>`}
     <p class="muted small">終わったゲーム：${kai.length}回${kai.length ? `（${kai.map((r) => `${r.kai}回目 ${esc(r.hi || '日付なし')}`).join('・')}）` : ''}</p>
 
@@ -511,9 +513,9 @@ async function check() {
     <div id="items">${mieruKoumoku(checklist).map((it, i, arr) => `
       ${it.まとまり && it.まとまり !== arr[i - 1]?.まとまり ? `<h2>${esc(it.まとまり)}</h2>` : ''}
       <div class="check-item"><div>${esc(it.文)}</div>
-        <div class="chips">${kids.map((k) => `<button class="chip" data-item="${it.id}" data-kid="${esc(k.id)}" aria-pressed="${(marks[it.id] || []).includes(k.id)}">${esc(k.id)}</button>`).join('')}</div>
+        <div class="chips">${kids.map((k) => `<button class="chip" data-item="${it.id}" data-kid="${esc(k.id)}" aria-pressed="${(marks[it.id] || []).includes(k.id)}">${esc(k.名前 || k.id)}</button>`).join('')}</div>
       </div>`).join('')}</div>
-    <p class="muted small">子の名前の代わりに、架空の呼び名を出しています。</p>
+    <p class="muted small">名前はすべて架空です。</p>
     <div class="btns"><a class="btn sub" href="#/sensei">先生の画面へもどる</a></div>`;
   app.querySelectorAll('.chip').forEach((b) => {
     b.onclick = async () => {
@@ -531,7 +533,7 @@ async function tsutae(id) {
   if (!kai.length) { app.innerHTML = '<h1>伝え方</h1><p>ゲームが終わると、下書きが出ます。</p>'; return; }
   const rec = kai[kai.length - 1];
   const ids = await atehamaruIds(id);
-  app.innerHTML = `<h1>伝え方の下書き（${esc(id)}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>`;
+  app.innerHTML = `<h1>伝え方の下書き（${esc(await namaeOf(id))}）</h1><div id="tsutae" aria-live="polite">Claude が下書きを書いています…</div>`;
   const box = document.getElementById('tsutae');
   const key = motoNoKey({ kai, renshu: (await getKid(id))?.renshu || [], atehamaru: ids, settei: keikakuNoSettei(await gakkoSettei()) });
   const cardsData = await data('cards');

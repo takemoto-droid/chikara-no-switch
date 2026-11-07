@@ -330,11 +330,32 @@ async function gamenWoUtsusu() {
     G[name] = { file, w: Math.round(clip.width * DSF), h: Math.round(clip.height * DSF), marks: m, moji: o.moji || null };
   };
   const zen = async (page, name, marks = {}) => {
+    // 30便：全画面の写しは、ページの上端から（スクロールの途中で字やボタンが切れないように）
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.waitForTimeout(500);
     const s = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
     const v = page.viewportSize();
     if (v.width > HIROI.w) throw new Error(`${name}：${v.width} 幅で写そうとしました（27便：1280 幅で写す画面は無い）`);
-    await shashin(page, name, { x: s.x, y: s.y, width: v.width, height: v.height }, marks);
+    // 30便：板の下端で字の行・ボタン・枠が切れないよう、どの要素もまたがない高さで切る（画面の 85% より下で最初の切れ目。
+    // 大きな箱がまたぐときは、その下まで 1.8 倍までのばす。無ければ画面の中で最後の切れ目）
+    const takasa = await page.evaluate((vh) => {
+      // 見えるものを描く要素だけ（自分の字・絵・ボタン・入力欄・枠や地の色）。中身を包むだけの入れ物は数えない
+      const mieru = (el) => {
+        if (/^(IMG|SVG|BUTTON|INPUT|TEXTAREA|SELECT)$/i.test(el.tagName)) return true;
+        if ([...el.childNodes].some((n) => n.nodeType === 3 && n.textContent.trim())) return true;
+        const cs = getComputedStyle(el);
+        return parseFloat(cs.borderTopWidth) > 0 || parseFloat(cs.borderBottomWidth) > 0 || (cs.backgroundColor !== 'rgba(0, 0, 0, 0)' && cs.backgroundColor !== 'transparent');
+      };
+      const els = [...document.body.querySelectorAll('*')].filter((el) => el.offsetParent !== null || el.tagName === 'svg').filter(mieru).map((el) => el.getBoundingClientRect()).filter((b) => b.width > 0 && b.height > 0 && b.height < vh * 1.5 && b.width < window.innerWidth - 2);
+      const matagu = (y) => els.some((b) => b.top < y - 1 && b.bottom > y + 1);
+      const ys = [...new Set(els.map((b) => Math.ceil(b.bottom + 10)))].sort((a, b) => a - b);
+      const doc = document.documentElement.scrollHeight;
+      const shita = ys.find((y) => y >= vh * 0.85 && y <= Math.min(vh * 1.8, doc) && !matagu(y));
+      if (shita) return shita;
+      const ue = ys.filter((y) => y <= vh && !matagu(y)).pop();
+      return ue || vh;
+    }, v.height);
+    await shashin(page, name, { x: s.x, y: s.y, width: v.width, height: takasa }, marks);
   };
   // pad：まわりの余白（数か { ue, shita, yoko }）。上下は、となりの札や行がはみ出して映らないよう小さくできる
   const clipOf = async (page, rect, pad = 14) => {
@@ -373,7 +394,7 @@ async function gamenWoUtsusu() {
     await zen(page, 'home');
     // 承-6：はじめの画面の題名と 1 行目の説明
     const dai = await page.evaluate(() => { const h = document.querySelector('main h1, #app h1'); const p = h.nextElementSibling; return [window.__shikaku(h), window.__shikaku(p)]; });
-    await kiru(page, 'home_dai', union(dai), {}, 16, { moji: await mojiNoOokisa(page, 'main h1, #app h1') });
+    await kiru(page, 'home_dai', union(dai), {}, { ue: 16, shita: 6, yoko: 16 }, { moji: await mojiNoOokisa(page, 'main h1, #app h1') });
     await page.click('a[href="#/annai/ko"] >> nth=0');
     await page.waitForSelector('.annai-ichibun');
     while (await vis(page, '#annai-tsugi')) await page.click('#annai-tsugi');
@@ -393,7 +414,8 @@ async function gamenWoUtsusu() {
       // 聞く版は本文が無いので、「次は 👂 聞く」と「▶ 聞く」のボタンに寄る（27便 Y5：空に見えないように）
       // 28便：読む版は本文の箱だけ（900×700 の箱で本文を 36px 以上に。上の見出しが「📖 読む」）
       const gameNoBasho = async (mode) => (mode === 'yomu' ? shikaku(page, '#mondai .honbun') : union([await shikaku(page, '#riyuu'), await shikaku(page, mode === 'kiku' ? '#mondai .btns' : '#mondai')]));
-      const gameKiru = async (name, mode) => kiru(page, name, await gameNoBasho(mode), {}, mode === 'yomu' ? { ue: 6, shita: 4 } : { ue: 6 }, { moji: await mojiNoOokisa(page, mode === 'kiku' ? '#riyuu' : '#mondai .honbun, #mondai .toi, #mondai') });
+      // 30便：2-up の切り出しは左右の余白なし（840 幅の列で字を大きく）
+      const gameKiru = async (name, mode) => kiru(page, name, await gameNoBasho(mode), {}, mode === 'yomu' ? { ue: 6, shita: 4, yoko: 0 } : { ue: 6, shita: 14, yoko: 0 }, { moji: await mojiNoOokisa(page, mode === 'kiku' ? '#riyuu' : '#mondai .honbun, #mondai .toi, #mondai') });
       const A = { yomu: {}, kiku: {} };
       let dTsugi = false;
       const KO_MAX = 8; // 子ごとにゲームの順が入れかわるので、同じ文章の読む版と聞く版がそろうまで、架空の子を足して通す
@@ -434,7 +456,7 @@ async function gamenWoUtsusu() {
                   await yoi(page);
                   const zr = await page.locator('#mondai .bamen-zu').first().evaluate((el) => { const c = el.parentElement; const rs = [window.__shikaku(el)]; for (const x of c.children) if (x !== el && x.getBoundingClientRect().bottom <= el.getBoundingClientRect().top + 2) rs.push(window.__shikaku(x)); return rs; });
                   const zm = await page.locator('#mondai .bamen-zu text').first().evaluate((el) => el.getBoundingClientRect().height);
-                  await kiru(page, 'zu', union(zr), {}, 10, { moji: zm });
+                  await kiru(page, 'zu', union(zr), {}, { ue: 10, shita: 10, yoko: 0 }, { moji: zm });
                   await page.setViewportSize({ width: SEMAI.w, height: SEMAI.h }); await page.waitForTimeout(200);
                 } else await gameKiru(st.mode, st.mode);
               }
@@ -527,14 +549,14 @@ async function gamenWoUtsusu() {
       const pc = await atarashii(SEMAI);
       await pc.goto(`${BASE}#/card/${encodeURIComponent('デモ1')}`);
       await pc.waitForSelector('.switch-card');
-      await kiru(pc, 'card_d1_semai', await shikaku(pc, '.switch-card'), { hitokoto: await moji(pc, '.switch-card', '聞いて 考えると、力が 出せるかも'), betsu: await moji(pc, '.switch-card', '別の日は 違うかも。') }, 10, { moji: await mojiNoOokisa(pc, '.switch-card .hitokoto') });
+      await kiru(pc, 'card_d1_semai', await shikaku(pc, '.switch-card'), { hitokoto: await moji(pc, '.switch-card', '聞いて 考えると、力が 出せるかも'), betsu: await moji(pc, '.switch-card', '別の日は 違うかも。') }, { ue: 10, shita: 10, yoko: 0 }, { moji: await mojiNoOokisa(pc, '.switch-card .hitokoto') });
       // 深さ-3 の左：仮説の 1 文も 480 幅の画面から（2 行に折り返し、字を大きく）
       await pc.goto(`${BASE}#/sensei/ko/${encodeURIComponent('デモ1')}`);
       await pc.waitForSelector('#kasetsu .label.ai');
       await yoi(pc);
       const km = await pc.locator('#kasetsu > :nth-child(2)').first().evaluate((el) => window.__moji(el, el.textContent.trim()));
       await moji(pc, '#kasetsu > :nth-child(2)', '耳で聞いて答えるとき、力が出ているかも。');
-      await kiru(pc, 'd1_kasetsu_semai', union(km), {}, 16, { moji: await mojiNoOokisa(pc, '#kasetsu > :nth-child(2)') });
+      await kiru(pc, 'd1_kasetsu_semai', union(km), {}, { ue: 12, shita: 12, yoko: 4 }, { moji: await mojiNoOokisa(pc, '#kasetsu > :nth-child(2)') });
       await pc.context().close();
     }
 
@@ -632,12 +654,13 @@ async function gamenWoUtsusu() {
       const rs = [];
       let n = h.nextElementSibling;
       const t = [];
-      while (n && n.tagName === 'P' && n.querySelector('a[href^="#/sensei/ko/"]')) { rs.push(window.__shikaku(n)); t.push(n.textContent.trim()); n = n.nextElementSibling; }
+      // 30便：見出しの下の注釈（名前も結果も架空）は飛ばす
+      while (n && n.tagName === 'P') { if (n.querySelector('a[href^="#/sensei/ko/"]')) { rs.push(window.__shikaku(n)); t.push(n.textContent.trim()); } n = n.nextElementSibling; }
       return { rs, t, moji: parseFloat(getComputedStyle(h.nextElementSibling).fontSize) };
     });
     if (ichiran.t.length !== 8 || !ichiran.t.some((x) => x.includes('差が出なかった子'))) throw new Error(`保存した結果の一覧が 8 行ではありません：${ichiran.t.join('／')}`);
     // 8 行だけ（見出しは入れない）。字の幅で切る（行は横いっぱいに広がるため）
-    const ichiranMoji = await p2.evaluate(() => { const h = [...document.querySelectorAll('h2')].find((x) => x.textContent.includes('保存した結果（架空の子）')); const out = []; let n = h.nextElementSibling; while (n && n.tagName === 'P' && n.querySelector('a[href^="#/sensei/ko/"]')) { out.push(...window.__moji(n, n.textContent.trim())); n = n.nextElementSibling; } return out; });
+    const ichiranMoji = await p2.evaluate(() => { const h = [...document.querySelectorAll('h2')].find((x) => x.textContent.includes('保存した結果（架空の子）')); const out = []; let n = h.nextElementSibling; while (n && n.tagName === 'P') { if (n.querySelector('a[href^="#/sensei/ko/"]')) out.push(...window.__moji(n, n.textContent.trim())); n = n.nextElementSibling; } return out; });
     await kiru(p2, 'ichiran_8', union(ichiranMoji), {}, { ue: 6, shita: 6, yoko: 14 }, { moji: ichiran.moji });
     G.ichiranGyou = ichiran.t;
 
@@ -723,195 +746,157 @@ async function gamenWoUtsusu() {
 }
 
 // ---- 3. 一コマずつ組む（Playwright で 1920×1080 の HTML を写す）
-// 画面の枠 P。札の行は枠の上（上端から 18px）。
-// 27便 Y1：枠の下に、字幕・小の帯（暗い地・2 行まで）、その下に字幕の帯。どちらもアプリの枠に重ねない
-const P = { x: 198, y: 86, w: 1524, h: 793 };
-const CHUUI_UE = P.y + P.h + 6; // 字幕・小の帯の上端
-const CHUUI_TAKASA = 85; // 28px・行の高さ 1.3・2 行＋上下 6px
-const OBI = 1080 - 8 - 96; // 字幕の帯の上端（1 行の帯の高さ 96）
+// 30便：見た目の決まり（資料 37 第3版）。地は全編 #E4E8EC。グリッドは左右 80px・見出し y=36・中身 y=104〜862・注意書き y=876・字幕 y=944。
+// アプリの写しは「白い板が浮いている」形だけ（角丸 14・影・髪の毛ほどの線）。帯・二重の枠・暗くした後ろの画面は使わない
+const JI = '#E4E8EC';
+const C = { x: 80, y: 104, w: 1760, h: 758 }; // 中身の領域
+const CI = { x: 80, y: 114, w: 1760, h: 738 }; // 板を置く領域（ゆっくり 1.03 倍に寄っても中身の領域から出ないよう、上下 10px 内側）
+const CHUUI_UE = 876; // 注意書き（1 行）の上端。2 行なら 862
+const OBI = 944; // 字幕の上端
+const IRO = { jimaku: '#161B21', midashi: '#1F2933', label: '#55606B', suuji: '#C46F10', shirushi: '#E08A1E', ao: '#2F6F8F', sen: '#A9B4BF', fudaJi: '#3E4A56', ten: '#C3CBD3' };
+const LABEL_H = 39; // ラベル 30px × 1.3
 const KUMI_HTML = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><style>
-html,body{margin:0;width:1920px;height:1080px;overflow:hidden;font-family:"BIZ UDPGothic","Noto Sans JP",sans-serif;}
-#f{position:absolute;inset:0;background:#1E2228;}
-#p{position:absolute;left:${P.x}px;top:${P.y}px;width:${P.w}px;height:${P.h}px;overflow:hidden;border-radius:6px;}
-#yori{position:absolute;inset:0;pointer-events:none;}
-#ue{position:absolute;left:${P.x}px;top:18px;height:58px;display:flex;align-items:center;gap:22px;}
-#fuda{height:58px;line-height:58px;padding:0 22px;border-radius:12px;background:#2E6F93;color:#fff;font-size:40px;font-weight:700;}
-#kukan{font-size:40px;font-weight:700;color:#F2EFE8;}
-#jimaku{position:absolute;left:${P.x}px;width:${P.w}px;top:${OBI}px;height:96px;box-sizing:border-box;padding:14px 24px;background:rgba(0,0,0,.75);color:#fff;font-size:52px;line-height:1.3;font-weight:700;text-align:center;text-shadow:0 2px 8px rgba(0,0,0,.9);}
-#shita{position:absolute;left:${P.x}px;width:${P.w}px;top:${P.y + P.h - 40}px;text-align:center;font-size:22px;color:#B8BDC4;}
-#chuui{position:absolute;left:40px;width:1840px;top:${CHUUI_UE}px;height:${CHUUI_TAKASA}px;box-sizing:border-box;padding:6px 20px;background:rgba(20,20,20,.92);color:#D8D3C7;font-size:28px;font-weight:400;line-height:1.3;text-align:center;border-radius:6px;display:flex;flex-direction:column;justify-content:center;}
-#chuui:empty{display:none;}
+html,body{margin:0;width:1920px;height:1080px;overflow:hidden;font-family:"BIZ UDPGothic",sans-serif;}
+#f{position:absolute;inset:0;background:${JI};}
+#naka{position:absolute;inset:0;transform-origin:${C.x + C.w / 2}px ${C.y + C.h / 2}px;}
+#ue{position:absolute;left:${C.x}px;top:36px;height:46px;display:flex;align-items:center;gap:18px;}
+#fuda{height:44px;line-height:41px;padding:0 20px;border-radius:999px;border:1.5px solid ${IRO.sen};color:${IRO.fudaJi};font-size:30px;box-sizing:border-box;}
+#kukan{font-size:36px;font-weight:700;color:${IRO.midashi};}
+#jimaku{position:absolute;left:${C.x}px;width:${C.w}px;top:${OBI}px;color:${IRO.jimaku};font-size:56px;line-height:1.2;font-weight:700;text-align:center;}
+#chuui{position:absolute;left:${C.x}px;width:${C.w}px;top:${CHUUI_UE}px;color:${IRO.label};font-size:30px;line-height:1.3;text-align:center;}
 #chuui > div{white-space:nowrap;}
-#hayaokuri{position:absolute;right:${1920 - P.x - P.w + 16}px;top:${P.y + 14}px;font-size:24px;color:#1E2228;background:#E9C46A;padding:4px 14px;border-radius:14px;font-weight:700;}
-#kakuu{position:absolute;right:${1920 - P.x - P.w + 20}px;top:${P.y + P.h - 46}px;font-size:22px;color:#6B6760;}
+#kakuu{position:absolute;right:${1920 - C.x - C.w}px;top:${C.y + C.h + 4}px;font-size:26px;color:${IRO.label};}
 #zenmen{position:absolute;inset:0;display:none;}
 .hide{display:none!important;}
-.waku-img{position:absolute;}
-.waku-img img{width:100%;height:100%;display:block;}
-.mk-waku{position:absolute;border:5px solid #F2A33A;border-radius:10px;}
-.mk-sen{position:absolute;height:8px;background:#F2A33A;border-radius:4px;}
-.fuda-k{position:absolute;font-size:44px;font-weight:700;background:#fff;color:#23262b;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.4);padding:18px 28px;white-space:nowrap;}
-.mk-tap{position:absolute;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:7px solid #F2A33A;background:rgba(242,163,58,.25);}
-.label-w{color:#fff;font-weight:700;}
-</style></head><body><div id="f"><div id="p"></div><div id="yori"></div><div id="ue"><div id="fuda"></div><div id="kukan"></div></div><div id="chuui"></div><div id="jimaku"></div><div id="shita"></div><div id="hayaokuri"></div><div id="kakuu"></div><div id="zenmen"></div></div>
+.ita{position:absolute;border-radius:14px;background:#fff;box-shadow:0 0 0 1px rgba(31,41,51,.12),0 18px 48px rgba(20,35,55,.22);}
+.ita > img{width:100%;height:100%;display:block;border-radius:14px;}
+.ita > .naiyou{position:absolute;left:0;top:0;transform-origin:0 0;}
+.mk-waku{position:absolute;border:4px solid ${IRO.shirushi};border-radius:10px;box-shadow:0 0 0 6px rgba(224,138,30,.18);box-sizing:border-box;}
+.mk-sen{position:absolute;height:8px;background:${IRO.shirushi};border-radius:4px;}
+.label{position:absolute;font-size:30px;line-height:1.3;color:${IRO.label};white-space:nowrap;}
+.fuda-k{position:absolute;font-size:44px;font-weight:700;background:${IRO.ao};color:#fff;border-radius:14px;box-shadow:0 10px 28px rgba(20,35,55,.2);padding:16px 28px;white-space:nowrap;line-height:1.3;}
+</style></head><body><div id="f"><div id="naka"></div><div id="ue"><div id="fuda"></div><div id="kukan"></div></div><div id="chuui"></div><div id="jimaku"></div><div id="kakuu"></div><div id="zenmen"></div></div>
 <script>
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 const nose = (el, s) => { el.textContent = s || ''; el.classList.toggle('hide', !s); };
-// 画像を box の中に置く。o.waku／o.sen／o.tap：画像の座標の四角。o.fuchi：寄りの縁の色。戻り値は倍率
-function gazou(parent, g, box, o = {}) {
-  const sc = Math.min(box.w / g.w, box.h / g.h, o.max || 99, o.takasa ? o.takasa / g.h : 99);
+const CI = ${JSON.stringify(CI)};
+const LABEL_H = ${LABEL_H};
+// 白い板を置く。box の中に contain（o.ueSoroe なら上揃え）。o.waku／o.sen：画像の座標の四角（印は 1 つまで）。戻り値は { sc, x, y, w, h }
+function ita(parent, g, box, o = {}) {
+  const sc = Math.min(box.w / g.w, box.h / g.h);
   const w = g.w * sc, h = g.h * sc;
+  const x = box.x + (box.w - w) / 2, y = o.ueSoroe ? box.y : box.y + (box.h - h) / 2;
   const d = document.createElement('div');
-  d.className = 'waku-img';
-  Object.assign(d.style, { left: box.x + (box.w - w) / 2 + 'px', top: (o.ueSoroe ? box.y : box.y + (box.h - h) / 2) + 'px', width: w + 'px', height: h + 'px' });
-  if (o.fuchi) Object.assign(d.style, { outline: '5px solid ' + o.fuchi, borderRadius: '8px', boxShadow: '0 14px 44px rgba(0,0,0,.6)' });
+  d.className = 'ita';
+  Object.assign(d.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
   const img = document.createElement('img');
   img.src = g.src;
-  if (o.fuchi) img.style.borderRadius = '8px';
   d.appendChild(img);
-  for (const r of (o.waku || [])) {
+  const waku = (o.waku || []).slice(0, 1), sen = o.waku && o.waku.length ? [] : (o.sen || []);
+  for (const r of waku) {
     const m = document.createElement('div'); m.className = 'mk-waku';
-    if (o.wakuIro) m.style.borderColor = o.wakuIro;
-    Object.assign(m.style, { left: r.x * sc - 10 + 'px', top: r.y * sc - 8 + 'px', width: r.w * sc + 20 - 10 + 'px', height: r.h * sc + 16 - 10 + 'px' });
+    Object.assign(m.style, { left: r.x * sc - 10 + 'px', top: r.y * sc - 8 + 'px', width: r.w * sc + 20 + 'px', height: r.h * sc + 16 + 'px' });
     d.appendChild(m);
   }
-  for (const r of (o.sen || [])) {
+  for (const r of sen) {
     const m = document.createElement('div'); m.className = 'mk-sen';
-    if (o.senIro) m.style.background = o.senIro;
-    Object.assign(m.style, { left: r.x * sc + 'px', top: (r.y + r.h) * sc - 1 + 'px', width: r.w * sc + 'px' });
+    Object.assign(m.style, { left: r.x * sc + 'px', top: (r.y + r.h) * sc + 2 + 'px', width: r.w * sc + 'px' });
     d.appendChild(m);
-  }
-  for (const r of (o.tap || [])) {
-    const m = document.createElement('div'); m.className = 'mk-tap';
-    Object.assign(m.style, { left: (r.x + r.w / 2) * sc + 'px', top: (r.y + r.h / 2) * sc + 'px' });
-    d.appendChild(m);
-  }
-  if (o.ue) {
-    const l = document.createElement('div');
-    l.className = 'label-w';
-    // 29便：ueHidari＝寄りの左端にそろえ、枠の上端の 12px 上に置く
-    if (o.ueHidari) Object.assign(l.style, { position: 'absolute', left: '0', whiteSpace: 'nowrap', bottom: 'calc(100% + 12px)', fontSize: '28px', lineHeight: '1.25', color: o.ueIro || '#fff' });
-    else Object.assign(l.style, { position: 'absolute', left: '-200px', right: '-200px', top: '-50px', textAlign: 'center', fontSize: '28px', color: o.ueIro || '#fff' });
-    l.textContent = o.ue;
-    d.appendChild(l);
   }
   parent.appendChild(d);
-  return img.decode().then(() => sc);
+  waits.push(img.decode());
+  return { sc, x, y, w, h };
 }
-function fit(el, max = 1.6) {
-  const w = el.scrollWidth, h = el.scrollHeight;
-  const sc = Math.min(${P.w} / w, ${P.h} / h, max);
-  Object.assign(el.style, { position: 'absolute', left: (${P.w} - w * sc) / 2 + 'px', top: (${P.h} - h * sc) / 2 + 'px', transform: 'scale(' + sc + ')', transformOrigin: '0 0' });
+function label(parent, text, x, y, w, align = 'center') {
+  const l = document.createElement('div'); l.className = 'label';
+  Object.assign(l.style, { left: x + 'px', top: y + 'px', width: w + 'px', textAlign: align });
+  l.textContent = text;
+  parent.appendChild(l);
 }
+let waits = [];
 window.kaku = async (s) => {
-  $('f').style.background = s.waku || '#1E2228';
+  waits = [];
   nose($('fuda'), s.fuda);
   nose($('kukan'), s.kukan);
+  $('ue').classList.toggle('hide', !s.fuda && !s.kukan);
   $('jimaku').innerHTML = (s.jimaku || []).map((l) => '<div>' + esc(l) + '</div>').join('');
-  $('jimaku').classList.toggle('hide', !(s.jimaku || []).length);
-  // 字幕・小：1 項目 1 行。3 項目以上は 2 行目に続けて並べる（2 行まで）
+  // 注意書き：1 項目 1 行。3 項目以上は 2 行目に続けて並べる（2 行まで）。2 行なら上へ
   const cl = s.chuui || [];
   const gyou = cl.length > 2 ? [cl[0], cl.slice(1).join('　')] : cl;
   $('chuui').innerHTML = gyou.map((l) => '<div>' + esc(l) + '</div>').join('');
-  nose($('hayaokuri'), s.hayaokuri);
-  nose($('shita'), s.shita);
+  $('chuui').style.top = (gyou.length > 1 ? ${CHUUI_UE - 10} : ${CHUUI_UE}) + 'px';
   nose($('kakuu'), s.kakuu);
-  const p = $('p'), yori = $('yori');
-  p.innerHTML = ''; yori.innerHTML = '';
-  p.style.background = 'transparent';
+  const naka = $('naka');
+  naka.innerHTML = '';
+  naka.style.transform = s.zoom ? 'scale(' + s.zoom + ')' : '';
   $('zenmen').style.display = 'none';
   const e = s.pic;
-  const all = { x: 0, y: 0, w: ${P.w}, h: ${P.h} };
-  // 27便 Y1：字幕・小は枠の外（枠の下）なので、寄りはずらさない
-  const chuuiH = 0;
   let sc = null;
-  const waits = [];
-  if (e.k === 'zen') waits.push(gazou(p, e.g, all, e.o));
-  if (e.k === 'kiri') {
-    // 29便：帯（obi）と転A のカード（abs）を出している間は、アプリの枠の中を区間の枠の色で塗る（元の画面を透かさない）
-    if (e.abs || e.obi) p.style.background = s.waku || '#1E2228';
-    else if (e.haikeiHtml) {
-      const d = document.createElement('div'); d.innerHTML = e.haikeiHtml; p.appendChild(d);
-      const dim = document.createElement('div');
-      Object.assign(dim.style, { position: 'absolute', inset: 0, background: 'rgba(14,15,18,.66)' });
-      p.appendChild(dim);
-    } else if (e.haikei) {
-      waits.push(gazou(p, e.haikei, all));
-      const dim = document.createElement('div');
-      Object.assign(dim.style, { position: 'absolute', inset: 0, background: 'rgba(14,15,18,.66)' });
-      p.appendChild(dim);
-    } else p.style.background = '#3A3F47';
-    const ueH = e.o && e.o.ue ? 60 : 0;
-    // 28便：abs＝画面の座標で高さと中心を決める（転A のカード）。obi＝1 枚の帯の箱（x 40〜1880・y 160〜760）に contain
-    const box = e.abs ? { x: e.abs.x, y: e.abs.cy - e.abs.h / 2, w: e.abs.h * e.g.w / e.g.h, h: e.abs.h }
-      : e.obi ? { x: 40, y: 160 + ueH, w: 1840, h: 600 - ueH }
-      : e.box ? { x: ${P.x} + e.box.x, y: ${P.y} + e.box.y + ueH, w: e.box.w, h: e.box.h - ueH }
-      : e.zenhaba
-      ? { x: 40, y: ${P.y} + 20 + ueH, w: 1840, h: ${P.h} - 40 - ueH - chuuiH }
-      : { x: ${P.x} + 50, y: ${P.y} + 26 + ueH, w: ${P.w} - 100, h: ${P.h} - 52 - ueH - chuuiH };
-    waits.push(gazou(yori, e.g, box, { ...e.o, max: e.max || 1.5, takasa: e.takasa, fuchi: e.fuchi || '#F2A33A' }).then((x) => { sc = x; }));
-    // 27便 Y5：転A-5 の工夫の札（右に 2 枚まで）
-    (e.fudaK || []).forEach((t, i) => {
-      const f = document.createElement('div'); f.className = 'fuda-k'; f.textContent = t;
-      Object.assign(f.style, { left: '1180px', top: ${P.y} + 230 + i * 150 + 'px' });
-      yori.appendChild(f);
-    });
+  if (e.k === 'ita') {
+    // 1 枚の板：板を置く領域に contain。上にラベル（30px）を置くときは、その分を空ける
+    const ueH = e.ue ? LABEL_H + 12 : 0;
+    const box = { x: CI.x, y: CI.y + ueH, w: CI.w, h: CI.h - ueH };
+    const sc0 = Math.min(box.w / e.g.w, box.h / e.g.h);
+    const gh = e.g.h * sc0 + ueH;
+    const r = ita(naka, e.g, { x: box.x, y: CI.y + (CI.h - gh) / 2 + ueH, w: box.w, h: e.g.h * sc0 }, e.o || {});
+    if (e.ue) label(naka, e.ue, e.ueHidari ? r.x : CI.x, r.y - LABEL_H - 12, e.ueHidari ? 1200 : CI.w, e.ueHidari ? 'left' : 'center');
+    sc = r.sc;
   }
-  if (e.k === 'narabe' && !e.mukashi) {
-    // 28便：2-up は左右の箱（x 60〜960・980〜1880、y 130〜830）に contain・上揃え。見出しは 32px・箱の上端の 12px 上。添え書きは絵の下に 32px
-    // 29便：後ろのアプリの枠は区間の枠の色で塗る
-    p.style.background = s.waku || '#1E2228';
-    const BOX = [{ x: 60, y: 130, w: 900, h: 700 }, { x: 980, y: 130, w: 900, h: 700 }];
+  if (e.k === 'narabe') {
+    // 2 枚：各列 幅 840・間 80・高さ 710 まで。上端をそろえ、ラベルは列の上に 30px。グループとして中身の領域の中央
+    const COL = 840, GAP = 80, HMAX = 710;
+    const scs = e.items.map((it) => Math.min(COL / it.g.w, HMAX / it.g.h));
+    const hs = e.items.map((it, i) => it.g.h * scs[i]);
+    const soeH = e.items.some((it) => it.soe) ? 12 + LABEL_H : 0;
+    const gh = LABEL_H + 12 + Math.max(...hs) + soeH;
+    const top = CI.y + (CI.h - gh) / 2 + LABEL_H + 12;
     e.items.forEach((it, i) => {
-      const bx = BOX[i];
-      const lb = document.createElement('div'); lb.className = 'label-w';
-      Object.assign(lb.style, { position: 'absolute', left: bx.x + 'px', width: bx.w + 'px', bottom: (1080 - bx.y + 12) + 'px', textAlign: 'center', fontSize: '32px', lineHeight: '1.25' });
-      lb.textContent = it.label;
-      yori.appendChild(lb);
-      waits.push(gazou(yori, it.g, bx, { ...it.o, fuchi: it.fuchi || null, ueSoroe: true }).then((sc) => {
-        if (!it.soe) return;
-        const so = document.createElement('div'); so.className = 'label-w';
-        Object.assign(so.style, { position: 'absolute', left: bx.x + 'px', width: bx.w + 'px', top: bx.y + it.g.h * sc + 16 + 'px', textAlign: 'center', fontSize: '32px', fontWeight: '400', color: '#C9CDD2' });
-        so.textContent = it.soe;
-        yori.appendChild(so);
-      }));
+      const x = CI.x + i * (COL + GAP);
+      const r = ita(naka, it.g, { x, y: top, w: COL, h: hs[i] }, { ...(it.o || {}), ueSoroe: true });
+      label(naka, it.label, x, top - LABEL_H - 12, COL);
+      if (it.soe) label(naka, it.soe, x, top + r.h + 12, COL);
     });
+    sc = scs[0];
   }
-  if (e.k === 'narabe' && e.mukashi) {
-    p.style.background = '#2A2F36';
-    // 27便：2 枚並べは横いっぱい（1840 幅）に置いて字を大きくする（レベルの行は 27便のまま）
-    const host = yori, ox = 40, oy = ${P.y}, ww = 1840;
-    const n = e.items.length, gap = 28;
-    const cw = (ww - gap * (n + 1)) / n;
-    e.items.forEach((it, i) => {
-      const x = ox + gap + i * (cw + gap);
-      const lb = document.createElement('div'); lb.className = 'label-w';
-      Object.assign(lb.style, { position: 'absolute', left: x + 'px', top: oy + 18 + 'px', width: cw + 'px', textAlign: 'center', fontSize: (e.labelPx || 32) + 'px', lineHeight: '1.3' });
-      lb.innerHTML = esc(it.label) + (it.soe ? '<div style="font-size:24px;font-weight:400;color:#C9CDD2">' + esc(it.soe) + '</div>' : '');
-      host.appendChild(lb);
-      const hh = ${P.h} - 100 - 20 - chuuiH;
-      waits.push(gazou(host, it.g, { x, y: oy + 100, w: cw, h: hh }, { ...it.o, fuchi: it.fuchi || null, takasa: it.takasa ? hh * it.takasa : undefined }));
+  if (e.k === 'cardfuda') {
+    // カード＋工夫の札：札はカードの右 64px・カードの上下中央にそろえて縦に（間 24）。t：0＝カードだけ中央、1＝カードと札のグループを中央
+    const sc0 = Math.min(CI.w / e.g.w, (CI.h - 20) / e.g.h);
+    const cw = e.g.w * sc0, ch = e.g.h * sc0;
+    const fudas = (e.fudaAll || []).map((t) => { const f = document.createElement('div'); f.className = 'fuda-k'; f.textContent = t; f.style.visibility = 'hidden'; naka.appendChild(f); return f; });
+    const fw = Math.max(0, ...fudas.map((f) => f.offsetWidth));
+    const fh = fudas.reduce((a, f) => a + f.offsetHeight, 0) + 24 * Math.max(0, fudas.length - 1);
+    const x0 = CI.x + (CI.w - cw) / 2, x1 = CI.x + (CI.w - (cw + 64 + fw)) / 2;
+    const x = x0 + (x1 - x0) * (e.t || 0);
+    const y = CI.y + (CI.h - ch) / 2;
+    const r = ita(naka, e.g, { x, y, w: cw, h: ch }, e.o || {});
+    let fy = y + (ch - fh) / 2;
+    fudas.forEach((f, i) => {
+      Object.assign(f.style, { left: x + cw + 64 + 'px', top: fy + 'px', visibility: (e.fuda || []).includes(e.fudaAll[i]) ? 'visible' : 'hidden' });
+      fy += f.offsetHeight + 24;
     });
+    sc = r.sc;
   }
-  if (e.k === 'html') {
-    p.style.background = e.pbg || '#F5F3EE';
+  if (e.k === 'hyou') {
+    // 表（線の比べ）：HTML を板に入れ、板を置く領域に contain
+    const ueH = e.ue ? LABEL_H + 12 : 0;
+    const d = document.createElement('div'); d.className = 'ita';
+    const n = document.createElement('div'); n.className = 'naiyou'; n.innerHTML = e.html;
+    d.appendChild(n); naka.appendChild(d);
+    const w = n.scrollWidth, h = n.scrollHeight;
+    const s2 = Math.min(CI.w / w, (CI.h - ueH) / h, e.max || 1);
+    const x = CI.x + (CI.w - w * s2) / 2, y = CI.y + (CI.h - ueH - h * s2) / 2 + ueH;
+    n.style.transform = 'scale(' + s2 + ')';
+    Object.assign(d.style, { left: x + 'px', top: y + 'px', width: w * s2 + 'px', height: h * s2 + 'px', overflow: 'hidden' });
+    if (e.ue) label(naka, e.ue, CI.x, y - LABEL_H - 12, CI.w);
+    sc = s2;
+  }
+  if (e.k === 'svg') {
+    // 起・承・結の絵：中身の領域に、地と同じ色で描く（板にしない）
     const d = document.createElement('div');
+    Object.assign(d.style, { position: 'absolute', left: ${C.x} + 'px', top: ${C.y} + 'px' });
     d.innerHTML = e.html;
-    if (e.obi) {
-      // 29便：帯だけが生成りに見えるよう、後ろのアプリの枠は区間の枠の色で塗る
-      p.style.background = s.waku || '#1E2228';
-      // 28便：1 枚の帯の箱（x 40〜1880・y 160〜760）に contain・中央揃え
-      yori.appendChild(d);
-      d.style.display = 'inline-block';
-      const w = d.scrollWidth, h = d.scrollHeight;
-      const sc = Math.min(1840 / w, 600 / h, e.max || 99);
-      Object.assign(d.style, { position: 'absolute', left: 40 + (1840 - w * sc) / 2 + 'px', top: 160 + (600 - h * sc) / 2 + 'px', transform: 'scale(' + sc + ')', transformOrigin: '0 0' });
-    } else {
-      p.appendChild(d);
-      d.style.display = 'inline-block';
-      fit(d, e.max || 1.6);
-    }
+    naka.appendChild(d);
   }
   if (e.k === 'zenmen') {
     const z = $('zenmen');
@@ -920,12 +905,12 @@ window.kaku = async (s) => {
   }
   await Promise.all(waits);
   await document.fonts.ready;
-  // 27便 Y1：字幕・小と字幕の帯が、アプリの枠に重なっていないか・字幕・小がはみ出していないか
-  const pr = $('p').getBoundingClientRect();
+  // 注意書き・字幕が板に重なっていないか・注意書きが 1 行に入るか
   const ch = $('chuui');
-  const kasanari = ch.childElementCount ? ch.getBoundingClientRect().top < pr.bottom : false;
-  const hamidashi = [...ch.children].some((d) => d.scrollWidth > ch.clientWidth - 40);
-  const obiKasanari = !$('jimaku').classList.contains('hide') && $('jimaku').getBoundingClientRect().top < (ch.childElementCount ? ch.getBoundingClientRect().bottom : pr.bottom);
+  const itaSoko = Math.max(0, ...[...naka.querySelectorAll('.ita,.fuda-k,.label')].map((x) => x.getBoundingClientRect().bottom));
+  const kasanari = ch.childElementCount ? ch.getBoundingClientRect().top < itaSoko : false;
+  const hamidashi = [...ch.children].some((d) => d.scrollWidth > ch.clientWidth);
+  const obiKasanari = (s.jimaku || []).length > 0 && $('jimaku').getBoundingClientRect().top < (ch.childElementCount ? ch.getBoundingClientRect().bottom : itaSoko);
   return { sc, kasanari, hamidashi, obiKasanari };
 };
 </script></body></html>`;
@@ -946,8 +931,8 @@ async function komaWoKumu(specs) {
       if (files.has(key)) continue;
       const file = path.join(KOMA, `${key}.png`);
       const kk = await page.evaluate((x) => window.kaku(x), s);
-      if (kk.kasanari || kk.obiKasanari) throw new Error(`字幕・小か字幕の帯が、アプリの枠に重なりました（${key}）`);
-      if (kk.hamidashi) throw new Error(`字幕・小が 1 行に入りません：${(s.chuui || []).join('／')}`);
+      if (kk.kasanari || kk.obiKasanari) throw new Error(`注意書きか字幕が、板に重なりました（${key}・${s.pic.k}${s.pic.g ? '・' + s.pic.g.name : ''}）`);
+      if (kk.hamidashi) throw new Error(`注意書きが 1 行に入りません：${(s.chuui || []).join('／')}`);
       await page.screenshot({ path: file });
       files.set(key, file);
       bairitsu.set(key, kk.sc);
@@ -958,83 +943,90 @@ async function komaWoKumu(specs) {
   return { fileOf: (s) => files.get(keyOf(s)), scOf: (s) => bairitsu.get(keyOf(s)) };
 }
 
-// ---- 起・承・結の絵（道具で描く SVG。枠 P の大きさ）
-const W = P.w, H = P.h;
-const svg = (body, bg) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="BIZ UDPGothic, sans-serif"><rect width="${W}" height="${H}" fill="${bg}"/>${body}</svg>`;
-const ORANGE = '#F2A33A', HAI = '#3A3F47';
-// 100 人の点（10×10）。iro：色の付いた点の数（読む順）。kazu：右の数（null で出さない）。ue：上の「PISA 2025　国際学力調査」
+// ---- 起・承・結の絵（道具で描く SVG。中身の領域 1760×758 の大きさ・地は #E4E8EC）
+const W = C.w, H = C.h;
+const svg = (body) => `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="BIZ UDPGothic, sans-serif">${body}</svg>`;
+const ORANGE = IRO.shirushi;
+// 灯る点の順（散らす。決まった順で、毎回同じ）
+const TEN_JUN = (() => { const a = Array.from({ length: 100 }, (_, i) => i); let x = 7; for (let i = 99; i > 0; i--) { x = (x * 1103515245 + 12345) % 2147483648; const j = x % (i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; })();
+// 100 人の点（10×10）。iro：灯る点の数。kazu：右の数（null で出さない）。ue：上の「PISA 2025　国際学力調査」
 function hyakuNin({ iro = 0, kazu = null, ue = true }) {
+  const lit = new Set(TEN_JUN.slice(0, iro));
+  const x0 = 250, y0 = 150; // 数が出ても点の位置は動かさない
   const dots = [];
-  for (let i = 0; i < 100; i++) dots.push(`<circle cx="${190 + (i % 10) * 56}" cy="${170 + Math.floor(i / 10) * 56}" r="20" fill="${i < iro ? ORANGE : HAI}"/>`);
-  const u = ue ? `<text x="${W / 2}" y="86" text-anchor="middle" font-size="36" fill="#9AA0A8">${KASANE.ki.ue}</text>` : '';
-  const k = kazu == null ? '' : `<text x="840" y="470" font-size="48" fill="#F4F4F2">${KASANE.ki.hito[0]} <tspan font-size="180" font-weight="700" fill="${ORANGE}">${kazu}</tspan> ${KASANE.ki.hito[1]}</text>`;
-  return svg(u + dots.join('') + k, '#0E0F12');
+  for (let i = 0; i < 100; i++) dots.push(`<circle cx="${x0 + 20 + (i % 10) * 56}" cy="${y0 + 20 + Math.floor(i / 10) * 56}" r="20" fill="${lit.has(i) ? ORANGE : IRO.ten}"/>`);
+  const u = ue ? `<text x="${x0 + 272}" y="${y0 - 44}" text-anchor="middle" font-size="36" fill="${IRO.label}">${KASANE.ki.ue}</text>` : '';
+  const k = kazu == null ? '' : `<text x="${x0 + 544 + 110}" y="${y0 + 340}" font-size="56" fill="${IRO.midashi}">${KASANE.ki.hito[0]} <tspan font-size="220" font-weight="700" fill="${IRO.suuji}">${kazu}</tspan> ${KASANE.ki.hito[1]}</text>`;
+  return svg(u + dots.join('') + k);
 }
 // 教室（黒板 1 本・5 行×7 列＝35 席）。灯す 7 席は散らす（台本 §1）
 const NANA = [[1, 2], [2, 5], [3, 1], [3, 6], [4, 3], [5, 4], [5, 7]];
 const SEKI = { w: 80, h: 56, gx: 18, gy: 30 };
 const KW = 7 * SEKI.w + 6 * SEKI.gx;
 const sekiNoBasho = (x0, y0, r, c) => ({ x: x0 + (c - 1) * (SEKI.w + SEKI.gx), y: y0 + (r - 1) * (SEKI.h + SEKI.gy) });
-function kyoushitsu({ x0, y0 = 150, tomoru = 0, cards = 0, iro = { seki: HAI, kokuban: HAI, tomo: ORANGE }, migi = false, bg = '#0E0F12' }) {
+const sekiRect = (x, y, lit) => `<rect x="${x}" y="${y}" width="${SEKI.w}" height="${SEKI.h}" rx="8" fill="${lit ? ORANGE : '#FFFFFF'}" stroke="${lit ? ORANGE : IRO.sen}" stroke-width="2"/>`;
+function kyoushitsu({ x0, y0 = 230, tomoru = 0, cards = 0, migi = false }) {
   const lit = NANA.slice(0, tomoru).map(([r, c]) => `${r}-${c}`);
-  const parts = [`<rect x="${x0 + KW * 0.2}" y="${y0 - 76}" width="${KW * 0.6}" height="18" rx="4" fill="${iro.kokuban}"/>`];
+  const parts = [`<rect x="${x0 + KW * 0.2}" y="${y0 - 76}" width="${KW * 0.6}" height="18" rx="4" fill="${IRO.label}"/>`];
   let n = 0;
   for (let r = 1; r <= 5; r++) for (let c = 1; c <= 7; c++) {
     const { x, y } = sekiNoBasho(x0, y0, r, c);
-    parts.push(`<rect x="${x}" y="${y}" width="${SEKI.w}" height="${SEKI.h}" rx="8" fill="${lit.includes(`${r}-${c}`) ? iro.tomo : iro.seki}"/>`);
-    // 27便 Y5：席のカードは 44×26・白・上に 4px の帯 #2f6f8f・角丸 4
-    if (n < cards) parts.push(`<rect x="${x + SEKI.w / 2 - 22}" y="${y + SEKI.h / 2 - 13}" width="44" height="26" rx="4" fill="#FFFFFF"/><path d="M${x + SEKI.w / 2 - 18} ${y + SEKI.h / 2 - 13}h36a4 4 0 0 1 4 4v0h-44v0a4 4 0 0 1 4-4z" fill="#2f6f8f"/>`);
+    parts.push(sekiRect(x, y, lit.includes(`${r}-${c}`)));
+    // 30便：結のカードは白い板 72×44（席いっぱい）・上に 6px の帯 #2F6F8F・線 1.5px #55606B
+    if (n < cards) parts.push(`<rect x="${x + 4}" y="${y + 6}" width="72" height="44" rx="5" fill="#FFFFFF" stroke="${IRO.label}" stroke-width="1.5"/><path d="M${x + 4.75} ${y + 11}a4.25 4.25 0 0 1 4.25-4.25h62a4.25 4.25 0 0 1 4.25 4.25v1h-70.5z" fill="${IRO.ao}"/>`);
     n++;
   }
   if (migi) {
-    parts.push(`<text x="900" y="330" font-size="120" font-weight="700" fill="#F4F4F2">${KASANE.ki.kyoushitsu[0]}</text>`);
-    parts.push(`<text x="900" y="470" font-size="120" font-weight="700" fill="${ORANGE}">${KASANE.ki.kyoushitsu[1]}</text>`);
-    parts.push(`<text x="900" y="580" font-size="64" fill="#C9CDD2">${KASANE.ki.kyoushitsu[2]}</text>`);
+    const tx = x0 + KW + 110;
+    parts.push(`<text x="${tx}" y="${y0 + 100}" font-size="120" font-weight="700" fill="${IRO.suuji}">${KASANE.ki.kyoushitsu[0]}</text>`);
+    parts.push(`<text x="${tx}" y="${y0 + 240}" font-size="120" font-weight="700" fill="${IRO.suuji}">${KASANE.ki.kyoushitsu[1]}</text>`);
+    parts.push(`<text x="${tx}" y="${y0 + 340}" font-size="64" fill="${IRO.midashi}">${KASANE.ki.kyoushitsu[2]}</text>`);
   }
-  return svg(parts.join(''), bg);
+  return svg(parts.join(''));
 }
-// 承：起の教室の続き（明るい地）。p：1 席が残って大きくなる進み（0〜1）。gyou：出ている行の数。fade：いちばん新しい行の現れ方（0〜1）
+const KYOU_X_MIGI = (W - (KW + 110 + 560)) / 2; // 教室＋右の字のグループを中央に
+// 承：起の教室の続き。p：1 席が残って大きくなる進み（0〜1）。gyou：出ている行の数。fade：いちばん新しい行の現れ方（0〜1）
 const SHO_SEKI = [3, 6];
 function shoNoE({ p = 0, gyou = 0, fade = 1 }) {
-  const x0 = 110, y0 = 150;
-  const iro = { seki: '#D9D3C7', kokuban: '#B9B2A4', tomo: ORANGE };
+  const x0 = (W - KW) / 2, y0 = 230;
   const e = (t) => 1 - (1 - t) * (1 - t); // なめらかに
   const q = e(p);
-  const parts = [`<g opacity="${(1 - q).toFixed(3)}"><rect x="${x0 + KW * 0.2}" y="${y0 - 76}" width="${KW * 0.6}" height="18" rx="4" fill="${iro.kokuban}"/>`];
+  const parts = [`<g opacity="${(1 - q).toFixed(3)}"><rect x="${x0 + KW * 0.2}" y="${y0 - 76}" width="${KW * 0.6}" height="18" rx="4" fill="${IRO.label}"/>`];
   for (let r = 1; r <= 5; r++) for (let c = 1; c <= 7; c++) {
     if (r === SHO_SEKI[0] && c === SHO_SEKI[1]) continue;
     const { x, y } = sekiNoBasho(x0, y0, r, c);
-    const lit = NANA.some(([a, b]) => a === r && b === c);
-    parts.push(`<rect x="${x}" y="${y}" width="${SEKI.w}" height="${SEKI.h}" rx="8" fill="${lit ? iro.tomo : iro.seki}"/>`);
+    parts.push(sekiRect(x, y, NANA.some(([a, b]) => a === r && b === c)));
   }
   parts.push('</g>');
   const s = sekiNoBasho(x0, y0, ...SHO_SEKI);
-  const to = { x: 120, y: 340, w: SEKI.w * 3, h: SEKI.h * 3 };
+  const to = { x: 300, y: (H - SEKI.h * 3) / 2, w: SEKI.w * 3, h: SEKI.h * 3 };
   const lerp = (a, b) => a + (b - a) * q;
   parts.push(`<rect x="${lerp(s.x, to.x)}" y="${lerp(s.y, to.y)}" width="${lerp(SEKI.w, to.w)}" height="${lerp(SEKI.h, to.h)}" rx="${lerp(8, 20)}" fill="${ORANGE}"/>`);
-  // 27便 Y5：文ごとに席の中の小さな絵（線画・1 色・文字なし）
+  // 文ごとに席の中の小さな絵（線画・1 色・文字なし）
   if (q >= 1 && gyou > 0) parts.push(sekiNoE(Math.min(gyou, 4), to));
+  const tx = to.x + to.w + 90, ty0 = H / 2 - 2 * 92 + 16;
   for (let i = 0; i < gyou; i++) {
     const ima = i === gyou - 1;
     const a = ima ? fade : 1;
-    const y = 230 + i * 92 + (ima ? 12 * (1 - a) : 0);
-    parts.push(`<text x="460" y="${y}" font-size="${ima ? 48 : 40}" font-weight="${ima ? 700 : 400}" fill="${ima ? '#23262B' : '#7A7468'}" opacity="${a.toFixed(3)}">${KASANE.sho[i]}</text>`);
+    const y = ty0 + i * 92 + (ima ? 12 * (1 - a) : 0);
+    parts.push(`<text x="${tx}" y="${y}" font-size="${ima ? 52 : 44}" font-weight="${ima ? 700 : 400}" fill="${ima ? IRO.midashi : IRO.label}" opacity="${a.toFixed(3)}">${KASANE.sho[i]}</text>`);
   }
-  return svg(parts.join(''), '#F3EFE6');
+  return svg(parts.join(''));
 }
-
-// 承の席の中の絵（線画・1 色 #23262B・文字なし）。1：白いノート（空欄）／2：本と時計／3：「？」の吹き出し／4：「！」の吹き出し
+// 承の席の中の絵（線画・1 色 #3E4A56・文字なし）。1：白いノート（空欄）／2：本と時計／3：「？」の吹き出し／4：「！」の吹き出し
 function sekiNoE(n, b) {
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
-  const st = 'fill="none" stroke="#23262B" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"';
+  const L = IRO.fudaJi;
+  const st = `fill="none" stroke="${L}" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"`;
   const fuki = `<path d="M${cx - 62} ${cy - 50}h124a14 14 0 0 1 14 14v62a14 14 0 0 1-14 14h-70l-26 22v-22h-28a14 14 0 0 1-14-14v-62a14 14 0 0 1 14-14z" ${st} fill="#FFFFFF"/>`;
-  if (n === 1) return `<rect x="${cx - 46}" y="${cy - 58}" width="92" height="116" rx="6" fill="#FFFFFF" stroke="#23262B" stroke-width="5"/><path d="M${cx - 30} ${cy - 58}v116" ${st}/>`;
+  if (n === 1) return `<rect x="${cx - 46}" y="${cy - 58}" width="92" height="116" rx="6" fill="#FFFFFF" stroke="${L}" stroke-width="5"/><path d="M${cx - 30} ${cy - 58}v116" ${st}/>`;
   if (n === 2) return `<path d="M${cx - 96} ${cy - 30}q36-16 60 0v74q-24-16-60 0z M${cx - 36} ${cy - 30}q24-16 60 0v74q-36-16-60 0z" ${st} fill="#FFFFFF"/><circle cx="${cx + 62}" cy="${cy + 4}" r="36" ${st} fill="#FFFFFF"/><path d="M${cx + 62} ${cy - 18}v22l16 12" ${st}/>`;
-  if (n === 3) return fuki + `<path d="M${cx - 16} ${cy - 22}a16 16 0 1 1 22 15q-6 3-6 10v6" ${st}/><circle cx="${cx}" cy="${cy + 26}" r="4" fill="#23262B"/>`;
-  return fuki + `<path d="M${cx} ${cy - 32}v40" ${st}/><circle cx="${cx}" cy="${cy + 26}" r="4" fill="#23262B"/>`;
+  if (n === 3) return fuki + `<path d="M${cx - 16} ${cy - 22}a16 16 0 1 1 22 15q-6 3-6 10v6" ${st}/><circle cx="${cx}" cy="${cy + 26}" r="4" fill="${L}"/>`;
+  return fuki + `<path d="M${cx} ${cy - 32}v40" ${st}/><circle cx="${cx}" cy="${cy + 26}" r="4" fill="${L}"/>`;
 }
 
 // ---- 区間ごとの絵の並び（台本 §1 の「画面」）。cue：s 文の番号（0 から）・at 文の中のかけら（その頭から）・plus 秒・pic 絵（seq は [絵, 秒] の並び）
+// 30便：アプリの写しは、全画面・寄り・2-up・帯とも「白い板」（ita）。後ろに暗くした画面は置かない。印は 1 コマ 1 つ・#E08A1E
 function eNoNarabi(G) {
   const g = (name) => {
     const x = G[name];
@@ -1042,66 +1034,64 @@ function eNoNarabi(G) {
     return { src: pathToFileURL(x.file).href, w: x.w, h: x.h, name, moji: x.moji };
   };
   const mk = (name, kinds) => Object.fromEntries(Object.entries(kinds).map(([k, m]) => [k, G[name].marks[m]]));
-  const zen = (name, o = {}) => ({ k: 'zen', g: g(name), o });
-  const kiri = (name, haikei, o = {}, x = {}) => ({ k: 'kiri', g: g(name), haikei: haikei ? g(haikei) : null, o, ...x });
-  // 27便：760 幅の寄りは、横いっぱい（1840 幅）に置いて字を大きくする（枠の下の帯には重ねない）
-  const kiriH = (name, haikei, o = {}, x = {}) => kiri(name, haikei, o, { zenhaba: true, max: 99, ...x });
-  const html = (h, pbg, max = 1) => ({ k: 'html', html: h, pbg, max });
-  const S = (s) => ({ k: 'html', html: s, pbg: 'transparent', max: 1 });
+  const zen = (name, o = {}) => ({ k: 'ita', g: g(name), o });
+  const kiri = (name, o = {}) => ({ k: 'ita', g: g(name), o, ue: o.ue || '', ueHidari: Boolean(o.ueHidari) });
+  const S = (s) => ({ k: 'svg', html: s });
   const md = readFileSync(path.join(ROOT, 'docs', '線の比べ_6便.md'), 'utf8').split('\n');
   const hyouGyou = [];
   for (const l of md.slice(md.findIndex((x) => x.startsWith('| 線 |')))) { if (!l.startsWith('|')) break; hyouGyou.push(l.split('|').slice(1, -1).map((c) => c.trim())); }
   const [midashiGyou, , ...gyou] = hyouGyou;
-  const senHyou = (yori) => html(`<div style="width:${P.w}px;padding:${yori ? '40px 50px' : '24px 34px'};box-sizing:border-box;font-size:${yori ? 27 : 17}px;line-height:1.4;color:#22252A">
-      <div style="font-size:${yori ? 34 : 28}px;font-weight:700;margin-bottom:14px">${KASANE.senDai}</div>
+  // 線の表（全体）：12 通りの表を板に
+  const senHyou = () => {
+    const td = 'border-bottom:1px solid #D5DBE1;padding:8px 12px;vertical-align:top';
+    return { k: 'hyou', ue: KASANE.senDai, max: 1, html: `<div style="width:1760px;box-sizing:border-box;padding:18px 24px;font-size:21px;line-height:1.4;color:${IRO.midashi}">
       <table style="border-collapse:collapse;width:100%">
-      <tr>${midashiGyou.map((c) => `<th style="background:#E5E0D5;border:1px solid #9a9484;padding:6px 10px;text-align:left">${c}</th>`).join('')}</tr>
-      ${(yori ? gyou.filter((x) => x[0] === '5便の線').slice(0, 1) : gyou).map((r, i) => `<tr style="${i === 0 && yori ? `outline:6px solid ${ORANGE};outline-offset:-3px;background:#FFF4E2` : 'background:#fff'}">${r.map((c) => `<td style="border:1px solid #9a9484;padding:6px 10px;vertical-align:top">${c}</td>`).join('')}</tr>`).join('')}
-      </table></div>`, '#F5F3EE', 1);
-  // 28便：「5便の線」の行だけを、4 列（線・中身・決めつけなかった割合（3日分）・1日の空ぶり）にして帯の箱へ
+      <tr>${midashiGyou.map((c) => `<th style="${td};text-align:left;color:${IRO.label};font-weight:400;background:#F3F5F7">${c}</th>`).join('')}</tr>
+      ${gyou.map((r) => `<tr>${r.map((c) => `<td style="${td}">${c}</td>`).join('')}</tr>`).join('')}
+      </table></div>` };
+  };
+  // 「5便の線」の行だけ：4 列（線・中身・決めつけなかった割合（3日分）・1日の空ぶり）。印は行頭の 8px の橙の縦線
   const senGyou = () => {
     const row = gyou.find((x) => x[0] === '5便の線');
-    const td = 'border:2px solid #9a9484;padding:14px 18px;vertical-align:top';
-    return { k: 'html', obi: true, pbg: '#F5F3EE', max: 1, html: `<div style="width:1840px;box-sizing:border-box;padding:26px 30px;background:#F5F3EE;border-radius:8px;font-size:40px;line-height:1.45;color:#22252A">
-      <div style="font-size:40px;font-weight:700;margin-bottom:16px">${KASANE.senDai}</div>
+    const th = `padding:16px 22px;text-align:left;color:${IRO.label};font-weight:400;font-size:32px;background:#F3F5F7;border-bottom:1px solid #D5DBE1;vertical-align:bottom`;
+    const td = 'padding:22px 22px;vertical-align:top';
+    return { k: 'hyou', ue: KASANE.senDai, max: 1, html: `<div style="width:1760px;box-sizing:border-box;font-size:44px;line-height:1.4;color:${IRO.midashi}">
       <table style="border-collapse:collapse;width:100%">
-      <tr>${midashiGyou.slice(0, 4).map((c) => `<th style="${td};background:#E5E0D5;text-align:left">${c}</th>`).join('')}</tr>
-      <tr style="outline:8px solid ${ORANGE};outline-offset:-4px;background:#FFF4E2">${row.slice(0, 4).map((c) => `<td style="${td}">${c}</td>`).join('')}</tr>
+      <tr>${midashiGyou.slice(0, 4).map((c, i) => `<th style="${th}${i >= 2 ? ';text-align:right' : ''}">${c}</th>`).join('')}</tr>
+      <tr>${row.slice(0, 4).map((c, i) => `<td style="${td}${i === 0 ? `;box-shadow:inset 8px 0 0 ${IRO.shirushi};font-weight:700;white-space:nowrap` : ''}${i >= 2 ? ';text-align:right;font-weight:700;white-space:nowrap' : ''}">${c}</td>`).join('')}</tr>
       </table></div>` };
   };
   const saigo = {
     k: 'zenmen',
-    html: `<div style="position:relative;width:1920px;height:1080px;background:#1E2228;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;text-align:center">
-      <div style="font-size:72px;font-weight:700">${KASANE.saigo[0]}</div>
-      <div style="font-size:36px">${KASANE.saigo[1]}</div>
-      <div style="font-size:32px;color:#C9CDD2;margin-top:36px">${KASANE.saigo[2]}</div>
-      <div style="font-size:40px;font-weight:700;color:#fff">${KASANE.saigo[3]}</div>
-      <div style="position:absolute;left:0;right:0;bottom:44px;font-size:20px;color:#8E949C">${KASANE.koeHyouji}</div></div>`,
+    html: `<div style="position:relative;width:1920px;height:1080px;background:${JI};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center">
+      <div style="font-size:80px;font-weight:700;color:${IRO.midashi}">${KASANE.saigo[0]}</div>
+      <div style="font-size:36px;color:${IRO.fudaJi}">${KASANE.saigo[1]}</div>
+      <div style="font-size:28px;color:${IRO.label};margin-top:36px">${KASANE.saigo[2]}</div>
+      <div style="font-size:32px;font-weight:700;color:${IRO.ao}">${KASANE.saigo[3]}</div>
+      <div style="position:absolute;left:0;right:0;bottom:44px;font-size:22px;color:${IRO.label}">${KASANE.koeHyouji}</div></div>`,
   };
   const KO = KASANE.fuda.ko, SEN = KASANE.fuda.sensei;
-  // 1 語の書きかえ：before 1.5 秒（28便）（灰の下線）→ 選択 0.3 秒 → 消えて打ち直し 0.7 秒（1 字ずつ・カーソル点滅）→ after 1.5 秒（橙の下線）
+  // 1 語の書きかえ：before 1.5 秒（下線）→ 選択 0.3 秒 → 消えて打ち直し 0.7 秒（1 字ずつ・カーソル点滅）→ after 1.5 秒（下線）
+  // 30便：印は 1 色（#E08A1E）だけなので、before の下線も橙
   const kakikaeSeq = () => {
-    const o = { ue: KASANE.kakinaosu };
-    const k = (n, x = {}) => kiriH(n, 'tsutae_d1', { ...o, ...x });
+    const k = (n, x = {}) => kiri(n, { ue: KASANE.kakinaosu, ...x });
     const n = G.kakiKazu;
     const uchi = [];
     for (let i = 0; i <= n; i++) uchi.push([`kaki_k${i}`, 0.7 / (n + 1) / 2], [`kaki_k${i}_kesu`, 0.7 / (n + 1) / 2]);
     return [
-      [k('kaki_mae', { sen: G.kaki_mae.marks.sen, senIro: '#8E949C' }), 1.5],
+      [k('kaki_mae', { sen: G.kaki_mae.marks.sen }), 1.5],
       [k('kaki_sentaku'), 0.3],
       ...uchi.map(([nm, d]) => [k(nm), d]),
       [k('kaki_ato', { sen: G.kaki_ato.marks.sen }), 1.5],
     ];
   };
-  const card = (o) => kiri('card_d1_card', 'card_d1', o, { takasa: Math.round(1080 * 0.7), zenhaba: true, max: 99 });
-  const kyouSeq = (n0) => Array.from({ length: 8 }, (_, i) => [S(kyoushitsu({ x0: 110, tomoru: n0 + i > 7 ? 7 : i, migi: true })), 0.12]);
-  // 27便 Y5：転A-5 のカード（左 55%）と工夫の札。転A-6 で札を消し、カードを中央へ（250ms）
-  // 28便：転A-4〜6 のカードは寄りのまま、高さ 70%（中央）⇔ 62%・左端 x=80 へ 250ms で動かす（引かない）
-  // カードは 480 幅の画面の写し（札と重ならない幅にするため）
-  const cA = G.card_d1_semai.w / G.card_d1_semai.h;
-  const CY = P.y + 20 + (P.h - 40) / 2, H0 = P.h - 40, H1 = 670;
-  const cardAt = (t, fudaK = [], o = {}) => { const h = H0 + (H1 - H0) * t; const x0 = 960 - (H0 * cA) / 2; return kiri('card_d1_semai', 'card_d1', o, { abs: { x: x0 + (80 - x0) * t, cy: CY, h }, max: 99, fudaK }); };
+  const kyouSeq = (n0) => Array.from({ length: 8 }, (_, i) => [S(kyoushitsu({ x0: KYOU_X_MIGI, tomoru: n0 + i > 7 ? 7 : i, migi: true })), 0.12]);
+  // 転A-4〜6 のカード（480 幅の写し）と工夫の札。横に滑る 400ms（ease-out・12 コマ）
+  const cardAt = (t, fuda = [], o = {}) => ({ k: 'cardfuda', g: g('card_d1_semai'), t: Number(t.toFixed(4)), fuda, fudaAll: KASANE.kufuu, o });
+  const easeOut = (x) => 1 - (1 - x) ** 3;
+  const suberu = (a, b, fuda, o) => Array.from({ length: 12 }, (_, i) => [cardAt(a + (b - a) * easeOut((i + 1) / 12), fuda, o), i < 11 ? 1 / 30 : 0]);
   const fadeSeq = (gyou) => Array.from({ length: 6 }, (_, i) => [S(shoNoE({ p: 1, gyou, fade: (i + 1) / 6 })), i < 5 ? 0.05 : 0]);
+  const betsu = { sen: G.card_d1_semai.marks.betsu };
   return {
     ki: [
       { s: 0, pic: S(hyakuNin({ iro: 0 })) },
@@ -1117,67 +1107,66 @@ function eNoNarabi(G) {
       { s: 3, seq: fadeSeq(3) },
       { s: 4, seq: fadeSeq(4) },
       { s: 4, at: 'でも、', seq: fadeSeq(5) },
-      // 27便 Y5：「こちらから具体的にたずねると」の頭で、ゲームの質問画面に寄る（承の教室は背景に暗く残す）
-      { s: 4, at: 'こちらから具体的にたずねると、', fuda: KO, pic: { k: 'kiri', g: g('D_mae'), haikeiHtml: shoNoE({ p: 1, gyou: 5 }), o: {} } },
-      { s: 5, pic: kiri('home_dai', 'home') },
+      // 「こちらから具体的にたずねると」の頭で、ゲームの質問画面（板）
+      { s: 4, at: 'こちらから具体的にたずねると、', fuda: KO, pic: kiri('D_mae') },
+      { s: 5, pic: kiri('home_dai') },
     ],
     tenA: [
-      // 27便 Y3：「同じ問題を、出し方だけ変えて解きます」は 2-up「読む｜聞く」。「読むか、…」で 2-up「図｜区切って」
+      // 「同じ問題を、出し方だけ変えて解きます」は 2-up「読む｜聞く」。「読むか、…」で 2-up「図｜区切って」
       { s: 0, fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.yomu, g: g('yomu') }, { label: KASANE.kiku, soe: KASANE.kikuSoe, g: g('kiku') }] } },
       { s: 0, at: '読むか、', fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.zu, g: g('zu') }, { label: KASANE.kugiri, g: g('kugiri') }] } },
-      // ゲームの全体（760 幅）2 秒：「四十五分で、二十二問」
-      { s: 1, fuda: KO, hayaokuri: true, pic: zen('game_1') },
-      { s: 1, at: '途中に、', fuda: KO, hayaokuri: true, pic: kiri('D_mae', null, mk('D_mae', { tap: 'choice' })) },
-      { s: 1, at: '途中に、', plus: 2.5, fuda: KO, hayaokuri: true, pic: zen('D_ato') },
-      { s: 2, fuda: SEN, pic: kiri('d1_hyou', 'sensei_d1') },
+      // ゲームの全体（760 幅）：「四十五分で、二十二問」。30便：「早送り」の札は出さない
+      { s: 1, fuda: KO, pic: zen('game_1') },
+      { s: 1, at: '途中に、', fuda: KO, pic: kiri('D_mae', mk('D_mae', { waku: 'choice' })) },
+      { s: 1, at: '途中に、', plus: 2.5, fuda: KO, pic: zen('D_ato') },
+      { s: 2, fuda: SEN, pic: kiri('d1_hyou') },
       { s: 3, fuda: KO, pic: cardAt(0, [], { sen: G.card_d1_semai.marks.hitokoto }) },
-      // 転A-5：カードを寄りのまま左へ（250ms）、右に工夫の札 2 枚（声に合わせて。2 枚目は 1.8 秒後）
-      { s: 4, fuda: KO, seq: Array.from({ length: 6 }, (_, i) => [cardAt((i + 1) / 6, [], { sen: G.card_d1_semai.marks.betsu }), i < 5 ? 0.05 : 0]) },
-      { s: 4, at: '声に出して読む。', fuda: KO, pic: cardAt(1, [KASANE.kufuu[0]], { sen: G.card_d1_semai.marks.betsu }) },
-      { s: 4, at: '声に出して読む。', plus: 1.8, fuda: KO, pic: cardAt(1, KASANE.kufuu, { sen: G.card_d1_semai.marks.betsu }) },
-      // 転A-6：札を消し、カードを中央・高さ 70% へ戻す（250ms）
-      { s: 5, fuda: KO, seq: Array.from({ length: 6 }, (_, i) => [cardAt(1 - (i + 1) / 6), i < 5 ? 0.05 : 0]) },
+      // 転A-5：カードを左へ滑らせ（400ms）、右に工夫の札 2 枚（声に合わせて。2 枚目は 1.8 秒後）
+      { s: 4, fuda: KO, seq: suberu(0, 1, [], betsu) },
+      { s: 4, at: '声に出して読む。', fuda: KO, pic: cardAt(1, [KASANE.kufuu[0]], betsu) },
+      { s: 4, at: '声に出して読む。', plus: 1.8, fuda: KO, pic: cardAt(1, KASANE.kufuu, betsu) },
+      // 転A-6：札を消し、カードを中央へ戻す（400ms）
+      { s: 5, fuda: KO, seq: suberu(1, 0, [], {}) },
     ],
     tenB: [
-      // 27便 Y3：全体は 1 秒。声の名詞と同じ所に、2.5 秒ずつ寄る
+      // 全体は 1 秒。声の名詞と同じ所に、2.5 秒ずつ寄る
       { s: 0, fuda: SEN, pic: zen('sensei_d1') },
-      { s: 0, at: '比べた結果と、', ato: 1.0, fuda: SEN, pic: kiriH('d1_matome', 'sensei_d1') },
-      { s: 0, at: '本人が選んだ答えが並び、', ato: 2.5, fuda: SEN, pic: kiriH('d1_tegakari', 'sensei_d1') },
-      { s: 0, at: 'クロードが仮説と、', ato: 2.5, fuda: SEN, pic: kiriH('d1_kakunin', 'sensei_d1', { waku: G.d1_kakunin.marks.waku }) },
-      // 27便 Y4：「決めるのは先生です」の頭で、1 語の書きかえ（before 1.0 → 選択 0.3 → 打ち直し 0.7 → after 1.5）
+      { s: 0, at: '比べた結果と、', ato: 1.0, fuda: SEN, pic: kiri('d1_matome') },
+      { s: 0, at: '本人が選んだ答えが並び、', ato: 2.5, fuda: SEN, pic: kiri('d1_tegakari') },
+      { s: 0, at: 'クロードが仮説と、', ato: 2.5, fuda: SEN, pic: kiri('d1_kakunin', { waku: G.d1_kakunin.marks.waku.slice(0, 1) }) },
+      // 「決めるのは先生です」の頭で、1 語の書きかえ
       { s: 0, at: '決めるのは先生です。', fuda: SEN, seq: kakikaeSeq() },
       // 書きかえ（4.0 秒）が終わってから
-      { s: 1, ato: 4.0, fuda: SEN, pic: kiriH('kon_sen', 'tsutae_d1', { sen: G.kon_sen.marks.sen }) },
-      // 「クラス全員がやるから」：保存した結果（架空の子）の 8 行。転B-4 は全体
-      { s: 2, fuda: SEN, pic: kiriH('ichiran_8', 'sensei_top') },
+      { s: 1, ato: 4.0, fuda: SEN, pic: kiri('kon_sen', { sen: G.kon_sen.marks.sen }) },
+      // 「クラス全員がやるから」：保存した結果（架空の子）の 8 行（名前つき）。転B-4 は全体
+      { s: 2, fuda: SEN, pic: kiri('ichiran_8') },
       { s: 3, fuda: SEN, pic: zen('sensei_top') },
     ],
     tenC: [
       { s: 0, fuda: KO, pic: zen('sodateru_d1') },
-      { s: 1, fuda: KO, pic: kiri('kyou_renshu', 'sodateru_d1', { ue: KASANE.nerai, ueIro: '#D8D3C7' }) },
-      { s: 1, plus: 2.5, fuda: KO, pic: kiri('kyou_yarikata', 'sodateru_d1', { ue: KASANE.sasae, ueIro: '#D8D3C7' }) },
+      { s: 1, fuda: KO, pic: kiri('kyou_renshu', { ue: KASANE.nerai }) },
+      { s: 1, plus: 2.5, fuda: KO, pic: kiri('kyou_yarikata', { ue: KASANE.sasae }) },
       { s: 2, at: '明日は、', fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.sodateMae, g: g('sodate_mae') }, { label: KASANE.sodateAto, g: g('sodate_ato') }] } },
-      // 27便 Y3：「できた、を自分で積んでいきます」は、レベルの行だけを 2 枚並べる
-      { s: 2, at: 'できた、', fuda: KO, pic: { k: 'narabe', mukashi: true, items: [{ label: KASANE.sodateMae, g: g('sodate_mae_level') }, { label: KASANE.sodateAto, g: g('sodate_ato_level') }] } },
+      // 「できた、を自分で積んでいきます」は、レベルの行だけを 2 枚並べる
+      { s: 2, at: 'できた、', fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.sodateMae, g: g('sodate_mae_level') }, { label: KASANE.sodateAto, g: g('sodate_ato_level') }] } },
     ],
     fukasa: [
-      { s: 0, fuda: KO, pic: kiri('kiku_ichibun', 'kiku_zen') },
-      // 27便 Y3：記録の Claude の 3 行を 1 行ずつ。行末の「（Claude）」に枠
-      ...[1, 2, 3].map((n) => ({ s: 0, plus: 2.5 + (n - 1) * 2, fuda: SEN, shita: KASANE.kirokuNoHi, pic: kiri(`kiroku_${n}`, null, { waku: G[`kiroku_${n}`].marks.waku }, { obi: true, max: 99 }) })),
-      // 3 行目も 2 秒見せてから（左右の比べは少し後ろへ）
-      { s: 1, ato: 2.0, fuda: SEN, pic: kiri('hidari_li', 'sensei_d1', { waku: G.hidari_li.marks.waku, wakuIro: '#9A9484', ue: KASANE.kimatta, ueHidari: true }, { fuchi: '#9A9484', obi: true, max: 99 }) },
-      { s: 1, plus: 1.5, ato: 2.5, fuda: SEN, pic: kiri('migi_tsugi', 'sensei_d1', { waku: G.migi_tsugi.marks.waku, ue: KASANE.claude, ueHidari: true }, { obi: true, max: 99 }) },
+      { s: 0, fuda: KO, pic: kiri('kiku_ichibun') },
+      // 記録の Claude の 3 行を 1 行ずつ。行末の「（Claude）」に印。上に「2026-11-06 に公開デモで Claude が書いた記録」
+      ...[1, 2, 3].map((n) => ({ s: 0, plus: 2.5 + (n - 1) * 2, fuda: SEN, pic: kiri(`kiroku_${n}`, { waku: G[`kiroku_${n}`].marks.waku, ue: KASANE.kirokuNoHi }) })),
+      { s: 1, ato: 2.0, fuda: SEN, pic: kiri('hidari_li', { waku: G.hidari_li.marks.waku, ue: KASANE.kimatta, ueHidari: true }) },
+      { s: 1, plus: 1.5, ato: 2.5, fuda: SEN, pic: kiri('migi_tsugi', { waku: G.migi_tsugi.marks.waku, ue: KASANE.claude, ueHidari: true }) },
       { s: 2, fuda: SEN, pic: zen('sensei_d1') },
-      // 27便 Y3：「本人にも、周りにも見える」は 2-up：左＝仮説の箱（灰の枠）｜右＝カード（高さ 60%）
-      { s: 2, at: '本人にも、', pic: { k: 'narabe', items: [{ label: KASANE.mieru[0], g: g('d1_kasetsu_semai'), fuchi: '#9A9484' }, { label: KASANE.mieru[1], g: g('card_d1_semai') }] } },
+      // 「本人にも、周りにも見える」は 2-up：左＝仮説の箱｜右＝カード
+      { s: 2, at: '本人にも、', pic: { k: 'narabe', items: [{ label: KASANE.mieru[0], g: g('d1_kasetsu_semai') }, { label: KASANE.mieru[1], g: g('card_d1_semai') }] } },
       // 線の表：全体 1.5 秒 → 「5便の線」の行だけ
-      { s: 3, pic: senHyou(false) },
+      { s: 3, pic: senHyou() },
       { s: 3, plus: 1.5, pic: senGyou() },
     ],
     ketsu: [
       { s: 0, pic: S(kyoushitsu({ x0: (W - KW) / 2 })) },
       { s: 0, at: 'クラス全員が使えます。', seq: Array.from({ length: 36 }, (_, i) => [S(kyoushitsu({ x0: (W - KW) / 2, cards: i })), i < 35 ? 0.05 : 0]) },
-      { s: 1, fuda: KO, pic: card({}) },
+      { s: 1, fuda: KO, pic: zen('card_d1_card') },
     ],
     saigo: [{ s: null, pic: saigo }],
   };
@@ -1248,7 +1237,8 @@ function jikanwari(koe, sensei, cues) {
     };
     let maeT = 0;
     for (const c of cues[sec.id]) {
-      const notes = { fuda: c.fuda || '', kukan: sec.kukan || '', hayaokuri: c.hayaokuri ? KASANE.hayaokuri : '', shita: c.shita || '', kakuu: sec.id === 'sho' ? KASANE.kakuu : '', chuui: sec.chuui || [], waku: sec.waku };
+      // 30便：「早送り」の札は出さない。区間ごとの地の色は使わない
+      const notes = { fuda: c.fuda || '', kukan: sec.kukan || '', kakuu: sec.id === 'sho' ? KASANE.kakuu : '', chuui: sec.chuui || [] };
       // 27便：ato＝前の絵から少なくともこの秒は置く（寄りの最短 2.5 秒を守るため、声の名詞より少し遅れることがある）
       let tt = c.ato ? Math.max(tOf(c), maeT + c.ato) : tOf(c);
       maeT = tt;
@@ -1257,13 +1247,20 @@ function jikanwari(koe, sensei, cues) {
     }
     e.sort((a, b) => a.f - b.f);
     const kireme = [...new Set([f0, f0 + fLen, ...e.map((x) => x.f), ...mai.flatMap((m) => [m.f, m.owari])])].filter((x) => x >= f0 && x <= f0 + fLen).sort((a, b) => a - b);
+    // 30便：3 秒以上止まる絵は、その間に 1.00→1.03 倍へ一定の速さでゆっくり寄る（3 コマごとに倍率を変える）
+    e.forEach((x, i) => { x.owari = i < e.length - 1 ? e[i + 1].f : f0 + fLen; });
     const koma = [];
     for (let k = 0; k < kireme.length - 1; k++) {
       const a = kireme[k], b = kireme[k + 1];
       if (b <= a) continue;
       const ev = e.filter((x) => x.f <= a).pop() || e[0];
       const jm = sec.jimakuNashi ? null : mai.find((m) => m.f <= a && a < m.owari);
-      koma.push({ f: a, n: b - a, spec: { pic: ev.pic, ...ev.notes, jimaku: jm ? jm.lines : [] } });
+      const nagai = ev.owari - ev.f >= 3 * FPS && ev.pic.k !== 'zenmen';
+      for (let t = a; t < b; t += nagai ? 3 : b - a) {
+        const n = Math.min(nagai ? 3 : b - a, b - t);
+        const zoom = nagai ? Number((1 + (0.03 * (t - ev.f)) / (ev.owari - ev.f)).toFixed(4)) : undefined;
+        koma.push({ f: t, n, spec: { pic: ev.pic, ...ev.notes, jimaku: jm ? jm.lines : [], ...(zoom ? { zoom } : {}) } });
+      }
     }
     kukan.push({ id: sec.id, na: sec.na, koe: sec.koe, senseiNoKoe: sec.senseiNoKoe || null, f0, fLen, bun: bun.map((b) => ({ ...b, f: fr(b.t0) })), mai, koma });
     fAll += fLen;
@@ -1279,7 +1276,7 @@ function yoriNoShirabe(kukan, scOf) {
     const push = () => { if (cur) out.push(cur); cur = null; };
     for (const x of k.koma) {
       const p = x.spec.pic;
-      if (p.k !== 'kiri') { push(); continue; }
+      if (p.k !== 'ita' || !p.g) { push(); continue; }
       const name = p.g.name.replace(/_(tsuku|kesu)$/, '').replace(/^type_\d$/, 'type');
       if (cur && cur.name === name) { cur.byou += x.n / FPS; continue; }
       push();
@@ -1375,7 +1372,8 @@ async function main() {
     寄りの字の小さいもの: yori.filter((y) => y.moji && y.moji < KIRI_MOJI).map((y) => `${y.kukan} ${y.name} ${y.moji}px`),
     同じ文章の読む版と聞く版: G.onajiMondai,
     // 28便：2-up（900×700 の箱に contain）の、切り出しの中のおもな字の 1080p での大きさ
-    '2-up の字': Object.fromEntries(['yomu', 'kiku', 'zu', 'kugiri', 'd1_kasetsu_semai', 'card_d1_semai', 'sodate_mae', 'sodate_ato'].map((n) => { const x = G[n]; const sc = Math.min(900 / x.w, 700 / x.h); return [n, x.moji ? `${Math.round(x.moji * DSF * sc)}px（${Math.round(x.w * sc)}×${Math.round(x.h * sc)}）` : `${Math.round(x.w * sc)}×${Math.round(x.h * sc)}`]; })),
+    // 30便：2-up（各列 840×710 の板）の、切り出しの中のおもな字の 1080p での大きさ
+    '2-up の字': Object.fromEntries(['yomu', 'kiku', 'zu', 'kugiri', 'd1_kasetsu_semai', 'card_d1_semai', 'sodate_mae', 'sodate_ato'].map((n) => { const x = G[n]; const sc = Math.min(840 / x.w, 710 / x.h); return [n, x.moji ? `${Math.round(x.moji * DSF * sc)}px（${Math.round(x.w * sc)}×${Math.round(x.h * sc)}）` : `${Math.round(x.w * sc)}×${Math.round(x.h * sc)}`]; })),
     選んで答える質問: G.D_toi,
     一語の書きかえ: `「${G.kakikae.mae}」→「${G.kakikae.ato}」（1 文目：${G.kakikae.ichibun}）`,
     保存した結果の一覧: G.ichiranGyou,
