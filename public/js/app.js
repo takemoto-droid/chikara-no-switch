@@ -715,6 +715,7 @@ function mdNoHtml(md) {
   const out = [];
   let list = false;
   let table = [];
+  let sho = false;
   const flushTable = () => {
     if (!table.length) return;
     const rows = table.filter((r) => !/^\|\s*-/.test(r)).map((r) => r.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
@@ -728,13 +729,14 @@ function mdNoHtml(md) {
     flushTable();
     if (list && !line.startsWith('- ')) { out.push('</ul>'); list = false; }
     if (line.startsWith('# ')) out.push(`<h1>${inline(line.slice(2))}</h1>`);
-    else if (line.startsWith('## ')) out.push(`<h2>${inline(line.slice(3))}</h2>`);
+    else if (line.startsWith('## ')) { if (sho) out.push('</details>'); sho = true; out.push(`<details class="kuwashiku md-sho"><summary>${inline(line.slice(3))}</summary>`); } // 44便J：章ごとに畳む
     else if (line.startsWith('> ')) out.push(`<p class="draft">${inline(line.slice(2))}</p>`);
     else if (line.startsWith('- ')) { if (!list) { out.push('<ul>'); list = true; } out.push(`<li>${inline(line.slice(2))}</li>`); }
     else if (line.trim()) out.push(`<p>${inline(line)}</p>`);
   }
   flushTable();
   if (list) out.push('</ul>');
+  if (sho) out.push('</details>');
   return out.join('');
 }
 

@@ -48,7 +48,7 @@ async function mieru(name) {
   // 40便：はじめの画面のほかは、どの画面の下にも「はじめの画面へもどる」がある
   if (!/^#?\/?$/.test(new URL(page.url()).hash.replace(/^#\/?$/, '')) && !(await page.locator('.modoru-top a').isVisible())) kiroku.まちがい.push(`${name}：画面の下に「はじめの画面へもどる」が無い`);
   // 44便：「確かめた回数」と保存した文の印は、仮説の「くわしく」（閉じた中）に移したので、閉じた中の文も読む
-  const text = await page.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan')].map((d) => d.textContent), ...[...document.querySelectorAll('textarea')].map((t) => t.value)].join('\n'));
+  const text = await page.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan, details.md-sho')].map((d) => d.textContent), ...[...document.querySelectorAll('textarea')].map((t) => t.value)].join('\n'));
   const lines = text.split('\n').filter((s) => s.trim());
   kiroku.画面++;
   kiroku.点検した文の数 += lines.length;
@@ -550,7 +550,7 @@ try {
         await route.fulfill({ json: j });
       });
     }
-    const hiraku = async (hash, sel) => { await p2.goto(`${BASE}${hash}`); await p2.waitForSelector(sel, { timeout: 60000 }); await p2.waitForTimeout(150); return p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan')].map((d) => d.textContent)].join('\n')); };
+    const hiraku = async (hash, sel) => { await p2.goto(`${BASE}${hash}`); await p2.waitForSelector(sel, { timeout: 60000 }); await p2.waitForTimeout(150); return p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan, details.md-sho')].map((d) => d.textContent)].join('\n')); };
     const HOZON = /2026-11-08 に書いた下書き（保存したもの）/;
     const hozon = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文;
     // 11便 N2・N5：デモの子8人は、開いただけでは呼ばない（保存した本物の文と、その印が出る）
@@ -570,7 +570,7 @@ try {
     await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
     await p2.click('#kasetsu #again');
     await p2.waitForSelector('#kasetsu .kasetsu');
-    t = await p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan')].map((d) => d.textContent)].join('\n'));
+    t = await p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan, details.md-sho')].map((d) => d.textContent)].join('\n'));
     tashika(kazu.kasetsu === 1 && /この文は、この端末に残しています/.test(t) && /\d+月\d+日に書いた/.test(t), 'N5・M2：「もう一度書いてもらう」を押すと呼び、書いた日と「端末に覚えています」が出る');
     await hiraku('#/anzen', 'h1');
     t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
