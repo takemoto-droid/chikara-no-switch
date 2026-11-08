@@ -200,6 +200,12 @@ function koeWoTsukuru() {
 }
 
 // 先生の声（DOUGA_KOE_DIR）：区間ごとのファイルを 48kHz・モノラルの wav にする
+// 合成の声（Open JTalk・声 Mei）を 1 区間でも使うか。全区間が先生の声なら、最後の一枚に声のクレジットを出さない（42便）
+function goseiNoKoe() {
+  if (!KOE_DIR || !existsSync(KOE_DIR)) return true;
+  const files = readdirSync(KOE_DIR);
+  return DAIHON.some((sec) => !files.some((x) => new RegExp(`^${sec.koe}\\.(m4a|mp3|wav)$`, 'i').test(x)));
+}
 function senseiNoKoe() {
   const out = {};
   if (!KOE_DIR) return out;
@@ -780,7 +786,7 @@ html,body{margin:0;width:1920px;height:1080px;overflow:hidden;font-family:"BIZ U
 .mk-waku{position:absolute;border:4px solid ${IRO.shirushi};border-radius:10px;box-shadow:0 0 0 6px rgba(224,138,30,.18);box-sizing:border-box;}
 .mk-sen{position:absolute;height:8px;background:${IRO.shirushi};border-radius:4px;}
 .label{position:absolute;font-size:30px;line-height:1.3;color:${IRO.label};white-space:nowrap;}
-.fuda-k{position:absolute;font-size:44px;font-weight:700;background:${IRO.ao};color:#fff;border-radius:14px;box-shadow:0 10px 28px rgba(20,35,55,.2);padding:16px 28px;white-space:nowrap;line-height:1.3;}
+.fuda-k{position:absolute;font-size:64px;font-weight:700;background:${IRO.ao};color:#fff;border-radius:16px;box-shadow:0 10px 28px rgba(20,35,55,.2);padding:22px 36px;white-space:nowrap;line-height:1.3;}
 </style></head><body><div id="f"><div id="naka"></div><div id="ue"><div id="fuda"></div><div id="kukan"></div></div><div id="chuui"></div><div id="jimaku"></div><div id="kakuu"></div><div id="zenmen"></div></div>
 <script>
 const $ = (id) => document.getElementById(id);
@@ -867,10 +873,11 @@ window.kaku = async (s) => {
   }
   if (e.k === 'cardfuda') {
     // カード＋工夫の札：札はカードの右 64px・カードの上下中央にそろえて縦に（間 24）。t：0＝カードだけ中央、1＝カードと札のグループを中央
-    const sc0 = Math.min(CI.w / e.g.w, (CI.h - 20) / e.g.h);
-    const cw = e.g.w * sc0, ch = e.g.h * sc0;
     const fudas = (e.fudaAll || []).map((t) => { const f = document.createElement('div'); f.className = 'fuda-k'; f.textContent = t; f.style.visibility = 'hidden'; naka.appendChild(f); return f; });
     const fw = Math.max(0, ...fudas.map((f) => f.offsetWidth));
+    // 42便：札を 64px にしたので、カードと札が中身の領域の幅に収まる大きさにする（カードだけのときも同じ大きさ）
+    const sc0 = Math.min(CI.w / e.g.w, (CI.h - 20) / e.g.h, fudas.length ? (CI.w - 64 - fw) / e.g.w : Infinity);
+    const cw = e.g.w * sc0, ch = e.g.h * sc0;
     const fh = fudas.reduce((a, f) => a + f.offsetHeight, 0) + 24 * Math.max(0, fudas.length - 1);
     const x0 = CI.x + (CI.w - cw) / 2, x1 = CI.x + (CI.w - (cw + 64 + fw)) / 2;
     const x = x0 + (x1 - x0) * (e.t || 0);
@@ -1283,6 +1290,18 @@ function renkei(n) {
   const ya = (i) => `<svg width="60" height="56" viewBox="0 0 60 56" style="${i < n ? '' : 'visibility:hidden;'}"><path d="M30 6v40M12 30l18 20 18-20" fill="none" stroke="${IRO.fudaJi}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   return naka(`<div style="display:flex;flex-direction:column;align-items:center;gap:14px">${box('根拠', 0)}${ya(1)}${box('小さな工夫', 1)}${ya(2)}${box('生徒は安心して学べる', 2, true)}</div>`);
 }
+// 転C-3：レベルの行を上下に並べ、下が出るときに 4 つ目の●を橙にし、アプリの本物の言葉「レベルが進んだ」を添える（42便）
+function levelUp(step) {
+  const tama = (n, atarashii) => Array.from({ length: 4 }, (_, i) => {
+    const on = i < n, nw = atarashii && i === n - 1;
+    return `<span style="display:inline-block;width:76px;height:76px;border-radius:50%;box-sizing:border-box;${on ? `background:${nw ? ORANGE : '#fff'};` : 'border:6px solid #fff;'}${nw ? 'box-shadow:0 0 0 8px rgba(224,138,30,.35);' : ''}"></span>`;
+  }).join('');
+  const gyou = (label, n, mei, atarashii, vis) => `<div style="display:flex;flex-direction:column;align-items:stretch;gap:14px;${vis ? '' : 'visibility:hidden;'}">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px"><span style="font-size:44px;color:${IRO.label}">${label}</span>${atarashii ? `<span style="font-size:56px;font-weight:700;color:${IRO.suuji};background:#fff;padding:10px 28px;${WAKU_S}">レベルが進んだ</span>` : ''}</div>
+    <div style="display:flex;align-items:center;gap:26px;background:#3A5FA0;color:#fff;border-radius:18px;padding:28px 52px;font-size:88px;font-weight:700;box-shadow:0 14px 36px rgba(20,35,55,.22)">${tama(n, atarashii)}<span style="margin-left:24px">レベル：${mei}</span></div></div>`;
+  const ya = `<svg width="120" height="96" viewBox="0 0 120 96" style="align-self:center;margin:6px 0;${step >= 2 ? '' : 'visibility:hidden;'}"><path d="M60 6v70M24 46l36 40 36-40" fill="none" stroke="${ORANGE}" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return naka(`<div style="display:flex;flex-direction:column;align-items:stretch">${gyou(KASANE.sodateMae, 3, '育て中', false, true)}${ya}${gyou(KASANE.sodateAto, 4, '一人前', true, step >= 2)}</div>`);
+}
 function anshin() {
   return naka(`<div style="${BAN}padding:36px 80px;font-size:96px;font-weight:700;${WAKU_S}">生徒は安心して学べる</div>`);
 }
@@ -1307,7 +1326,7 @@ function eNoNarabi(G) {
       <div style="font-size:48px;color:${IRO.fudaJi}">${KASANE.saigo[1]}</div>
       <div style="font-size:36px;color:${IRO.label};margin-top:44px">${KASANE.saigo[2]}</div>
       <div style="font-size:40px;font-weight:700;color:${IRO.ao}">${KASANE.saigo[3]}</div>
-      <div style="position:absolute;left:0;right:0;bottom:44px;font-size:22px;color:${IRO.label}">${KASANE.koeHyouji}</div></div>`,
+      ${goseiNoKoe() ? `<div style="position:absolute;left:0;right:0;bottom:44px;font-size:22px;color:${IRO.label}">${KASANE.koeHyouji}</div>` : ''}</div>`,
   };
   const KO = KASANE.fuda.ko, SEN = KASANE.fuda.sensei;
   const H0 = honmono();
@@ -1391,7 +1410,8 @@ function eNoNarabi(G) {
       { s: 1, ato: 2.5, fuda: KO, pic: kiri('kyou_yarikata', { ue: KASANE.sasae }) },
       { s: 1, at: '別のカードを、', ato: 2.5, fuda: KO, pic: kiri('kyou_renshu', { ue: KASANE.nerai }) },
       { s: 2, ato: 2.5, fuda: KO, pic: kiri('kyou_yarikata', { ue: KASANE.sasae }) },
-      { s: 2, at: '明日は、', ato: 2.5, fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.sodateMae, g: g('sodate_mae_level') }, { label: KASANE.sodateAto, g: g('sodate_ato_level') }] } },
+      { s: 2, at: '明日は、', ato: 2.5, fuda: KO, pic: B32('転C-3 レベルが進む 1', levelUp(1)) },
+      { s: 2, at: 'もう一度。', fuda: KO, pic: B32('転C-3 レベルが進む 2', levelUp(2)) },
     ],
     fukasa: [
       { s: 0, fuda: SEN, pic: B32('深さ-1 記録の 1 文', claudeBan(H0.kirokuBun, { px: 56, waku: false })) },
