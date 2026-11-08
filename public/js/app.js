@@ -709,7 +709,9 @@ function mdNoHtml(md) {
   const flushTable = () => {
     if (!table.length) return;
     const rows = table.filter((r) => !/^\|\s*-/.test(r)).map((r) => r.replace(/^\||\|$/g, '').split('|').map((c) => c.trim()));
-    out.push(`<div class="table-wrap"><table>${rows.map((r, i) => `<tr>${r.map((c) => (i === 0 ? `<th>${inline(c)}</th>` : `<td>${inline(c)}</td>`)).join('')}</tr>`).join('')}</table></div>`);
+    // 44便：スマホの幅では、表を行ごとの箱にして読む（見出しを各欄の上に小さく出す。data-label は style.css で使う）
+    const midashi = rows[0] || [];
+    out.push(`<div class="table-wrap"><table>${rows.map((r, i) => `<tr>${r.map((c, j) => (i === 0 ? `<th>${inline(c)}</th>` : `<td data-label="${esc(midashi[j] ?? '')}">${inline(c)}</td>`)).join('')}</tr>`).join('')}</table></div>`);
     table = [];
   };
   for (const line of md.split('\n')) {

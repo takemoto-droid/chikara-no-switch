@@ -30,7 +30,9 @@ export async function gameScreen(el, id) {
   const frame = () => {
     const n = Object.keys(rec.kekka).length;
     const zen = zenbuOf(rec);
-    el.innerHTML = `
+    // 44便：短い体験（審査員の方へ）のときだけ、1問目の上に、はじめの画面と同じ説明を1行出す（本番のゲームの画面は変えない）
+    const taikenAnnai = rec.shurui === 'taiken' && n === 0 ? '<p class="muted small taiken-annai">短い体験：数分で、ゲームから ⑦ また見つける までを通して見られます。結果は本物の測定ではありません。</p>' : '';
+    el.innerHTML = `${taikenAnnai}
       <div class="progress-wrap"><div class="progress" aria-hidden="true"><div style="width:${Math.round((n / zen) * 100)}%"></div></div><span class="progress-kazu" aria-label="${n + 1}問目／${zen}問">${Math.min(n + 1, zen)}／${zen}</span></div>
       <div id="game-naka"></div>
       ${yomiageOK ? '' : '<p class="muted small">この端末は読み上げが使えません。</p>'}
