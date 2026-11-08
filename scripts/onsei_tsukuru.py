@@ -1,8 +1,5 @@
 """課題文の音声を、前もって作る（キーは要らない）。
 
-44便（11/8）から、public/onsei/ の mp3 は VOICEVOX:No.7（読み聞かせ）の声で作っている（scripts/voicevox/）。
-このスクリプトは、それより前の作り方（Open JTalk）。文とファイル名の対応（onsei.json）の組み立て方は同じ。
-
 使うもの（権利は docs/権利と出典.md）
 - pyopenjtalk（MIT License）… Open JTalk（修正 BSD ライセンス）を Python から使う
 - 声：HTS Voice "Mei"（Copyright (c) 2009-2013 Nagoya Institute of Technology, CC BY 3.0）
@@ -85,7 +82,7 @@ def main():
         json.dump(
             {
                 "説明": "前もって作った読み上げの音声。文 → ファイル名。scripts/onsei_tsukuru.py で作る。",
-                "声": "Open JTalk・HTS Voice \"Mei\"（(c) Nagoya Institute of Technology, CC BY 3.0）※44便からの mp3 は VOICEVOX:No.7（scripts/voicevox/）",
+                "声": "Open JTalk・HTS Voice \"Mei\"（(c) Nagoya Institute of Technology, CC BY 3.0）",
                 "下書き": "先生が聞いて、読み方の誤りがないかを確かめる（先生未確認）",
                 "音声": taiou,
             },
