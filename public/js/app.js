@@ -96,14 +96,14 @@ async function top() {
     <h1>チカラのスイッチ</h1>
     <p>同じ問題を、出し方（読む・聞く・図で見る・一文ずつ区切る）だけ変えて解いてみて、どの出し方のとき力が出たかを、本人の結果で確かめるアプリです。力が出た出し方は「スイッチカード」として残ります。</p>
     <div class="entrance">
-      <a href="#/hajimeru/taiken"><div class="box"><strong>短い体験（審査員の方へ）</strong><br><span class="muted">数分で、ゲームから ⑦ また見つける までを通して見られます。結果は本物の測定ではありません。</span></div></a>
-      <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子の結果を、先生の画面で見ます。1回だけの子（出し方で違いが出た子・どの出し方でも同じくらいだった子）と、3回分の記録がある子がいます。</span></div></a>
-      <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">①案内 → ②見つける（HR のゲーム）→ ③カード → ④先生の画面 → ⑤伝え方 → ⑥育てる（朝の練習）→ ⑦また見つける、を順に動かします。公開デモでは、AI を呼べる回数に上限があります。上限に達したときは、決まった順・決まった文で最後まで動きます。</span></div></a>
-      ${should.otona?.使う ? '<a href="#/annai/otona"><div class="box"><strong>大人が自分で試す</strong><br><span class="muted">中学生向けのゲームを、大人の方も自分で試せます。結果は自分にだけ出ます。</span></div></a>' : ''}
+      <a href="#/hajimeru/taiken"><div class="box"><strong>短い体験（審査員の方へ）</strong><br><span class="muted">数分で、ゲームから ⑦ まで通して見られます。</span></div></a>
+      <a href="#/sensei"><div class="box"><strong>保存した結果を見る</strong><br><span class="muted">架空の子 8 人の結果を、先生の画面で見ます。</span></div></a>
+      <a href="#/annai/ko"><div class="box"><strong>その場で動かす</strong><br><span class="muted">① 案内から ⑦ まで、本番と同じ順に動かします。</span></div></a>
+      ${should.otona?.使う ? '<a href="#/annai/otona"><div class="box"><strong>大人が自分で試す</strong><br><span class="muted">中学生向けのゲームを、大人が自分で試せます。</span></div></a>' : ''}
     </div>
     ${mada.length ? `<div class="box soft"><h3>ひと休み中のゲーム</h3>${mada.map((k) => `<p><a href="#/game/${enc(k.id)}">${esc(k.id)} の続きから始める</a>　<button type="button" class="sub chiisai" data-yarinaoshi="${esc(k.id)}">はじめからやり直す</button></p>`).join('')}</div>` : ''}
     <h2>案内</h2>
-    <p><a href="#/annai/ko">子ども向けの案内</a>　<a href="#/annai/hogo">保護者向けの案内</a></p>`;
+    <p class="annai-link"><a href="#/annai/ko">子ども向けの案内</a><a href="#/annai/hogo">保護者向けの案内</a></p>`;
   // 40便：途中までのゲームを、確かめてから消して、はじめからにする（終わった回は消さない）
   app.querySelectorAll('[data-yarinaoshi]').forEach((b) => {
     b.onclick = () => kakunin('途中までの記録を消して、はじめからにします。よいですか？', '消して、はじめから', 'やめる', () => {

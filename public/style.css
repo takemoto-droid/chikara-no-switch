@@ -248,3 +248,16 @@ button.chiisai { padding: 6px 12px; font-size: .9rem; min-height: 0; }
 .hm-rei { margin: 4px 0 0; }
 .hm-kazu { font-size: .8rem; letter-spacing: 0; color: var(--ink); white-space: nowrap; }
 .hm-cell { min-width: 0; }
+
+/* 44便：大人が見る画面（はじめの画面・先生・保護者）は、明るい青灰の地・白い札・青 1 色にそろえる。
+   子どもの画面（ゲーム・カード・朝の練習）は、読むことに難しさのある子のために、生成りの地のまま（11/6 の会議） */
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) { --bg: #f5f7fb; --accent: #2563eb; --soft: #eef3fd; --line: #7c8ca3; }
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) .card-box, body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) .box:not(.chui):not(.soudan):not(.owari):not(.soft) { border-width: 1px; border-color: #d5dde8; box-shadow: 0 1px 3px rgba(15, 23, 42, .05); }
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) .box.soft { border-color: #c3d4f3; }
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) main h1 { color: #1d4ed8; }
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) .top { border-bottom-color: #dfe5ee; }
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) .michi span { background: #fff; border: 1px solid #dfe5ee; }
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) .michi span.ima { background: var(--accent); border-color: var(--accent); }
+body:not([data-gamen="子どもの画面"]):not([data-gamen="大人が試す画面"]) .entrance a .box { padding: 14px 18px; }
+.annai-link { display: flex; flex-wrap: wrap; gap: 8px; }
+.annai-link a { display: inline-block; padding: 6px 16px; border: 1px solid #c3d4f3; border-radius: 99px; background: #fff; text-decoration: none; font-weight: 700; }
