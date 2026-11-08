@@ -400,6 +400,19 @@ function heiiNaKekka(kind, kai, rec) {
   if (m.kekka === 'nashi') return `${mei}：どちらの出し方でも、同じくらい合っていました${kai.length > 1 ? '（どの日も、くり返し同じほうが多いことはありませんでした）' : ''}。`;
   return `${mei}：${kai.length > 1 ? `${rec.kai}回目は、` : 'この日は、'}「${DASHIKATA[m.kekka]}」ときのほうが、2回とも多く合っていました。`;
 }
+// 43便：先生の画面の上に、比べた組ごとの合った数を ● ○ で並べ、ひと目で分かるようにする（先生 11/8 16:53「説明が多い。パッとみて分かる程度に」）
+const MIJIKA = { yomu: '読む', kiku: '聞く', bun: '文', zu: '図', ikki: '一気に', kugiri: '区切って' };
+function hitomeHtml(kai, rec) {
+  return ['A', 'B', 'C'].map((kind) => {
+    const m = matome(rec, kind);
+    const x = kai.length ? matomeKai(kai, kind) : null;
+    const tama = (n) => `<span class="hm-tama" role="img" aria-label="${m.kazu}問中${n}問">${'●'.repeat(n)}${'○'.repeat(Math.max(0, m.kazu - n))}</span>`;
+    const cell = (d) => `<div class="hm-cell${m.kekka === d || x?.kurikaeshi === d ? ' hm-ooi' : ''}"><span class="hm-dashi">${esc(MIJIKA[d])}</span>${m[d].length ? m[d].map(tama).join('') : '<span class="muted">まだ</span>'}</div>`;
+    const [m1, m2] = m.kumi;
+    const kotoba = x?.kurikaeshi ? `別々の日にくり返し「${MIJIKA[x.kurikaeshi]}」が多い` : m.kekka === 'mada' ? (m[m1].length || m[m2].length ? 'まだ比べていない' : 'まだ解いていない') : m.kekka === 'nashi' ? '同じくらい' : `「${MIJIKA[m.kekka]}」が2回とも多い`;
+    return `<div class="hm-row"><div class="hm-mei">${esc(TANA_MEI[kind])}<span class="hm-kotoba">${esc(kotoba)}</span></div><div class="hm-cells">${cell(m1)}${cell(m2)}</div></div>`;
+  }).join('') + '<p class="muted small hm-rei">●＝合った問題の数、○＝合わなかった数（1回目・2回目。練習の問題は入れていません）</p>';
+}
 // 段階の名前（先生の画面だけ。子どもの画面には出さない）
 let dankaiMei = null;
 function dankaiNoNamae(kind, L) {
@@ -483,7 +496,7 @@ async function senseiKo(id) {
     <div class="narabi">
       <section class="box soft">
         <h2>${taiken ? '今回の結果（仮）' : 'いま分かったこと'}</h2>
-        <ul>${matomeBun}</ul>
+        <div class="hitome">${hitomeHtml(kai, rec)}</div>
         ${kai.length > 1 ? `<p class="small"><strong>前の回との違い</strong>（${esc(kai[kai.length - 2].kai)}回目 → ${esc(rec.kai)}回目${rec.shurui === 'mijikai' ? '・また見つけるの短いゲーム' : ''}）</p><ul class="small">${maeTonoChigai(kai).map((c) => `<li>${esc(TANA_MEI[c.kind])}：${esc(c.mae)} → ${esc(c.ima)}${c.kawatta ? '' : '（同じ）'}</li>`).join('')}</ul>` : ''}
         <p class="small">子どもが持っているカード：${motte.map((m) => `<strong>${esc(cards.カード[m.card].名前)}</strong>${m.level != null ? `（${esc(levelNoNamae(cards, m))}）` : ''}`).join('・')}</p>
       </section>
@@ -496,10 +509,10 @@ async function senseiKo(id) {
     <section class="box chui" id="sensei-chui">
       <h2>先生に気をつけてほしいこと</h2>
       <ul>
-        <li>この子の中で、出し方ごとに比べた結果です。ほかの子とは比べていません。</li>
-        <li>1回や2回の結果で、決めつけないでください。別の日は違うこともあります。</li>
+        <li>この子の中だけで比べた結果です（ほかの子とは比べません）。</li>
+        <li>1回や2回で決めつけない。別の日は違うこともあります。</li>
         <li>医療や専門の検査の代わりではありません。</li>
-        <li>本人や保護者に伝えるときは、「〇〇のとき、力が出ていたかも」と、あった事実で伝えてください。性格や能力の名前では言いません。</li>
+        <li>伝えるときは「〇〇のとき、力が出ていたかも」と、事実で。</li>
       </ul>
     </section>
 
@@ -522,6 +535,7 @@ async function senseiKo(id) {
     </div>`}
 
     ${kuwashiku('数字の表と、数え方', `
+      <ul class="small">${matomeBun}</ul>
       <p class="small">どの組も、2つの出し方を、順番を入れかえて2回ずつ試しました。同じ出し方でも、回によって1問くらいは変わります（たまたまの違い）。それより大きい違いが2回とも同じほうに出たときだけ、「多く合っていました」と書きます。読む・聞くの最初の練習と、選んで答える質問は、合った数に入れていません。</p>
       ${['A', 'B', 'C'].map((k) => tanaHtml(matome(rec, k))).join('')}
       <p class="muted small">かかった時間は参考です。問題が画面に出たときから数えます。端末や読み上げで変わるので、結果には入れず、速さで評価しません。</p>
@@ -560,12 +574,12 @@ async function senseiKo(id) {
       <p><span class="label">仮説</span><span class="kasetsu">${esc(k.kasetsu)}</span></p>
       <p>${esc(k.tsugi)}</p>
       <p><span class="label">確かめた回数</span>${esc(kakuninBun(k.kakunin))}</p>
-      <p class="small">${esc(k.sankou)}。${k.dare === 'claude' ? 'AI の下書き' : '決まった文の下書き'}なので、そのまま使わず、授業での様子と合わせて先生が判断してください。</p>
       <details class="kuwashiku"><summary>くわしく：そう考えた理由（事実）</summary>
         <ul class="small">${k.konkyo.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         ${k.wake ? `<p class="muted small">${esc(k.wake)}</p>` : ''}
+        <p class="small">${esc(k.sankou)}。${k.dare === 'claude' ? 'AI の下書き' : '決まった文の下書き'}なので、そのまま使わず、授業での様子と合わせて先生が判断してください。</p>
+        ${oboeHtml(k)}
       </details>
-      ${oboeHtml(k)}
       <div class="btns"><button class="sub" id="again">もう一度書いてもらう</button></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
   };

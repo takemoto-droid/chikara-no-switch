@@ -221,3 +221,16 @@ button.chiisai { padding: 6px 12px; font-size: .9rem; min-height: 0; }
 .kakunin-haikei { position: fixed; inset: 0; background: rgba(20, 20, 20, .45); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
 .kakunin { max-width: 420px; width: 100%; background: var(--surface); }
 .box.owari { border-width: 2px; border-color: var(--accent); }
+
+/* 43便：先生の画面の「いま分かったこと」を ● ○ でひと目に */
+.hitome { display: grid; gap: 10px; }
+.hm-row { display: grid; gap: 4px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.hm-mei { font-weight: 700; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.hm-kotoba { font-weight: 400; font-size: .9rem; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 0 10px; }
+.hm-cells { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hm-cell { background: #fff; border: 2px solid var(--line); border-radius: 10px; padding: 6px 10px; display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 0 12px; }
+.hm-cell.hm-ooi { border-color: #F2A33A; background: #FFF4E2; }
+.hm-dashi { font-weight: 700; grid-row: span 2; white-space: nowrap; }
+@media (max-width: 560px) { .hm-cell { grid-template-columns: 1fr; } .hm-dashi { grid-row: auto; } }
+.hm-tama { letter-spacing: .08em; font-size: 1.15rem; color: #2F6F8F; white-space: nowrap; line-height: 1.5; }
+.hm-rei { margin: 4px 0 0; }
