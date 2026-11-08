@@ -567,6 +567,10 @@ async function senseiKo(id) {
   }
 
   if (!kai.length) return;
+  // 44便：先生 11/8「くわしくの部分もさらに例を載せてはどうか」→ 授業での工夫の例。カードで本人に渡している「先生にお願いしてよいこと」をそのまま並べる（新しい文は作らない）
+  const kufuuNoRei = (c) => (c?.先生にお願いしてよいこと?.length
+    ? `<p class="small"><strong>授業での工夫の例</strong>（このカードで、本人に「先生にお願いしてよいこと」として渡している言葉）</p><ul class="small">${c.先生にお願いしてよいこと.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`
+    : '');
   const box = document.getElementById('kasetsu');
   const draw = (k) => {
     box.innerHTML = `
@@ -577,6 +581,7 @@ async function senseiKo(id) {
       <details class="kuwashiku"><summary>くわしく：そう考えた理由（事実）</summary>
         <ul class="small">${k.konkyo.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         ${k.wake ? `<p class="muted small">${esc(k.wake)}</p>` : ''}
+        ${kufuuNoRei(cards.カード?.[k.card])}
         <p class="small">${esc(k.sankou)}。${k.dare === 'claude' ? 'AI の下書き' : '決まった文の下書き'}なので、そのまま使わず、授業での様子と合わせて先生が判断してください。</p>
       </details>
       ${oboeHtml(k)}
