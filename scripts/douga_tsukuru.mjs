@@ -53,64 +53,62 @@ const DAIHON = [
       '日本では、およそ二十万人。教室なら、三十五人のうち、六人か七人です。',
       '大人になっても、十人に一人います。',
     ] },
-  { id: 'sho', koe: '02_sho', na: '承', waku: '#1E2228', kaname: [5], jimakuNashi: true, chuui: [],
+  { id: 'sho', koe: '02_sho', na: '承', waku: '#1E2228', kaname: [6], jimakuNashi: true, chuui: [],
     bun: [
-      '私は中学校の教員です。',
-      '解けているのに、ノートは白紙の子がいます。',
+      '問題は解けているのに、説明の板書は写さない。',
       '読むのが遅くて、置いていかれる。読んだのに、意味が入ってこない。',
       '本人も、周りの大人も気づかず、サボっていると思われてしまう。',
-      '困ったら言ってね、では届きません。でも、こちらから具体的にたずねると、答えてくれます。',
-      'こちらからたずねる。それを、クラス全員に、ホームルームの時間で。それが、チカラのスイッチです。',
+      '困ったら言ってね、と先生が言っても言語化ができない。',
+      'でも、先生からの声かけには、生徒は答えられます。',
+      'これらの例は、よく気づく先生にしか見えないし、本人だけでは気づけない。小さいようで、大きな問題。',
+      '個に応じた最適な指導がしたい。それも、クラス全員に。そのために提案するのが、チカラのスイッチです。',
     ] },
-  { id: 'tenA', koe: '03_tenA', na: '転A', waku: '#3A2E1A', kukan: '① 見つける', kaname: [3],
+  { id: 'tenA', koe: '03_tenA', na: '転A', waku: '#3A2E1A', kukan: '① 見つける', kaname: [2],
     chuui: ['合計・順位・枚数は出しません。差が出なかった子にもカードが届きます。'],
     bun: [
-      '同じ問題を、出し方だけ変えて解きます。読むか、聞くか。文か、図か。一気にか、区切ってか。',
-      '四十五分で、二十二問。途中に、本人が選んで答える質問も。',
-      '比べる相手は、ほかの子ではなく、別の出し方で解いた自分です。',
-      '聞いて考えたら、できた。その事実が、スイッチカードになって、本人に残ります。',
-      '自分の出し方を知っている子は、学習でも日常でも、自分で工夫できます。声に出して読む。分からないときは、聞き返す。',
+      '同じ問題も、問い方を変えてみる。読むか、聞くか。文か、図か。一気に読むか、区切って読むか。',
+      '比べるのは、他人ではなく、解き方を変えてみた自分。',
+      '読んでもできなかったけど、聞いて考えたら、できた。その事実が、スイッチカードになって、本人に残ります。',
+      '自分のチカラの出し方を知った子は、学習でも日常でも、自分で工夫できるようになる。たとえば、声に出して読む。分からないときは、聞き返す。',
       '困りを言葉にできなくても、カードが、その子の言葉になります。',
     ] },
-  { id: 'tenB', koe: '04_tenB', na: '転B', waku: '#1A3448', kukan: 'Claude が下書き', kaname: [],
+  { id: 'tenB', koe: '04_tenB', na: '転B', waku: '#1A3448', kukan: 'Claude が下書き', kaname: [0],
     chuui: ['仮説は参考程度。決めるのは先生です。', '医療や専門の検査の代わりではありません。その手前を受け持ちます。', '保護者にも同じカードの言葉で伝えます。'],
     bun: [
-      '先生の画面には、比べた結果と、本人が選んだ答えが並び、クロードが仮説と、懇談の下書きを書きます。決めるのは先生です。',
-      '大事な連絡は、口でも伝える。授業の小さな工夫が、根拠つきで始まります。',
-      'クラス全員がやるから、特別な子への特別なことではなく、どの子にもある、ちょっとした工夫になります。',
+      '先生の画面には、クロードが指導のヒントを出してくれます。もちろん、伝えるのは目の前の子どもを相手にする先生。',
+      '大事な連絡は、口でも伝える。問題文を読んであげる。そして、生徒は安心して学べる。',
+      '特別な支援ではなく、ちょっとした工夫になり、生徒への理解は信頼関係につながる。',
       '一人一人に支援が行き渡る、そのきっかけになるアプリです。',
     ] },
   { id: 'tenC', koe: '05_tenC', na: '転C', waku: '#352848', kukan: '② 育てる', kaname: [], chuui: [],
     bun: [
-      '見つけたら、育てます。',
-      '得意な出し方を支えにして、もう一方を、朝の十分で練習します。',
+      'カードは、育てることができる。',
+      '得意なカードを支えにして、別のカードを、朝学習など10分ほどで練習する。',
       '今日は、聞きながら読む。明日は、支えを少し減らして、もう一度。できた、を自分で積んでいきます。',
     ] },
-  { id: 'fukasa', koe: '06_fukasa', na: 'Claude と深さ', waku: '#1A3F28', kukan: 'Claude がすること', kaname: [0, 2],
+  { id: 'fukasa', koe: '06_fukasa', na: 'Claude と深さ', waku: '#1A3F28', kukan: 'Claude がすること', kaname: [0],
     chuui: ['出力は、避ける言葉で機械的に点検し、引っかかれば書き直させます。', '架空の子のデータで確かめました。'],
     bun: [
-      'クロードには、測る問題を作らせません。問題を変えると、何の差なのか分からなくなるからです。',
-      'クロードがするのは、次の出し方を理由つきで選ぶこと。本人の答えを読み合わせ、次の一手につなげることです。',
-      'よく気づく先生にしか見えなかったことが、本人にも、周りにも見える。クロードは、そのきっかけを作ります。',
-      'いちばん難しかったのは、一回や二回の結果で、決めつけないこと。',
+      'クロードは、生徒の答えから、次のチカラの出し方を選び、スイッチを育てる計画を書きます。',
+      'よく気づく先生にしか見えなかったことが、本人にも、周りにも見える。チカラのスイッチは、そのきっかけを作ります。',
     ] },
   { id: 'ketsu', koe: '07_ketsu', na: '結', waku: '#1E2228', kaname: [1],
     chuui: ['学校ごとの設定で、次の年にも引き継げます。', '学力への効果は確かめていません。言えるのは、ゲームの中で、支えが少なくてもできた、という事実までです。'],
     bun: [
-      'ホームルームと朝の時間だけで、クラス全員が使えます。調べものから設計まで、クロードと作りました。',
-      '言葉にできなくても、力のスイッチを、見つけて育てる。',
+      '初回のホームルームと、10分ほどのすき間時間で、生徒全員の学びに寄り添える。',
+      '言葉にできなくても、チカラのスイッチを、みんなで探そう。',
     ] },
 ];
-const OTOSU_JUN = '転C-2 → 転A-2 → 起-3';
+const OTOSU_JUN = '（11/8 14:03 先生の削りで収める。ほかに落とす文は先生に聞く）';
 
 // 合成の声に渡すときだけ読みを直す（文は変えない）。既定の辞書だと「言って」を「ゲンッテ」、「区切って」を「クギリッテ」と読むため
-const YOMI_NAOSHI = [['言ってね', 'いってね'], ['区切って', 'くぎって']];
+const YOMI_NAOSHI = [['言ってね', 'いってね'], ['区切って', 'くぎって'], ['10分', 'じゅっぷん']];
 // 字幕：「クロード」は「Claude」、かな数字（漢数字）は算用数字。起-1 は「国際学力調査 PISA の結果です。」、転B-2 は『 』付き（批評の表）。
 // 読点で切った「かけら」ごとに直す（字幕の枚数は、かけらを 22 字までまとめて決める）
 const JIMAKU_KAE = [
   ['国際学力調査、', '国際学力調査 '], ['ピザの', 'PISA の'], ['大事な連絡は、', '『大事な連絡は、'], ['口でも伝える。', '口でも伝える』。'],
   ['クロード', 'Claude'], ['十五歳', '15 歳'], ['百人に十九人', '100 人に 19 人'], ['二十万人', '20 万人'], ['三十五人', '35 人'],
-  ['六人か七人', '6 人か 7 人'], ['十人に一人', '10 人に 1 人'], ['四十五分', '45 分'], ['二十二問', '22 問'], ['朝の十分', '朝の 10 分'],
+  ['六人か七人', '6 人か 7 人'], ['十人に一人', '10 人に 1 人'], ['四十五分', '45 分'], ['二十二問', '22 問'], ['朝の十分', '朝の 10 分'], ['10分', '10 分'],
 ];
 const yomiOf = (s) => YOMI_NAOSHI.reduce((a, [x, y]) => a.replaceAll(x, y), s);
 const jimakuOf = (s) => JIMAKU_KAE.reduce((a, [x, y]) => a.replaceAll(x, y), s)
@@ -124,7 +122,7 @@ const KASANE = {
   hayaokuri: '早送り',
   kirokuNoHi: '2026-11-06 に公開デモで Claude が書いた記録',
   ki: { ue: 'PISA 2025　国際学力調査', hito: ['100 人に', '人'], otona: ['10 人に', '1', '人'], kyoushitsu: ['35 人に', '6〜7 人', 'およそ 20 万人'] },
-  sho: ['解けているのに、ノートは白紙。', '読むのが遅くて、置いていかれる。', 'サボっている、と思われてしまう。', '『困ったら言ってね』では届かない。', 'こちらからたずねると、答えてくれる。'],
+  sho: ['説明の板書は、写さない。', '読むのが遅くて、置いていかれる。', 'サボっている、と思われてしまう。', '『言ってね』では、言語化できない。', '先生の声かけには、答えられる。'],
   yomu: '📖 読む', kiku: '👂 聞く', kikuSoe: '左と同じ文章を、声で',
   zu: '🗺️ 図で見る', kugiri: '✂️ 一文ずつ読む',
   sodateMae: '8 回目の練習のあと', sodateAto: '12 回目の練習のあと',
@@ -1095,6 +1093,8 @@ function honmono() {
   const kotae = kotaeD(demo.結果['デモ1'].kai[0], tana);
   const D1 = tana.D.質問.D1;
   const kiroku = JSON.parse(readFileSync(KIROKU, 'utf8'));
+  const keiBun = hozon.文['__クラス__'].keikaku.ko[0].bun;
+  const keikakuBun = keiBun.slice(keiBun.indexOf('週2回'));
   const kirokuBun = kiroku.erabi.filter((e) => e.dare === 'claude').map((e) => e.riyuu).find((r) => r.startsWith('さっきは聞いて答えたので'));
   if (!kirokuBun) throw new Error('資料 31 に「さっきは聞いて答えたので…」の Claude の行がありません');
   const tsugi = k1.kasetsu.tsugi;
@@ -1110,6 +1110,7 @@ function honmono() {
     sonomama: kaisu,
     kobetsu,
     kirokuBun,
+    keikakuBun,
     ichibun,
     shitsumon: { toi: D1.問い, kotae: D1.選択肢.slice(0, 4), erabu: kotae.find((d) => d.id === 'D1').kotae },
     hachinin: demo.クラス.map((k) => {
@@ -1151,7 +1152,7 @@ function daimei(t) {
 }
 
 // 転A：s0「同じ問題」の板と、3 段の「読む｜聞く」「文｜図」「一気に｜区切って」
-const DAN3 = [['読む', '聞く'], ['文', '図'], ['一気に', '区切って']];
+const DAN3 = [['読む', '聞く'], ['文', '図'], ['一気に読む', '区切って読む']];
 function onajiMondai({ ue = 0, dan = 0, fade = 1 }) {
   // ue：板が上へ滑る進み（0〜1。1 で消える）。dan：出ている段の数。fade：いちばん新しい段の現れ方
   const ban = ue < 1 ? `<div style="position:absolute;left:50%;top:50%;transform:translate(-50%,calc(-50% - ${yukkuri(ue) * 520}px));${op(1 - yukkuri(ue))}${BAN}width:1100px;height:320px;display:flex;align-items:center;justify-content:center;font-size:120px;font-weight:700">同じ問題</div>` : '';
@@ -1166,6 +1167,11 @@ function yonjuugo(iro) {
 }
 
 // 転B：s0 左「比べた結果」（表の写し）｜右「本人が選んだ答え」（本物の 2 つ・48px）
+function kurabeHidari(G) {
+  const g = G.d1_hyou;
+  const sc = Math.min(1100 / g.w, 600 / g.h);
+  return naka(`<div style="width:${g.w * sc}px"><div style="font-size:44px;font-weight:700;margin-bottom:16px">比べた結果</div><div style="${BAN}width:${g.w * sc}px;height:${g.h * sc}px;overflow:hidden"><img src="${pathToFileURL(g.file).href}" style="width:100%;height:100%;display:block;border-radius:14px"></div></div>`);
+}
 function kurabetaKekka(G, H0, migi) {
   const g = G.d1_hyou;
   const sc = Math.min(840 / g.w, 560 / g.h);
@@ -1252,6 +1258,38 @@ function ichiNiKai(H0, ita, gyou = 0) {
 
 // ---- 区間ごとの絵の並び（台本 §1 の「画面」）。cue：s 文の番号（0 から）・at 文の中のかけら（その頭から）・plus 秒・pic 絵（seq は [絵, 秒] の並び）
 // 30便：アプリの写しは、全画面・寄り・2-up・帯とも「白い板」（ita）。後ろに暗くした画面は置かない。印は 1 コマ 1 つ・#E08A1E
+
+// ---- 第8版の新しい絵（先生の 11/8 10:03 の言葉。声の文の言葉だけを使う）
+function miienai(n) {
+  const rei = KASANE.sho.slice(0, 3).map((t) => `<div style="font-size:48px;line-height:1.5;color:${IRO.label}">${esc(t)}</div>`).join('');
+  const dai = (t, c, vis) => `<div style="font-size:88px;font-weight:700;line-height:1.35;color:${c};${vis ? '' : 'visibility:hidden;'}">${t}</div>`;
+  return naka(`<div style="${BAN}padding:28px 56px;margin-bottom:56px;background:#F7F5EF">${rei}</div>${dai('よく気づく先生にしか、見えない。', IRO.midashi, n >= 1)}${dai('本人だけでは、気づけない。', IRO.suuji, n >= 2)}${dai('小さいようで、大きな問題。', IRO.midashi, n >= 3)}`);
+}
+function kyouKo(n, t) {
+  const x0 = KYOU_X_MIGI;
+  let k = 0;
+  const s0 = kyoushitsu({ x0 }).replace(new RegExp(`fill="#FFFFFF" stroke="${IRO.sen}"`, 'g'), (m) => (k++ < n ? `fill="${ORANGE}" stroke="${ORANGE}"` : m));
+  const tx = x0 + KW + 100, y0 = KYOU_Y0;
+  let b = `<text x="${tx}" y="${y0 + 150}" font-size="72" font-weight="700" fill="${IRO.midashi}">個に応じた</text><text x="${tx}" y="${y0 + 240}" font-size="72" font-weight="700" fill="${IRO.midashi}">最適な指導を</text>`;
+  if (t >= 2) b += `<text x="${tx}" y="${y0 + 380}" font-size="72" font-weight="700" fill="${IRO.suuji}">それも、</text><text x="${tx}" y="${y0 + 470}" font-size="72" font-weight="700" fill="${IRO.suuji}">クラス全員に</text>`;
+  return s0.replace('</svg>', b + '</svg>');
+}
+function reiRei(n) {
+  const L = ['大事な連絡は、口でも伝える', '問題文を読んであげる'];
+  return naka(`<div style="margin-bottom:40px">${fuda('指導のヒントの例')}</div><div style="display:flex;flex-direction:column;gap:36px;align-items:center">${L.map((t, i) => `<div style="${BAN}padding:36px 72px;font-size:84px;font-weight:700;${i < n ? '' : 'visibility:hidden;'}">${esc(t)}</div>`).join('')}</div>`);
+}
+function renkei(n) {
+  const box = (t, i, last) => `<div style="${BAN}padding:24px 72px;font-size:84px;font-weight:700;${last ? WAKU_S : ''}${i < n ? '' : 'visibility:hidden;'}">${esc(t)}</div>`;
+  const ya = (i) => `<svg width="60" height="56" viewBox="0 0 60 56" style="${i < n ? '' : 'visibility:hidden;'}"><path d="M30 6v40M12 30l18 20 18-20" fill="none" stroke="${IRO.fudaJi}" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  return naka(`<div style="display:flex;flex-direction:column;align-items:center;gap:14px">${box('根拠', 0)}${ya(1)}${box('小さな工夫', 1)}${ya(2)}${box('生徒は安心して学べる', 2, true)}</div>`);
+}
+function anshin() {
+  return naka(`<div style="${BAN}padding:36px 80px;font-size:96px;font-weight:700;${WAKU_S}">生徒は安心して学べる</div>`);
+}
+function rikai() {
+  return naka(`<div style="display:flex;align-items:center;gap:56px"><div style="${BAN}padding:40px 64px;font-size:96px;font-weight:700">生徒への理解</div><svg width="150" height="60" viewBox="0 0 150 60"><path d="M8 30h118M100 8l26 22-26 22" fill="none" stroke="${IRO.fudaJi}" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg><div style="${BAN}padding:40px 64px;font-size:96px;font-weight:700;${WAKU_S}">信頼関係</div></div>`);
+}
+
 function eNoNarabi(G) {
   const g = (name) => {
     const x = G[name];
@@ -1296,7 +1334,7 @@ function eNoNarabi(G) {
   const cardAt = (t, fuda = [], o = {}) => ({ k: 'cardfuda', g: g('card_d1_semai'), t: Number(t.toFixed(4)), fuda, fudaAll: KASANE.kufuu, o });
   const easeOut = (x) => 1 - (1 - x) ** 3;
   const suberu = (a, b, fuda, o) => Array.from({ length: 12 }, (_, i) => [cardAt(a + (b - a) * easeOut((i + 1) / 12), fuda, o), i < 11 ? 1 / 30 : 0]);
-  const fadeSeq = (gyou) => Array.from({ length: 6 }, (_, i) => [S(shoNoE({ p: 1, gyou, fade: (i + 1) / 6 })), i < 5 ? 0.05 : 0]);
+  const fadeSeq = (gyou) => Array.from({ length: 6 }, (_, i) => [{ ...S(shoNoE({ p: 1, gyou, fade: (i + 1) / 6 })), na: `承 行${gyou}` }, i < 5 ? 0.05 : 0]);
   const betsu = { sen: G.card_d1_semai.marks.betsu };
   return {
     ki: [
@@ -1308,84 +1346,61 @@ function eNoNarabi(G) {
     ],
     sho: [
       { s: 0, pic: S(shoNoE({ p: 0 })) },
-      { s: 0, plus: 0.1, seq: Array.from({ length: 21 }, (_, i) => [S(shoNoE({ p: i / 20 })), i < 20 ? 0.1 : 0]) },
-      { s: 1, seq: fadeSeq(1) },
-      { s: 2, seq: fadeSeq(2) },
-      { s: 3, seq: fadeSeq(3) },
-      { s: 4, seq: fadeSeq(4) },
-      { s: 4, at: 'でも、', seq: fadeSeq(5) },
-      // 32便：「こちらから具体的にたずねると」から、本物の質問の板（3 秒以上）
-      { s: 4, at: 'こちらから具体的にたずねると、', fuda: KO, pic: B32('承-5 質問の板', shitsumonBan(H0)) },
-      // s5：①吹き出し → ②教室の 35 席が全部灯る → ③題名と橙の線
-      // 質問の板を 3 秒見せたら、声の s5 より少し前でも吹き出しへ（③題名を 2.5 秒以上にするため）
-      { s: 4, at: 'こちらから具体的にたずねると、', plus: 3.0, pic: B32('承-6 吹き出し', fukidashi()) },
-      { s: 5, at: 'それを、', ato: 2.5, seq: Array.from({ length: 36 }, (_, i) => [B32('承-6 35 席が灯る', kyoushitsuZen(i)), i < 35 ? 0.05 : 0]) },
-      { s: 5, at: 'それが、', ato: 2.5, seq: Array.from({ length: 12 }, (_, i) => [B32('承-6 題名', daimei(yukkuri((i + 1) / 12))), i < 11 ? 1 / 30 : 0]) },
+      { s: 0, plus: 0.05, seq: Array.from({ length: 21 }, (_, i) => [S(shoNoE({ p: i / 20 })), i < 20 ? 0.065 : 0]) },
+      { s: 0, at: '説明の板書は写さない。', seq: fadeSeq(1) },
+      { s: 1, seq: fadeSeq(2) },
+      { s: 2, seq: fadeSeq(3) },
+      { s: 3, seq: fadeSeq(4) },
+      { s: 4, seq: fadeSeq(5) },
+      { s: 4, at: '生徒は答えられます。', ato: 2.5, fuda: KO, pic: B32('承-5 質問の板', shitsumonBan(H0)) },
+      { s: 5, ato: 2.5, pic: B32('承-6 見えない 1', miienai(1)) },
+      { s: 5, at: '本人だけでは気づけない。', pic: B32('承-6 見えない 2', miienai(2)) },
+      { s: 5, at: '小さいようで、', ato: 2.5, pic: B32('承-6 見えない 3', miienai(3)) },
+      { s: 6, ato: 2.5, pic: B32('承-7 個に応じた', kyouKo(0, 1)) },
+      { s: 6, at: 'それも、', ato: 2.5, seq: Array.from({ length: 36 }, (_, i) => [B32('承-7 クラス全員', kyouKo(i, 2)), i < 35 ? 0.05 : 0]) },
+      { s: 6, at: 'そのために提案するのが、', ato: 2.5, seq: Array.from({ length: 12 }, (_, i) => [B32('承-7 題名', daimei(yukkuri((i + 1) / 12))), i < 11 ? 1 / 30 : 0]) },
     ],
     tenA: [
       // 32便：「同じ問題」の板 → 上へ滑って、3 段「読む｜聞く」「文｜図」「一気に｜区切って」が声に合わせて 1 段ずつ
       { s: 0, fuda: KO, pic: B32('転A-1 同じ問題', onajiMondai({})) },
       { s: 0, at: '読むか、', ato: 2.5, fuda: KO, seq: [...Array.from({ length: 12 }, (_, i) => [B32('転A-1 3 段', onajiMondai({ ue: (i + 1) / 12, dan: 1, fade: (i + 1) / 12 })), i < 11 ? 1 / 30 : 0])] },
       { s: 0, at: '文か、', fuda: KO, seq: fadeKoma((f) => B32('転A-1 3 段', onajiMondai({ ue: 1, dan: 2, fade: f }))) },
-      { s: 0, at: '一気にか、', fuda: KO, seq: fadeKoma((f) => B32('転A-1 3 段', onajiMondai({ ue: 1, dan: 3, fade: f }))) },
-      // 「四十五分で、二十二問」：45 分・22 問と、22 個の点が 0.06 秒刻みで灯る
-      { s: 1, ato: 2.5, fuda: KO, seq: Array.from({ length: 23 }, (_, i) => [B32('転A-2 45 分・22 問', yonjuugo(i)), i < 22 ? 0.06 : 0]) },
-      // 「途中に、本人が選んで答える質問も」：本物の質問の板。選んだ答えに橙の枠（3 秒以上）
-      { s: 1, at: '途中に、', ato: 2.5, fuda: KO, pic: B32('転A-2 質問の板', shitsumonBan(H0, H0.shitsumon.erabu)) },
-      { s: 2, ato: 3.0, fuda: SEN, pic: kiri('d1_hyou') },
-      { s: 3, fuda: KO, pic: cardAt(0, [], { sen: G.card_d1_semai.marks.hitokoto }) },
+      { s: 0, at: '一気に読むか、', fuda: KO, seq: fadeKoma((f) => B32('転A-1 3 段', onajiMondai({ ue: 1, dan: 3, fade: f }))) },
+      { s: 1, ato: 3.0, fuda: SEN, pic: kiri('d1_hyou') },
+      { s: 2, fuda: KO, pic: cardAt(0, [], { sen: G.card_d1_semai.marks.hitokoto }) },
       // 転A-5：カードを左へ滑らせ（400ms）、右に工夫の札 2 枚（声に合わせて。2 枚目は 1.8 秒後）
-      { s: 4, fuda: KO, seq: suberu(0, 1, [], betsu) },
-      { s: 4, at: '声に出して読む。', fuda: KO, pic: cardAt(1, [KASANE.kufuu[0]], betsu) },
-      { s: 4, at: '声に出して読む。', plus: 1.8, fuda: KO, pic: cardAt(1, KASANE.kufuu, betsu) },
+      { s: 3, fuda: KO, seq: suberu(0, 1, [], betsu) },
+      { s: 3, at: '声に出して読む。', fuda: KO, pic: cardAt(1, [KASANE.kufuu[0]], betsu) },
+      { s: 3, at: '声に出して読む。', plus: 1.8, fuda: KO, pic: cardAt(1, KASANE.kufuu, betsu) },
       // 転A-6：札を消し、カードを中央へ戻す（400ms）
-      { s: 5, fuda: KO, seq: suberu(1, 0, [], {}) },
+      { s: 4, fuda: KO, seq: suberu(1, 0, [], {}) },
     ],
     tenB: [
-      // 32便：左「比べた結果」→ 右「本人が選んだ答え」（本物の 2 つ）
-      { s: 0, fuda: SEN, seq: fadeKoma((f) => B32('転B-1 比べた結果｜選んだ答え', kurabetaKekka(G, H0, 0))) },
-      { s: 0, at: '本人が選んだ答えが並び、', fuda: SEN, seq: fadeKoma((f) => B32('転B-1 比べた結果｜選んだ答え', kurabetaKekka(G, H0, f))) },
-      // 「Claude が仮説と、懇談の下書きを書きます」：本物の仮説の 1 文（64px 太・橙の枠 1 つ・3 秒以上）
-      { s: 0, at: 'クロードが仮説と、', ato: 2.5, fuda: SEN, pic: B32('転B-1 仮説の板', claudeBan(H0.kasetsu, { chip: '仮説' })) },
-      // 「決めるのは先生です」：1 語の書きかえ（本物の下書きの 1 文を 56px で）
-      { s: 0, at: '決めるのは先生です。', ato: 3.0, fuda: SEN, seq: kakikaeSeq() },
-      // s1：左＝仮説 → 矢印「根拠つき」→ 右＝「大事な連絡は、口でも伝える」
-      { s: 1, ato: 4.0, fuda: SEN, pic: B32('転B-2 根拠つき', konkyoTsuki(H0, 1)) },
-      { s: 1, at: '授業の小さな工夫が、', ato: 1.0, fuda: SEN, pic: B32('転B-2 根拠つき', konkyoTsuki(H0, 2)) },
-      { s: 1, at: '根拠つきで始まります。', ato: 0.8, fuda: SEN, pic: B32('転B-2 根拠つき', konkyoTsuki(H0, 3)) },
-      // s2：8 人の名前とカードの題名が 1 人ずつ 0.5 秒刻みで
-      { s: 2, ato: 2.5, fuda: SEN, seq: Array.from({ length: 8 }, (_, i) => [B32('転B-3 8 人', hachinin(H0, i + 1)), i < 7 ? 0.5 : 0]) },
-      // s3：「一人一人に」「支援が行き渡る」「そのきっかけ」を 1 行ずつ
+      { s: 0, ato: 2.5, fuda: SEN, pic: B32('転B-1 ヒントの板', claudeBan(H0.kasetsu, { chip: '指導のヒント（仮説）' })) },
+      { s: 0, at: 'もちろん、', ato: 3.0, fuda: SEN, seq: kakikaeSeq() },
+      { s: 1, ato: 4.0, fuda: SEN, pic: B32('転B-2 例', reiRei(2)) },
+      { s: 1, at: 'そして、', ato: 2.5, fuda: SEN, pic: B32('転B-2 安心', anshin()) },
+      { s: 2, ato: 2.5, fuda: SEN, seq: Array.from({ length: 8 }, (_, i) => [B32('転B-3 8 人', hachinin(H0, i + 1)), i < 7 ? 0.2 : 0]) },
+      { s: 2, at: '生徒への理解は信頼関係につながる。', ato: 2.5, fuda: SEN, pic: B32('転B-3 理解と信頼', rikai()) },
       { s: 3, ato: 2.5, seq: fadeKoma((f) => B32('転B-4 一人一人に', hitoriHitori(1, f))) },
       { s: 3, plus: 0.9, ato: 0.6, seq: fadeKoma((f) => B32('転B-4 一人一人に', hitoriHitori(2, f))) },
       { s: 3, at: 'そのきっかけになるアプリです。', ato: 0.6, seq: fadeKoma((f) => B32('転B-4 一人一人に', hitoriHitori(3, f))) },
     ],
     tenC: [
-      // 32便：「見つけたら、育てます」＝スイッチカード（本物）
       { s: 0, fuda: KO, pic: zen('card_d1_semai') },
-      { s: 1, ato: 2.5, fuda: KO, pic: kiri('kyou_renshu', { ue: KASANE.nerai }) },
-      { s: 1, plus: 2.5, ato: 2.5, fuda: KO, pic: kiri('kyou_yarikata', { ue: KASANE.sasae }) },
-      // 「明日は、」から文の終わりまで、レベルの行だけを 2 枚
+      { s: 1, ato: 2.5, fuda: KO, pic: kiri('kyou_yarikata', { ue: KASANE.sasae }) },
+      { s: 1, at: '別のカードを、', ato: 2.5, fuda: KO, pic: kiri('kyou_renshu', { ue: KASANE.nerai }) },
+      { s: 2, ato: 2.5, fuda: KO, pic: kiri('kyou_yarikata', { ue: KASANE.sasae }) },
       { s: 2, at: '明日は、', ato: 2.5, fuda: KO, pic: { k: 'narabe', items: [{ label: KASANE.sodateMae, g: g('sodate_mae_level') }, { label: KASANE.sodateAto, g: g('sodate_ato_level') }] } },
     ],
     fukasa: [
-      // 32便：「測る問題」の板 3 枚＋札「Claude」に橙の ✕（400ms で引く）
-      { s: 0, seq: Array.from({ length: 13 }, (_, i) => [B32('深さ-1 測る問題', hakaruMondai(i / 12)), i < 12 ? 1 / 30 : 0]) },
-      // 「問題を変えると、」：問題 A・B・C と「？」「何の差？」
-      { s: 0, at: '問題を変えると、', ato: 2.5, seq: fadeKoma((f) => B32('深さ-1 何の差', hakaruMondai(1, f))) },
-      // s1：保存した記録の本物の 1 文（Claude）→ 左「Claude を使わないとき」→ 右「Claude の下書き」
-      { s: 1, ato: 2.5, fuda: SEN, pic: B32('深さ-2 記録の 1 文', claudeBan(H0.kirokuBun, { px: 56, waku: false })) },
-      { s: 1, at: '本人の答えを読み合わせ、', ato: 3.0, fuda: SEN, pic: B32('深さ-2 使わないとき｜下書き', hidariMigi(H0, 1)) },
-      { s: 1, at: '本人の答えを読み合わせ、', plus: 0.01, ato: 2.5, fuda: SEN, pic: B32('深さ-2 使わないとき｜下書き', hidariMigi(H0, 2)) },
-      // s2：左「先生に見える」仮説｜右「本人に見える」カード
-      { s: 2, ato: 2.5, pic: B32('深さ-3 先生に｜本人に', mieru2(G, H0)) },
-      // s3（34便）：文の頭で「読む｜聞く」の板 2 枚（デモ1 の 1 回目の実物の数字）→「一回や二回の」で「一回や二回で、決めつけない」
-      { s: 3, ato: 2.5, seq: fadeKoma((f) => B32('深さ-4 一回や二回', ichiNiKai(H0, f))) },
-      { s: 3, at: '一回や二回の結果で、', seq: fadeKoma((f) => B32('深さ-4 一回や二回', ichiNiKai(H0, 1, f))) },
+      { s: 0, fuda: SEN, pic: B32('深さ-1 記録の 1 文', claudeBan(H0.kirokuBun, { px: 56, waku: false })) },
+      { s: 0, at: 'スイッチを育てる計画を書きます。', ato: 3.0, fuda: SEN, pic: B32('深さ-1 計画の 1 文', claudeBan(H0.keikakuBun, { px: 56, waku: false, chip: '期間の計画' })) },
+      { s: 1, ato: 2.5, pic: B32('深さ-3 先生に｜本人に', mieru2(G, H0)) },
     ],
     ketsu: [
       { s: 0, pic: S(kyoushitsu({ x0: KYOU_X_NAKA })) },
-      { s: 0, at: 'クラス全員が使えます。', seq: Array.from({ length: 36 }, (_, i) => [S(kyoushitsu({ x0: KYOU_X_NAKA, cards: i })), i < 35 ? 0.05 : 0]) },
+      { s: 0, at: '生徒全員の学びに寄り添える。', seq: Array.from({ length: 36 }, (_, i) => [S(kyoushitsu({ x0: KYOU_X_NAKA, cards: i })), i < 35 ? 0.05 : 0]) },
       { s: 1, fuda: KO, pic: zen('card_d1_card') },
     ],
     saigo: [{ s: null, pic: saigo }],
@@ -1412,13 +1427,31 @@ function jikanwari(koe, sensei, cues) {
     else if (sensei[sec.id]) {
       // 先生の声：区間の長さを、文の字数で割り付ける（文の間も字数の割合に含める。厳密でなくてよい）
       const d = wavNoNakami(sensei[sec.id].file).length / SAMPLE;
-      const zen = bun.reduce((a, b) => a + haba(b.jimaku), 0);
-      let t = ATAMA;
-      for (const b of bun) {
-        b.t0 = t; b.d = (d * haba(b.jimaku)) / zen;
-        const w = b.jkakera.map(haba); const sw = w.reduce((a, x) => a + x, 0);
-        let acc = 0; b.kt = w.map((x) => { const s = b.t0 + (b.d * acc) / sw; acc += x; return s; });
-        t += b.d;
+      // 41便：DOUGA_KOE_DIR/jikoku.json があれば、文の頭（t0）と、文の中のかけらの頭（kt・任意）を、そのファイルの頭からの秒で使う
+      //   形：{ "tenA": [ { "t0": 0.0, "kt": [0.0, 1.2, ...] }, ... ], ... }（文の数は台本と同じ。kt の数は字幕のかけらの数と同じ）
+      const jp = path.join(KOE_DIR, 'jikoku.json');
+      const J = existsSync(jp) ? JSON.parse(readFileSync(jp, 'utf8'))[sec.id] : null;
+      if (J) {
+        if (J.length !== bun.length) throw new Error(`jikoku.json の ${sec.id} の文の数が台本と違います（${J.length}／${bun.length}）`);
+        bun.forEach((b, i) => {
+          b.t0 = ATAMA + J[i].t0; b.d = (i + 1 < bun.length ? J[i + 1].t0 : d) - J[i].t0;
+          if (J[i].kt) {
+            if (J[i].kt.length !== b.jkakera.length) throw new Error(`jikoku.json の ${sec.id} ${i + 1} 文目のかけらの数が違います（${J[i].kt.length}／${b.jkakera.length}：${b.jkakera.join('｜')}）`);
+            b.kt = J[i].kt.map((x) => ATAMA + x);
+          } else {
+            const w = b.jkakera.map(haba); const sw = w.reduce((a, x) => a + x, 0);
+            let acc = 0; b.kt = w.map((x) => { const s = b.t0 + (b.d * acc) / sw; acc += x; return s; });
+          }
+        });
+      } else {
+        const zen = bun.reduce((a, b) => a + haba(b.jimaku), 0);
+        let t = ATAMA;
+        for (const b of bun) {
+          b.t0 = t; b.d = (d * haba(b.jimaku)) / zen;
+          const w = b.jkakera.map(haba); const sw = w.reduce((a, x) => a + x, 0);
+          let acc = 0; b.kt = w.map((x) => { const s = b.t0 + (b.d * acc) / sw; acc += x; return s; });
+          t += b.d;
+        }
       }
       sec.senseiNoKoe = sensei[sec.id].moto;
       len = ATAMA + d + (bun[bun.length - 1].kaname ? KANAME_MA : 0);
@@ -1489,7 +1522,7 @@ function jikanwari(koe, sensei, cues) {
         koma.push({ f: t, n, spec: { pic: ev.pic, ...ev.notes, jimaku: jm ? jm.lines : [], ...(zoom ? { zoom } : {}) } });
       }
     }
-    kukan.push({ basho, id: sec.id, na: sec.na, koe: sec.koe, senseiNoKoe: sec.senseiNoKoe || null, f0, fLen, bun: bun.map((b) => ({ ...b, f: fr(b.t0) })), mai, koma });
+    kukan.push({ e, basho, id: sec.id, na: sec.na, koe: sec.koe, senseiNoKoe: sec.senseiNoKoe || null, f0, fLen, bun: bun.map((b) => ({ ...b, f: fr(b.t0) })), mai, koma });
     fAll += fLen;
   }
   return { kukan, fAll };
@@ -1548,6 +1581,7 @@ async function main() {
     const h2 = hon.flatMap((t) => tenken(String(t)).map((h) => `${h['言葉']}（${t}）`));
     if (h2.length) throw new Error(`絵の中の本物の文に、避ける言葉があります：${h2.join('／')}`);
   }
+  writeFileSync(path.join(SAGYOU, 'basho_dump.json'), JSON.stringify(kukan.map((k) => ({ id: k.id, na: k.na, f0: k.f0, fLen: k.fLen, bun: k.bun.map((b) => ({ koe: b.koe, f: b.f, jimaku: b.jimaku, t0: b.t0, d: b.d, kaname: b.kaname, kakera: b.kakera, kt: b.kt })), e: k.e.map((x) => ({ f: x.f, owari: x.owari, id: createHash('md5').update(JSON.stringify(x.pic)).digest('hex').slice(0, 8), na: x.pic.na || (x.pic.g ? x.pic.g.name : ''), fuda: x.notes.fuda, kukan: x.notes.kukan })), basho: k.basho })), null, 1));
   const zenByou = fAll / FPS;
   if (zenByou > NAGASA_MAX) throw new Error(`動画が ${zenByou.toFixed(1)} 秒で 3:00 を超えます。落とす文は先生が決めます（台本 §2 の順：${OTOSU_JUN}）`);
   const specs = kukan.flatMap((k) => k.koma.map((x) => x.spec));
