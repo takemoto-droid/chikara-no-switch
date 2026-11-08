@@ -232,5 +232,8 @@ button.chiisai { padding: 6px 12px; font-size: .9rem; min-height: 0; }
 .hm-cell.hm-ooi { border-color: #F2A33A; background: #FFF4E2; }
 .hm-dashi { font-weight: 700; grid-row: span 2; white-space: nowrap; }
 @media (max-width: 560px) { .hm-cell { grid-template-columns: 1fr; } .hm-dashi { grid-row: auto; } }
-.hm-tama { letter-spacing: .08em; font-size: 1.15rem; color: #2F6F8F; white-space: nowrap; line-height: 1.5; }
+.hm-tama { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; font-size: 1.15rem; color: #2F6F8F; line-height: 1.5; }
+.hm-tama > span:first-child { letter-spacing: .08em; white-space: nowrap; }
 .hm-rei { margin: 4px 0 0; }
+.hm-kazu { font-size: .8rem; letter-spacing: 0; color: var(--ink); white-space: nowrap; }
+.hm-cell { min-width: 0; }

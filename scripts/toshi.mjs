@@ -369,7 +369,8 @@ try {
     if (id === 'デモ4') {
       tashika(/レベル：しっかり/.test(c) && /聞いてスイッチ（しっかり）/.test(t), `${id}：3日で同じ向きのカードは、いちばん上のレベル`);
       tashika(KITAI[id].test(c) && /別々の日にした3日分のゲームのすべてで、くり返し/.test(await zentai()), `${id}：くり返し出た候補のカードで、回の数が事実で書いてある`);
-      tashika(/別々の日のゲーム 3日のうち 3日で、「聞く」ときのほうが多く合っていました/.test(t), `${id}：先生の画面の上に、別々の日にくり返し出た結果が平易な文で出る`);
+      // 43便：上は ●○ と短い言葉（先生 11/8 16:53「説明が多い。パッとみて分かる程度に」）。平易な文は「くわしく」の中
+      tashika(/別々の日にくり返し「聞く」が多い/.test(t) && /別々の日のゲーム 3日のうち 3日で、「聞く」ときのほうが多く合っていました/.test(zT), `${id}：先生の画面の上に、別々の日にくり返し出た結果が短い言葉で出る（平易な文は「くわしく」の中）`);
     } else {
       tashika(KITAI[id].test(c) && /この日のゲームでは/.test(await zentai()) && /力が 出せ(るかも|そう|る)/.test(c), `${id}：カードが結果に合い、「この日の」結果だと分かる`);
       tashika(!/別々の日のゲーム \d+日のうち/.test(t), `${id}：別々の日にくり返し出た結果にならない`);
@@ -448,7 +449,8 @@ try {
   await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(tid)}`);
   await page.waitForSelector('#kasetsu .label');
   const tTaiken = await mieru('体験_先生の画面');
-  const kekka3 = ['読む／聞く', '文で見る／図で見る', '一気に／区切って'].map((m) => new RegExp(`${m}：[^\\n]*問中 \\d+問`).test(tTaiken));
+  // 43便：上は比べた組ごとに ●○ と「何問中 何問」
+  const kekka3 = ['読む／聞く', '文で見る／図で見る', '一気に／区切って'].map((m) => new RegExp(`${m}[^]*?問中 \\d+問`).test(tTaiken));
   tashika(/仮の結果です/.test(tTaiken) && kekka3.every(Boolean), '短い体験：「仮の結果」と分かる言葉つきで、3つの比べそれぞれに事実（何問中何問）が出る');
   tashika(/見本/.test(tTaiken) && (await page.locator(`#kasetsu a[href="#/sensei/ko/${encodeURIComponent('デモ1')}"]`).count()) === 1, '短い体験：Claude の見本（架空の子の保存した文）と、保存した結果へのリンクがある');
   tashika(!/回ごとの結果/.test(await zentai()), '短い体験：回ごとの結果の表は出さない');

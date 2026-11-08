@@ -406,7 +406,7 @@ function hitomeHtml(kai, rec) {
   return ['A', 'B', 'C'].map((kind) => {
     const m = matome(rec, kind);
     const x = kai.length ? matomeKai(kai, kind) : null;
-    const tama = (n) => `<span class="hm-tama" role="img" aria-label="${m.kazu}問中${n}問">${'●'.repeat(n)}${'○'.repeat(Math.max(0, m.kazu - n))}</span>`;
+    const tama = (n) => `<span class="hm-tama"><span aria-hidden="true">${'●'.repeat(n)}${'○'.repeat(Math.max(0, m.kazu - n))}</span> <span class="hm-kazu">${m.kazu}問中 ${n}問</span></span>`;
     const cell = (d) => `<div class="hm-cell${m.kekka === d || x?.kurikaeshi === d ? ' hm-ooi' : ''}"><span class="hm-dashi">${esc(MIJIKA[d])}</span>${m[d].length ? m[d].map(tama).join('') : '<span class="muted">まだ</span>'}</div>`;
     const [m1, m2] = m.kumi;
     const kotoba = x?.kurikaeshi ? `別々の日にくり返し「${MIJIKA[x.kurikaeshi]}」が多い` : m.kekka === 'mada' ? (m[m1].length || m[m2].length ? 'まだ比べていない' : 'まだ解いていない') : m.kekka === 'nashi' ? '同じくらい' : `「${MIJIKA[m.kekka]}」が2回とも多い`;
@@ -578,8 +578,8 @@ async function senseiKo(id) {
         <ul class="small">${k.konkyo.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         ${k.wake ? `<p class="muted small">${esc(k.wake)}</p>` : ''}
         <p class="small">${esc(k.sankou)}。${k.dare === 'claude' ? 'AI の下書き' : '決まった文の下書き'}なので、そのまま使わず、授業での様子と合わせて先生が判断してください。</p>
-        ${oboeHtml(k)}
       </details>
+      ${oboeHtml(k)}
       <div class="btns"><button class="sub" id="again">もう一度書いてもらう</button></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
   };
