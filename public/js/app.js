@@ -577,14 +577,14 @@ async function senseiKo(id) {
       <p>${whoLabel(k.dare)}<span class="label sankou">${esc(k.sankou)}</span></p>
       <p><span class="label">仮説</span><span class="kasetsu">${esc(k.kasetsu)}</span></p>
       <p>${esc(k.tsugi)}</p>
-      <p><span class="label">確かめた回数</span>${esc(kakuninBun(k.kakunin))}</p>
       <details class="kuwashiku"><summary>くわしく：そう考えた理由（事実）</summary>
+        <p class="small"><span class="label">確かめた回数</span>${esc(kakuninBun(k.kakunin))}</p>
         <ul class="small">${k.konkyo.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         ${k.wake ? `<p class="muted small">${esc(k.wake)}</p>` : ''}
         ${kufuuNoRei(cards.カード?.[k.card])}
         <p class="small">${esc(k.sankou)}。${k.dare === 'claude' ? 'AI の下書き' : '決まった文の下書き'}なので、そのまま使わず、授業での様子と合わせて先生が判断してください。</p>
+        ${oboeHtml(k)}
       </details>
-      ${oboeHtml(k)}
       <div class="btns"><button class="sub" id="again">もう一度書いてもらう</button></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
   };
@@ -657,17 +657,14 @@ async function tsutae(id) {
       <h2>懇談で口で言う下書き</h2>
       <textarea id="kondan" aria-label="懇談で口で言う下書き">${esc(t.kondan)}</textarea>
       <h2>カードの保護者向け説明（${esc(imaNoNamae(cardsData, t.cardMei))}）</h2>
-      <p class="muted small">求められたときに渡すための文です。</p>
       <textarea id="hogosha" aria-label="カードの保護者向け説明">${esc(t.hogosha)}</textarea>
       <h2>学年・教科の先生への一言</h2>
-      <p class="muted small">同じ学年や、ほかの教科の先生に伝えるための短い文です。</p>
       <textarea id="hitokoto" aria-label="学年・教科の先生への一言">${esc(t.hitokoto || '')}</textarea>
       <h2>HR の冒頭で先生が話すこと</h2>
-      <p class="muted small">ゲームの前に、クラス全体に口で話すための下書きです。この子の結果は入れていません。</p>
       <textarea id="hr" aria-label="HR の冒頭で先生が話すこと">${esc(t.hr || '')}</textarea>
       <div class="btns"><button id="tenken">言葉を確かめる</button><button class="sub" id="again">もう一度書いてもらう</button></div>
       <div id="tenken-kekka" aria-live="polite"></div>
-      <p class="muted small">Claude の文は、使わないと決めた言葉が入っていないかを、機械で確かめてから出しています。先生が書きかえたら「言葉を確かめる」で、もう一度確かめられます。決めるのは先生です。</p>
+      <p class="muted small">書きかえたら「言葉を確かめる」で確かめられます。決めるのは先生です。</p>
       <div class="btns"><a class="btn sub" href="#/sensei/ko/${enc(id)}">先生の画面へもどる</a></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
     box.querySelector('#tenken').onclick = async () => {
