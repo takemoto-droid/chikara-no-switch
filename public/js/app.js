@@ -136,7 +136,9 @@ async function annai(who) {
   const tani = (await data('gakko')).単位;
   app.innerHTML = `
     <h1>${esc(a.題)}</h1>
-    ${a.段.map((d) => `<h2>${esc(d.見出し)}</h2><p>${esc(setteiWoIreru(d.文, settei, tani))}</p>`).join('')}
+    ${a.段.map((d, i) => (i === 0 || d.見出し === 'AI について'
+      ? `<h2>${esc(d.見出し)}</h2><p>${esc(setteiWoIreru(d.文, settei, tani))}</p>`
+      : `<details class="kuwashiku annai-dan"><summary>${esc(d.見出し)}</summary><p>${esc(setteiWoIreru(d.文, settei, tani))}</p></details>`)).join('')}
     ${soudanHtml(who === 'otona')}
     <div class="btns">
       ${who === 'otona'
@@ -624,11 +626,15 @@ async function check() {
     <h1>チェック項目</h1>
     <p>期末や懇談の前に、授業で見た事実に当てはまる子を、項目ごとに選びます。</p>
     <div class="box chui small">点数にしません。基準を作りません。数も数えません。当てはまったことは「気づきの候補」として、その子の先生の画面に残るだけです。</div>
-    <div id="items">${mieruKoumoku(checklist).map((it, i, arr) => `
-      ${it.まとまり && it.まとまり !== arr[i - 1]?.まとまり ? `<h2>${esc(it.まとまり)}</h2>` : ''}
+    <div id="items">${(() => {
+      // 44便：先生 11/8「絶対に必要なもの以外は畳もう」→ まとまりごとに畳む（見出しに項目の数）
+      const gun = [];
+      for (const it of mieruKoumoku(checklist)) { const m = it.まとまり || ''; if (!gun.length || gun[gun.length - 1].m !== m) gun.push({ m, items: [] }); gun[gun.length - 1].items.push(it); }
+      return gun.map((g) => `<details class="kuwashiku check-gun"><summary>${esc(g.m || '項目')}（${g.items.length}項目）</summary>${g.items.map((it) => `
       <div class="check-item"><div>${esc(it.文)}</div>
         <div class="chips">${kids.map((k) => `<button class="chip" data-item="${it.id}" data-kid="${esc(k.id)}" aria-pressed="${(marks[it.id] || []).includes(k.id)}">${esc(k.名前 || k.id)}</button>`).join('')}</div>
-      </div>`).join('')}</div>
+      </div>`).join('')}</details>`).join('');
+    })()}</div>
     <p class="muted small">名前はすべて架空です。</p>
     <div class="btns"><a class="btn sub" href="#/sensei">先生の画面へもどる</a></div>`;
   app.querySelectorAll('.chip').forEach((b) => {
@@ -765,12 +771,11 @@ async function mikurabe(id, mode, i) {
     <h1>「文で見る／図で見る」の問題を見比べる（文の版と図の版）</h1>
     <p>ゲームでは、1つの場面を、文だけ（文で見る）か図だけ（図で見る）のどちらかで出します。ここでは両方を並べます。答えは<strong>太字</strong>です。</p>
     <p class="muted small">下書き（先生未確認）。「子どもの画面で見る」で、ゲームと同じ見た目で開けます（押しても記録は残りません）。</p>
-    ${ichiran.map(([k, q]) => `<section class="box mikurabe">
-      <h2>${esc(k)}　${esc(q.題)}（${esc(dan[q.段階])}）</h2>
+    ${ichiran.map(([k, q]) => `<details class="box mikurabe"><summary><strong>${esc(k)}　${esc(q.題)}（${esc(dan[q.段階])}）</strong></summary>
       <div class="mikurabe-ni"><div><h3>文の版</h3><div class="honbun">${esc(q.文)}</div></div><div><h3>図の版</h3><div class="box">${bamenZu(q.図)}</div></div></div>
       <ol>${q.問い.map((t, n) => `<li>${esc(t.文)}<br>${t.選択肢.map((c, m) => (m === t.答え ? `<strong>${esc(c)}</strong>` : esc(c))).join('　')}
         <br><span class="small"><a href="#/mikurabe/${enc(k)}/bun/${n}">子どもの画面で見る（文）</a>　<a href="#/mikurabe/${enc(k)}/zu/${n}">子どもの画面で見る（図）</a></span></li>`).join('')}</ol>
-    </section>`).join('')}
+    </details>`).join('')}
     <div class="btns"><a class="btn sub" href="#/sensei">先生の画面へ戻る</a></div>`;
 }
 

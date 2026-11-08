@@ -48,7 +48,7 @@ async function mieru(name) {
   // 40便：はじめの画面のほかは、どの画面の下にも「はじめの画面へもどる」がある
   if (!/^#?\/?$/.test(new URL(page.url()).hash.replace(/^#\/?$/, '')) && !(await page.locator('.modoru-top a').isVisible())) kiroku.まちがい.push(`${name}：画面の下に「はじめの画面へもどる」が無い`);
   // 44便：「確かめた回数」と保存した文の印は、仮説の「くわしく」（閉じた中）に移したので、閉じた中の文も読む
-  const text = await page.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details')].map((d) => d.textContent), ...[...document.querySelectorAll('textarea')].map((t) => t.value)].join('\n'));
+  const text = await page.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan')].map((d) => d.textContent), ...[...document.querySelectorAll('textarea')].map((t) => t.value)].join('\n'));
   const lines = text.split('\n').filter((s) => s.trim());
   kiroku.画面++;
   kiroku.点検した文の数 += lines.length;
@@ -262,7 +262,7 @@ try {
 
   // ④' チェック項目：この子を1つ選ぶ
   await page.goto(`${BASE}#/check`);
-  await page.waitForSelector('.chip');
+  await page.waitForSelector('.chip', { state: 'attached' }); await page.evaluate(() => document.querySelectorAll('#items details').forEach((d) => { d.open = true; }));
   await mieru('チェック項目');
   await page.locator(`.chip[data-item="c04"][data-kid="${kidId}"]`).click();
   await page.goto(`${BASE}#/sensei/ko/${encodeURIComponent(kidId)}`);
@@ -434,7 +434,7 @@ try {
   await page.waitForSelector('.annai-ichibun');
   tashika(!/\d+\s*分/.test(await mieru('子どもの案内_設定を変えたあと')), '子ども向けの案内には、時間を言い切る文が無い');
   await page.goto(`${BASE}#/check`);
-  await page.waitForSelector('.chip');
+  await page.waitForSelector('.chip', { state: 'attached' }); await page.evaluate(() => document.querySelectorAll('#items details').forEach((d) => { d.open = true; }));
   tashika((await page.locator('.chip[data-kid^="大人"]').count()) === 0, 'Should：大人の記録は、クラスのチェック項目に出ない');
 
   // 37便：審査員向けの短い体験。「仮の結果」と分かる言葉つきで、3つの比べそれぞれに事実（何問中何問）が出る。
@@ -550,7 +550,7 @@ try {
         await route.fulfill({ json: j });
       });
     }
-    const hiraku = async (hash, sel) => { await p2.goto(`${BASE}${hash}`); await p2.waitForSelector(sel, { timeout: 60000 }); await p2.waitForTimeout(150); return p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details')].map((d) => d.textContent)].join('\n')); };
+    const hiraku = async (hash, sel) => { await p2.goto(`${BASE}${hash}`); await p2.waitForSelector(sel, { timeout: 60000 }); await p2.waitForTimeout(150); return p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan')].map((d) => d.textContent)].join('\n')); };
     const HOZON = /2026-11-08 に書いた下書き（保存したもの）/;
     const hozon = JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文;
     // 11便 N2・N5：デモの子8人は、開いただけでは呼ばない（保存した本物の文と、その印が出る）
@@ -570,7 +570,7 @@ try {
     await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
     await p2.click('#kasetsu #again');
     await p2.waitForSelector('#kasetsu .kasetsu');
-    t = await p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details')].map((d) => d.textContent)].join('\n'));
+    t = await p2.evaluate(() => [document.body.innerText, ...[...document.querySelectorAll('#kasetsu details, #keikaku details, #tsutae details, details.annai-dan')].map((d) => d.textContent)].join('\n'));
     tashika(kazu.kasetsu === 1 && /この文は、この端末に残しています/.test(t) && /\d+月\d+日に書いた/.test(t), 'N5・M2：「もう一度書いてもらう」を押すと呼び、書いた日と「端末に覚えています」が出る');
     await hiraku('#/anzen', 'h1');
     t = await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
@@ -578,7 +578,7 @@ try {
     tashika(JSON.parse(readFileSync(path.join(ROOT, 'public/data/demo_claude.json'), 'utf8')).文.デモ1.kasetsu.kasetsu === hozon.デモ1.kasetsu.kasetsu, 'N2：保存した文のファイルは書きかわらない');
     // チェック項目が変わったら、保存した文は使わず、呼び直す
     await p2.goto(`${BASE}#/check`);
-    await p2.waitForSelector('.chip');
+    await p2.waitForSelector('.chip', { state: 'attached' }); await p2.evaluate(() => document.querySelectorAll('#items details').forEach((d) => { d.open = true; }));
     await p2.locator('.chip[data-kid="デモ1"]').first().click();
     await p2.waitForTimeout(150);
     await hiraku(`#/sensei/ko/${D1}`, '#kasetsu .kasetsu');
@@ -684,11 +684,11 @@ try {
   // PC の幅（1280px）でも、先生の画面・チェック項目・伝え方が崩れない
   page = await browser.newPage({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 });
   await page.goto(`${BASE}#/mikurabe`);
-  await page.waitForSelector('.mikurabe');
+  await page.waitForSelector('.mikurabe'); await page.evaluate(() => document.querySelectorAll('details.mikurabe').forEach((d) => { d.open = true; }));
   const tMi = await mieru('PC_文と図を見比べる');
   tashika((await page.locator('.mikurabe').count()) === 8 && (await page.locator('.mikurabe .bamen-zu').count()) === 8 && /文の版/.test(tMi) && /図の版/.test(tMi), '先生の画面：棚 B の8題の、文の版と図の版を並べて見比べられる');
   page.on('pageerror', (e) => kiroku.まちがい.push(String(e)));
-  for (const [mei, hash, sel] of [['PC_先生の画面_デモ4', '#/sensei/ko/デモ4', '#kasetsu .kasetsu'], ['PC_先生の画面_デモ1', '#/sensei/ko/デモ1', '#kasetsu .kasetsu'], ['PC_チェック項目', '#/check', '.chip'], ['PC_伝え方_デモ4', '#/tsutae/デモ4', '#kondan'], ['PC_カード_デモ6', '#/card/デモ6', '.switch-card']]) {
+  for (const [mei, hash, sel] of [['PC_先生の画面_デモ4', '#/sensei/ko/デモ4', '#kasetsu .kasetsu'], ['PC_先生の画面_デモ1', '#/sensei/ko/デモ1', '#kasetsu .kasetsu'], ['PC_チェック項目', '#/check', '#items summary'], ['PC_伝え方_デモ4', '#/tsutae/デモ4', '#kondan'], ['PC_カード_デモ6', '#/card/デモ6', '.switch-card']]) {
     await page.goto(`${BASE}${hash.replace(/デモ(\d)/, (m) => encodeURIComponent(m))}`);
     await page.waitForSelector(sel, { timeout: 60000 });
     await mieru(mei);
