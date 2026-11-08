@@ -347,9 +347,11 @@ async function keikakuWoKaku() {
     <p>${whoLabel(r.dare)}<span class="label sankou">${esc(r.sankou)}</span></p>
     ${r.wake ? `<p class="muted small">${esc(r.wake)}</p>` : ''}
     <p>${esc(r.zentai)}</p>
+    <details class="kuwashiku"><summary>くわしく：子ごとの計画（${r.ko.length}人）</summary>
     <ul>${r.ko.map((x) => `<li><strong>${esc(yobina[x.label] || x.label)}</strong>：${esc(x.bun)}</li>`).join('')}</ul>
     ${oboeHtml(r)}
     <p class="muted small">Claude に送ったのは、仮の番号（子1・子2…）と、したこと（HR のゲーム・また見つけるの回数）・カード・練習の段・練習した日の数・学校の設定だけです。計画は下書きです。決めるのは先生です。</p>
+    </details>
     <div class="btns"><button class="sub" id="keikaku-again">もう一度書いてもらう</button></div>`;
     box.querySelector('#keikaku-again').onclick = () => yobidasu(true);
   };
@@ -411,7 +413,7 @@ function hitomeHtml(kai, rec) {
     const [m1, m2] = m.kumi;
     const kotoba = x?.kurikaeshi ? `別々の日にくり返し「${MIJIKA[x.kurikaeshi]}」が多い` : m.kekka === 'mada' ? (m[m1].length || m[m2].length ? 'まだ比べていない' : 'まだ解いていない') : m.kekka === 'nashi' ? '同じくらい' : `「${MIJIKA[m.kekka]}」が2回とも多い`;
     return `<div class="hm-row"><div class="hm-mei">${esc(TANA_MEI[kind])}<span class="hm-kotoba">${esc(kotoba)}</span></div><div class="hm-cells">${cell(m1)}${cell(m2)}</div></div>`;
-  }).join('') + '<p class="muted small hm-rei">●＝合った問題の数、○＝合わなかった数（1回目・2回目。練習の問題は入れていません）</p>';
+  }).join('') + '<p class="muted small hm-rei">● 合った　○ 合わなかった</p>';
 }
 // 段階の名前（先生の画面だけ。子どもの画面には出さない）
 let dankaiMei = null;
@@ -491,7 +493,7 @@ async function senseiKo(id) {
     <h1>${esc(namae)}${isDemo(id) ? '（架空の子）' : ''}</h1>
     ${taiken ? '<div class="box chui"><p><strong>仮の結果です。</strong>短い体験（6つの問題だけ）の結果で、本物の測定ではありません。1回だけなので、どの出し方がよいかは、まだ決められません。</p></div>' : ''}
     ${saishin.owari ? '' : `<div class="box chui">${esc(saishin.kai)}回目のゲームの途中です。<a href="#/game/${enc(id)}">続きから始める</a></div>`}
-    <p class="muted small">終わったゲーム：${kai.length}回${kai.length ? `（${kai.map((r) => `${r.kai}回目 ${esc(r.hi || '日付なし')}`).join('・')}）` : ''}</p>
+    <p class="muted small">終わったゲーム：${kai.length}回</p>
 
     <div class="narabi">
       <section class="box soft">
@@ -652,8 +654,6 @@ async function tsutae(id) {
   const draw = (t) => {
     box.innerHTML = `
       <p>${whoLabel(t.dare)}<span class="label sankou">${esc(t.sankou)}</span></p>
-      ${oboeHtml(t)}
-      ${t.wake ? `<p class="muted small">${esc(t.wake)}</p>` : ''}
       <h2>懇談で口で言う下書き</h2>
       <textarea id="kondan" aria-label="懇談で口で言う下書き">${esc(t.kondan)}</textarea>
       <h2>カードの保護者向け説明（${esc(imaNoNamae(cardsData, t.cardMei))}）</h2>
@@ -664,6 +664,7 @@ async function tsutae(id) {
       <textarea id="hr" aria-label="HR の冒頭で先生が話すこと">${esc(t.hr || '')}</textarea>
       <div class="btns"><button id="tenken">言葉を確かめる</button><button class="sub" id="again">もう一度書いてもらう</button></div>
       <div id="tenken-kekka" aria-live="polite"></div>
+      ${oboeHtml(t) || t.wake ? `<details class="kuwashiku"><summary>くわしく</summary>${oboeHtml(t)}${t.wake ? `<p class="muted small">${esc(t.wake)}</p>` : ''}</details>` : ''}
       <p class="muted small">書きかえたら「言葉を確かめる」で確かめられます。決めるのは先生です。</p>
       <div class="btns"><a class="btn sub" href="#/sensei/ko/${enc(id)}">先生の画面へもどる</a></div>`;
     box.querySelector('#again').onclick = () => yobidasu(true);
