@@ -1,5 +1,5 @@
 // 読み上げ
-// 2便から：課題文と問いは、前もって作った音声（public/onsei/・Open JTalk の声「Mei」）を使う。
+// 2便から：課題文と問いは、前もって作った音声（public/onsei/）を使う。44便から声は VOICEVOX:No.7（読み聞かせ）。
 //   どの端末でも同じ声になるので、比べた結果に端末の声の違いが混ざらない。
 // 前もって作った音声が無い文だけ、ブラウザの読み上げを使う。どの声で読んだかを記録に残す。
 
@@ -10,7 +10,7 @@ const shiken = (() => {
   } catch { return false; }
 })();
 
-export const MAE_NO_KOE = '前もって作った音声（Open JTalk・声 Mei）';
+export const MAE_NO_KOE = '前もって作った音声（VOICEVOX:No.7）';
 let voice = null;
 let taiou = {};
 let junbi = null;
