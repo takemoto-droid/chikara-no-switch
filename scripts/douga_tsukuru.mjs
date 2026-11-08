@@ -1006,7 +1006,7 @@ const KYOU_X_NAKA = (W - KW) / 2; // 教室だけを中央に
 const sekiNoBasho = (x0, y0, r, c) => ({ x: x0 + (c - 1) * (SEKI.w + SEKI.gx), y: y0 + (r - 1) * (SEKI.h + SEKI.gy) });
 const sekiRect = (x, y, lit, w = SEKI.w, h = SEKI.h, rx = 10) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="${lit ? ORANGE : '#FFFFFF'}" stroke="${lit ? ORANGE : IRO.sen}" stroke-width="2"/>`;
 const kokuban = (x0, y0) => `<rect x="${x0 + (KW - KOKU.w) / 2}" y="${y0 - KOKU.aida - KOKU.h}" width="${KOKU.w}" height="${KOKU.h}" rx="5" fill="${IRO.label}"/>`;
-function kyoushitsu({ x0, y0 = KYOU_Y0, tomoru = 0, cards = 0, migi = false }) {
+function kyoushitsu({ x0, y0 = KYOU_Y0, tomoru = 0, cards = 0, migi = false, cardIro = IRO.ao }) {
   const lit = NANA.slice(0, tomoru).map(([r, c]) => `${r}-${c}`);
   const parts = [kokuban(x0, y0)];
   let n = 0;
@@ -1016,7 +1016,7 @@ function kyoushitsu({ x0, y0 = KYOU_Y0, tomoru = 0, cards = 0, migi = false }) {
     // 31便：結のカードは席いっぱい 112×68・上に 8px の帯 #2F6F8F・線 1.5px #55606B
     if (n < cards) {
       const cx = x + (SEKI.w - 112) / 2, cy = y + (SEKI.h - 68) / 2;
-      parts.push(`<rect x="${cx}" y="${cy}" width="112" height="68" rx="6" fill="#FFFFFF" stroke="${IRO.label}" stroke-width="1.5"/><path d="M${cx + 0.75} ${cy + 6.75}a6 6 0 0 1 6-6h98.5a6 6 0 0 1 6 6v2h-110.5z" fill="${IRO.ao}"/>`);
+      parts.push(`<rect x="${cx}" y="${cy}" width="112" height="68" rx="6" fill="${cardIro === IRO.ao ? '#FFFFFF' : cardIro}" stroke="${cardIro === IRO.ao ? IRO.label : cardIro}" stroke-width="1.5"/><path d="M${cx + 0.75} ${cy + 6.75}a6 6 0 0 1 6-6h98.5a6 6 0 0 1 6 6v2h-110.5z" fill="${cardIro === IRO.ao ? IRO.ao : '#FFFFFF'}" fill-opacity="${cardIro === IRO.ao ? 1 : 0.55}"/>`);
     }
     n++;
   }
@@ -1420,7 +1420,8 @@ function eNoNarabi(G) {
     ],
     ketsu: [
       { s: 0, pic: S(kyoushitsu({ x0: KYOU_X_NAKA })) },
-      { s: 0, at: '生徒全員の学びに寄り添える。', seq: Array.from({ length: 36 }, (_, i) => [S(kyoushitsu({ x0: KYOU_X_NAKA, cards: i })), i < 35 ? 0.05 : 0]) },
+      // 42便（先生 15:48「B で」）：カードを置き始める所を「10分ほどのすき間時間で」に早め、カードを橙に（承の「クラス全員に」の灯り方とそろえる）
+      { s: 0, at: '10分ほどのすき間時間で、', seq: Array.from({ length: 36 }, (_, i) => [S(kyoushitsu({ x0: KYOU_X_NAKA, cards: i, cardIro: ORANGE })), i < 35 ? 0.05 : 0]) },
       { s: 1, fuda: KO, pic: zen('card_d1_card') },
     ],
     saigo: [{ s: null, pic: saigo }],

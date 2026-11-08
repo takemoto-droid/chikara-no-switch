@@ -29,3 +29,8 @@ desktop.ini
 # 動画を作る作業場（mp4・画面写し・声。24便）
 .douga/
 .onsei-env/
+
+# 41便：先生の声の作業ファイル（Git に入れない）
+docs/制作41便/koe_wo_wakeru/moto.wav
+docs/制作41便/koe_wo_wakeru/koe/
+docs/制作41便/koe_wo_wakeru/kiru_kekka.json
